@@ -1,0 +1,66 @@
+Input:
+  A pongo as Cayley-table
+  Circle
+  A list of necklaces, 
+    each necklace has:
+    
+  A list of edges in the form of a half-edge-type list with a pairing
+    each half-edge-type has:
+
+  A pubcrawl as a string in the letters "E", "F" and "L" (for "F" inverse)
+
+plus
+
+  either "INIT" to create the initial layer
+  or a list of partial coset tables (PCTs)
+
+Output:
+  A list of partial coset tables still to be looked at
+  A list of partial coset tables which are failures
+  A mu and epsilon-value
+
+  If both lists are empty, the search was successful.
+
+A PCT has:
+
+  A Pubcrawl and a starting position in it.
+  A list of rows (even length), where each row has:
+    An ID               (row number)
+    the E-image         (always filled in)
+    the F-image         (can be -1 for empty)
+    the F^-1-image      (can be -1 for empty)
+    the half-edge-type  (always filled in, index in input list)
+
+Axiom for the search:
+  Entries that are not filled in will never be filled in with a number
+  in the current list of rows but only with numbers of newly created
+  rows.
+
+"INIT"-case:
+
+  produce all PCTs with two rows and empty "F" and "L" columns
+  in which the depot values are at least -circle/3
+
+"RUN"-case:
+
+  for each PCT p do
+    check every partial F-cycle for overrun and
+          every full F-cycle for completeness
+      --> fail p if anything found
+    check every partial V-cycle to compute lower bound of valency
+    check every full V-cycle for exact valency
+      --> fail p if valency 1 or 2 found
+    trace pubcrawl as far as possible, 3 possible outcomes:
+      boozer dies: --> fail p
+      boozer returns to start: --> report p as a failure
+      boozer gets stuck without dieing:
+        in this case we need to disjoin new cases:
+          we always add exactly two new rows, which are E-images of each other
+          the new edge makes the pubcrawl go one step further
+          we try all possible edges for which the boozer does not die
+          for the three unclear entries we try (independently) all
+            possibilities of "empty" and all previous values, such that:
+              ...
+            --> report all emerging PCTs as PCTs to be worked on
+
+  keep track of mu and epsilon
