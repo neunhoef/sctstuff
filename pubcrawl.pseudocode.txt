@@ -3,9 +3,15 @@ Input:
   Circle
   A list of necklaces, 
     each necklace has:
+      primitive word length
+      power
     
   A list of edges in the form of a half-edge-type list with a pairing
     each half-edge-type has:
+      necklace ID
+      start pos (mod primitive length)
+      len (< primitive length * power)
+      depot value (usually negative)
 
   A pubcrawl as a string in the letters "E", "F" and "L" (for "F" inverse)
 
@@ -45,14 +51,15 @@ Axiom for the search:
 
   for each PCT p do
     check every partial F-cycle for overrun and
-          every full F-cycle for completeness
+          every full F-cycle for completeness or underrun
       --> fail p if anything found
-    check every partial V-cycle to compute lower bound of valency
+    check every partial V-cycle to compute lower bound of valency (>= 3)
     check every full V-cycle for exact valency
       --> fail p if valency 1 or 2 found
     trace pubcrawl as far as possible, 3 possible outcomes:
+        (using current valency estimates)
       boozer dies: --> fail p
-      boozer returns to start: --> report p as a failure
+      boozer returns to start without dieing: --> report p as a failure
       boozer gets stuck without dieing:
         in this case we need to disjoin new cases:
           we always add exactly two new rows, which are E-images of each other
@@ -60,7 +67,9 @@ Axiom for the search:
           we try all possible edges for which the boozer does not die
           for the three unclear entries we try (independently) all
             possibilities of "empty" and all previous values, such that:
-              ...
+              whenever row x has F-value y then row y has L-value x
+              (this means, we can only fill in a value y in a new row,
+               if the opposite value in y is still -1)
             --> report all emerging PCTs as PCTs to be worked on
 
   keep track of mu and epsilon
