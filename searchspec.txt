@@ -1,0 +1,27 @@
+When we add two new rows x and y to a PCT:
+
+We assume that the rows of the PCT are 0..x-1
+
+We assume that 
+  x = dF
+
+(symmetrical case x = dL similarly)
+
+Let
+  u := xF
+  w := yF
+  v := yL
+
+for all possible ET(x), ET(y) such that ET(x) follows ET(d) in a necklace:
+  for u in {-1} \cap {i \in [0..x-1] | i \neq d, iL = -1 }:
+    make sure that if u \neq -1 then ET(u) follows ET(x) in a necklace
+    if u \neq -1 then assign uL := x
+    for w in {-1} \cap {k \in [0..x-1] | kL = -1}
+      make sure that if w \neq -1 then ET(w) follows ET(y) in a necklace
+      if w \neq -1 then assign wL := y
+      if u=y then v = yL = x
+      else for v in {-1} \cap { j \in [0..x-1] | jF = -1 }
+        make sure that if v \neq -1 then ET(v) precedes ET(y) in a necklace
+        if v \neq -1 then assign vF := y
+          spit out a new node
+
