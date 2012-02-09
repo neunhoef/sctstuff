@@ -1,0 +1,36 @@
+
+
+Installation instructions :
+
+I installed GHC via the Haskell Platform :
+	http://hackage.haskell.org/platform/
+I'll play with the newer version here soonish because it supports -fllvm
+for shared libraries, which the platform distribution won't support till May.
+	http://www.haskell.org/ghc/download_ghc_7_4_1#binaries
+I found the platform version installed the library package manager cabal
+quite cleanly though.
+
+Install the graphviz package with the command :
+	cabal install graphviz
+I donno if this requires that you have the real graphviz installed, but
+possibly. You can disable graphviz by commenting out the import PCTGraph
+line and the tree and graph functions in navigator.hs.  Or you can ask me
+to write a version that outputs to a file instead of X11.  I'll simply
+change the runGraphvizCanvas command to a runGraphviz command.
+
+Unpack the git bundle using :
+	git clone pubcrawl.bundle -b master pubcrawl
+
+Compile all the modules except navigator itself using the command :
+	ghc -O2 navigator.hs
+It'll complain about nagivator.hs not possessing any main, which doesn't
+bother us.  If you skip this step it'll still run, but all modules will
+load interpreted, making it extremely slow. 
+
+Instead, we'll run the navigator.hs interpreted via the command :
+	ghci navigator.hs
+
+I wouldn't view navigator.hs as the real interface, it's just some silly
+simple debug wrappers, which also loads all the real modules into the ghci's
+namespace. 
+

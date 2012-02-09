@@ -1,0 +1,104 @@
+
+I would've preferred making navigator's commands more natural, but ghci
+won't let you change the monad used for interaction and implicit parameters
+don't work well interactive.  And I didn't feel like using Haskell's various
+global variables packages, so you must type an n after every command to pass
+it the current context as an IORef.
+
+Initialization Commands :
+
+nf <- loadNecklaceFileZ3 "park/kkk"
+
+Read Richard's neckfile park/kkk assigning the IORef nf in ghci's IO monad.
+
+
+n <- init_pubcrawl nf "FEF"
+
+Initialize a CrawlExtends object for a particular pubcrawl assigning the
+IORef n, which also tracks nf.  Btw, navigator only handles one rotation of
+the pubcrawl at a time because probably we're trying to debug the process.
+You cannot use V or U here, only F, L, and E.  You cannot use D to control
+when it drinks yet.  Sailors always drink, even ones who understand maps. 
+
+
+Local Commands :
+
+stats n
+
+Report statistics on the current position.
+- FAILs are partial coset tables that prove the pubcrawl fails.
+- WINs are when the boozer dies, they report (mu,epsilon) maximized over all
+  available WINs, which won't be all WINs for this command, use finnish at
+  the top level for that.
+- MOARs are the partial coset tables for which the boozer has requested a new
+  pub be built.
+
+
+ls n
+
+List expanded partial coset tables, called MOARs.
+
+
+graph n <index>
+
+Graph a particular expanded partial coset table
+Btw, the graphs produced by graphviz aren't necessarily terribly
+representative of the partial coset tables we draw on boards.
+
+
+go n <index>
+
+Switch n to represent a expanded partial coset table, effects all commands.
+
+
+up n
+
+Go back to the parent undoing a go, probably crashes if you use it too much.
+Use init_pubcrawl to go to the top.
+
+
+All Descendent Commands :
+
+counts n
+
+Count how many expansions descend from the current configuration.
+
+
+finish n
+
+Compute the final stats after running through child layers below the current
+configuration until some FAILs are encountered.
+
+
+failures n
+
+Display the FAILs that'll eventually be encountered
+
+
+tree n
+
+Graph all child layers numering nodes like ls would, well hopefully.
+I'm afraid this gets rather crowded early on, but it still help you navigate
+towards more interesting configurations.
+
+
+You could of course run any command from any module directly from the prompt
+as well, but you'll need to read the source to figure them out.  I should
+warn you that partial coset tables are stored in a data structure called
+Depots which is the plural of a Depot, which maybe isn't the best name.
+You must use the commands showDepots or showDepot to view them because they
+contain pointers to EdgeTypes which contain pointers to other EdgeTypes,
+thus making them infinite data structures that ghci will happily print
+forever.  There are readDepot and readDepots commands that one may use for
+deserializing these command's output, but they require the edgetypes array,
+which one accesses as (edgetypes nf).
+
+
+There are various theoretical optimizations in the code that might or might 
+not actually improve performance, but I'll spend some quality time the ghc's
+profiling tools one day soon.  There are some that seemingly nuke interpreted
+performance even though I believe they'll improve compiled performance.
+And there is an awful lot of cleanup and code refactoring that must happen. 
+I might try using implicit parameters again, but that didn't play nicely
+with ghci before.
+

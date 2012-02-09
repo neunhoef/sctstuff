@@ -1,0 +1,16 @@
+
+
+Varuable Abbreviations :
+   n.? is a necklace
+   e.? is an edgetype  
+   d.? is a depot
+   p.? is a permutation or pongo element
+   pct is a partial coset table (Depots)
+   b.? is a boolean
+   i.? and j.* are indices or very local
+   f.? is a local function
+   a,b,c,u,v,w,x,y,z are local values
+   l.? is either a length or a list 
+   .*s is usually a list of whatever .* indicates
+
+
