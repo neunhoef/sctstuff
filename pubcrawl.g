@@ -58,7 +58,7 @@ CreateHalfEdgeTypeIndex := function(s)
       het := s.hetypes[i];
       Add(index[het.necklace][het.start+1],i);
       endpos := (het.start+het.len) mod s.necklaces[het.necklace].primlen;
-      Add(indexr[het.necklace][endpos+1]);
+      Add(indexr[het.necklace][endpos+1],i);
   od;
   s.index := index;
   s.indexr := indexr;
@@ -230,7 +230,7 @@ CheckFCycles := function(s,node)
   for i in [1..n] do
       if not(visited[i]) then
           visited[i] := true;
-          heti := s.hets[pct[i].het];
+          heti := s.hetypes[pct[i].hetype];
           len := heti.len;
           j := i;
           cyclecomplete := false;
@@ -239,7 +239,7 @@ CheckFCycles := function(s,node)
           while pct[j].F <> -1 do
               j := pct[j].F;
               visited[j] := true;
-              hetj := s.hets[pct[j].het];
+              hetj := s.hetypes[pct[j].hetype];
               Assert(1,neckid = hetj.necklace,Error("Bla 1"));
               Assert(1,(heti.start + heti.len) mod neckl.primlen =
                        hetj.start,Error("Bla 2"));
@@ -261,7 +261,7 @@ CheckFCycles := function(s,node)
               while pct[j].L <> -1 do
                   j := pct[j].L;
                   visited[j] := true;
-                  hetj := s.hets[pct[j].het];
+                  hetj := s.hetypes[pct[j].hetype];
                   Assert(1,neckid = hetj.necklace,Error("Bla 3"));
                   Assert(1,heti.start =
                            (hetj.start + hetj.len) mod neckl.primlen,
@@ -291,7 +291,7 @@ CheckVCycles := function(s,node)
       if not(visited[i]) then
           visited[i] := true;
           valencybound[i] := [fail];
-          heti := s.hets[pct[i].het];
+          heti := s.hetypes[pct[i].hetype];
           p := heti.pongoelm;
           val := 1;
           j := i;
@@ -302,7 +302,7 @@ CheckVCycles := function(s,node)
               visited[j] := true;
               valencybound[j] := valencybound[i];
               val := val + 1;
-              hetj := s.hets[pct[j].het];
+              hetj := s.hetypes[pct[j].hetype];
               p := PongoMult(s.pongo,p,hetj.pongoelm);
               if IsZero(s.pongo,p) then
                   Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
@@ -330,7 +330,7 @@ CheckVCycles := function(s,node)
                   visited[j] := true;
                   valencybound[j] := valencybound[i];
                   val := val + 1;
-                  hetj := s.hets[pct[j].het];
+                  hetj := s.hetypes[pct[j].hetype];
                   p := PongoMult(s.pongo,hetj.pongoelm,p);
                   if IsZero(s.pongo,p) then
                       Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
@@ -348,9 +348,10 @@ CheckVCycles := function(s,node)
 end;
 
 ExtendCrawlByF := function(s,node,d,descendants,failures)
-  local het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,newpct,pct,
-        pos,rowx,rowy,u,ulist,v,vlist,w,wlist;
+  local countdesc,het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,
+        newpct,pct,pos,rowx,rowy,u,ulist,v,vlist,w,wlist;
 
+  countdesc := 0;
   pct := node.pct;
   n := Length(pct);
   hetd := s.hetypes[pct[d].hetype];
@@ -396,7 +397,7 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
               fi;
             fi;
             rowx := PCTRow(n+1,n+2,u,n,hetxid);
-            rowy := PCTRow(n+2,n+1,w,v,hety.id);
+            rowy := PCTRow(n+2,n+1,w,v,hetx.complement);
             newpct := EmptyPlist(n+2);
             Append(newpct,pct);
             Add(newpct,rowx);
@@ -413,18 +414,21 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
               newpct[v] := ShallowCopy(newpct[v]);
               newpct[v].F := n+2;   # which is y
             fi;
-            Add(descendants, newpct);
+            Add(descendants, CrawlNode(node.crawl,node.start,newpct));
+            countdesc := countdesc + 1;
           od;
         od;
       fi;
     od;
-  od;      
+  od;
+  return countdesc;
 end;
 
 ExtendCrawlByL := function(s,node,d,descendants,failures)
-  local het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,newpct,
-        pct,rowx,rowy,u,ulist,v,vlist,w,wlist;
+  local countdesc,het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,
+        newpct,pct,rowx,rowy,u,ulist,v,vlist,w,wlist;
 
+  countdesc := 0;
   pct := node.pct;
   n := Length(pct);
   hetd := s.hetypes[pct[d].hetype];
@@ -469,7 +473,7 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
               fi;
             fi;
             rowx := PCTRow(n+1,n+2,n,u,hetxid);
-            rowy := PCTRow(n+2,n+1,w,v,hety.id);
+            rowy := PCTRow(n+2,n+1,w,v,hetx.complement);
             newpct := EmptyPlist(n+2);
             Append(newpct,pct);
             Add(newpct,rowx);
@@ -486,12 +490,14 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
               newpct[v] := ShallowCopy(newpct[v]);
               newpct[v].F := n+2;   # which is y
             fi;
-            Add(descendants, newpct);
+            Add(descendants, CrawlNode(node.crawl,node.start,newpct));
+            countdesc := countdesc + 1;
           od;
         od;
       fi;
     od;
-  od;      
+  od;
+  return countdesc;
 end;
 
 InstallMethod( DoCrawl, "default method",
@@ -500,7 +506,7 @@ InstallMethod( DoCrawl, "default method",
     local crawl,curv,d,hetd,pct,pos,valencybound;
 
     # Check (partial) F-cycles  --> could reject
-    if CheckFCycles(s,node) then return 0; fi;
+    if CheckFCycles(s,node) = fail then return 0; fi;
 
     # Check (partial) V-cycles  --> could reject
     #   --> this gives lower bounds for the valencies
@@ -517,7 +523,7 @@ InstallMethod( DoCrawl, "default method",
     pct := node.pct;
     curv := 0;            # here we collect the curvature that has been drunken
     while true do   # is left by return statement in all cases
-        hetd := s.hets[pct[d].het];
+        hetd := s.hetypes[pct[d].hetype];
         curv := curv + hetd.depot + s.circle / valencybound[d][1];
         if curv < 0 then
             Info(InfoCrawl,2,"REJECT: boozer dies");
