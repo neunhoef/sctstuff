@@ -1,3 +1,6 @@
+DeclareInfoClass("InfoCrawl");
+SetInfoLevel(InfoCrawl,2);
+
 BindGlobal("PongosFamily",NewFamily("PongosFamily"));
 DeclareCategory("IsPongo", IsObject);
 DeclareRepresentation("IsCayleyPongo", IsPongo and IsPositionalObjectRep,[]);
@@ -15,10 +18,6 @@ DeclareOperation("CayleyPongo",[IsList, IsPosInt]);
 Necklace := function(id, primlen, power, name)
   return rec( id := id, primlen := primlen, power := power, name := name );
 end;
-NLId      := r -> r.id;
-NLPrimLen := r -> r.primlen;
-NLPower   := r -> r.power;
-NLName    := r -> r.name;
 IsNecklace := IsRecord;
 
 # Half edge types:
@@ -26,28 +25,17 @@ HalfEdgeType := function(necklace, start, len, complement, depot, pongoelm)
   return rec(necklace := necklace, start := start, len := len, 
              complement := complement, depot := depot, pongoelm := pongoelm);
 end;
-HENecklace   := r -> r.necklace;
-HEStart      := r -> r.start;
-HELen        := r -> r.len;
-HEComplement := r -> r.complement;
-HEDepot      := r -> r.depot;
-HEPongoElm   := r -> r.pongoelm;
 IsHalfEdgeType := IsRecord;
 
 # Rows of partical coset tables:
 PCTRow := function(id,E,F,L,het)
-  return rec( IdxI := id, IdxE := E, IdxF := F, IdxL := L, HEType := het );
+  return rec( id := id, E := E, F := F, L := L, hetype := het );
 end;
-IdxI := r -> r.IdxI;
-IdxE := r -> r.IdxE;
-IdxF := r -> r.IdxF;
-IdxL := r -> r.IdxL;
-HEType := r -> r.HEType;
 IsPCTRow := IsRecord;
 IsPCT := IsList;
 
-# a partial coset table is just a list of these where the IdxI entry is
-# the position in the list. The HEType entry is a position in the list
+# a partial coset table is just a list of these where the id entry is
+# the position in the list. The hetype entry is a position in the list
 # of half edge types.
 
 # The following describes a pubcrawl search node:
@@ -55,9 +43,6 @@ IsPCT := IsList;
 CrawlNode := function(crawl, start, pct)
   return rec( crawl := crawl, start := start, pct := pct );
 end;
-Crawl := r -> r.crawl;
-Start := r -> r.start;
-PCT :=   r -> r.pct;
 IsCrawlNode := IsRecord;
 
 # The following describes a pubcrawl search:
@@ -75,11 +60,6 @@ InstallMethod(CrawlSearch, "default method",
     return rec( pongo := pongo, circle := circle, necklaces := necklaces,
                 hetypes := hetypes, crawl := crawl );
   end);
-CrPongo     := r -> r.pongo;
-CrCircle    := r -> r.circle;
-CrNecklaces := r -> r.necklaces;
-CrHETypes   := r -> r.hetypes;
-CrCrawl     := r -> r.crawl;
 IsCrawlSearch := IsRecord;
 
 
@@ -192,14 +172,13 @@ InstallMethod( ShowPCT, "default method", [IsList], ViewObj );
 InstallMethod( DoCrawlLayer0, "default method",
   [ IsCrawlSearch ],
   function( s )
-    local a,b,het,hets,i,j,nodes;
+    local a,b,het,i,j,nodes;
     nodes := [];
-    hets := CrHETypes(s);
-    for i in [1..Length(hets)] do
-        het := hets[i];
-        if HEDepot(het) + CrCircle(s)/3 >= 0 then
+    for i in [1..Length(s.hetypes)] do
+        het := s.hetypes[i];
+        if het.depot + s.circle/3 >= 0 then
             a := PCTRow(1,2,-1,-1,i);
-            b := PCTRow(2,1,-1,-1,HEComplement(het));
+            b := PCTRow(2,1,-1,-1,het.complement);
             for j in [1..Length(s.crawl)] do
                 Add(nodes,CrawlNode(s.crawl,j,[a,b]));
             od;
@@ -224,11 +203,197 @@ InstallMethod( DoCrawl, "default method",
   [ IsCrawlSearch, IsCrawlNode, IsList, IsList ],
   function( s, node, descendants, failures )
     # Check (partial) F-cycles  --> could reject
+    local crawl,curv,cyclecomplete,het,heti,hetj,i,j,len,n,neckid,neckl,newpct,p,pct,pos,rowx,rowy,u,ulist,v,val,valencybound,visited,vlist,w,wlist,x,y;
+    pct := node.pct;
+    n := Length(pct);
+    visited := BlistList([1..n],[]);
+    for i in [1..n] do
+        if not(visited[i]) then
+            visited[i] := true;
+            heti := s.hets[pct[i].het];
+            len := heti.len;
+            j := i;
+            cyclecomplete := false;
+            neckid := heti.necklace;
+            neckl  := s.necklaces[neckid];
+            while pct[j].F <> -1 do
+                j := pct[j].F;
+                visited[j] := true;
+                hetj := s.hets[pct[j].het];
+                Assert(1,neckid = hetj.necklace,Error("Bla 1"));
+                Assert(1,(heti.start + heti.len) mod neckl.primlen =
+                         hetj.start,Error("Bla 2"));
+                len := len + hetj.len;
+                if j = i then
+                    cyclecomplete := true;
+                    if len <> neckl.primlen * neckl.power then
+                        Info(InfoCrawl,2,"REJECT: Complete F-cycle has wrong ",
+                                         "total length");
+                        return 0;
+                    fi;
+                    break;
+                fi;
+            od;
+            if not(cyclecomplete) then
+                # Now go in the L direction with the same check, we know
+                # here that the F-cycle is incomplete!
+                j := i;
+                while pct[j].L <> -1 do
+                    j := pct[j].L;
+                    visited[j] := true;
+                    hetj := s.hets[pct[j].het];
+                    Assert(1,neckid = hetj.necklace,Error("Bla 3"));
+                    Assert(1,heti.start =
+                             (hetj.start + hetj.len) mod neckl.primlen,
+                             Error("Bla 4"));
+                    len := len + hetj.len;
+                od;
+                # Now check the total length:
+                if len >= neckl.primlen * neckl.power then
+                    Info(InfoCrawl,2,"REJECT: Partial F-cycle has overrun");
+                    return 0;
+                fi;
+            fi;
+        fi;
+    od;
+
     # Check (partial) V-cycles  --> could reject
     #   --> this gives lower bounds for the valencies
+    visited := BlistList([1..n],[]);
+    valencybound := EmptyPlist(n);
+    for i in [1..n] do
+        if not(visited[i]) then
+            visited[i] := true;
+            valencybound[i] := [fail];
+            heti := s.hets[pct[i].het];
+            p := heti.pongoelm;
+            val := 1;
+            j := i;
+            cyclecomplete := false;
+            # EFV=1 and FL=1=LF thus V=LE and V^-1=EF
+            while pct[j].L <> -1 do
+                j := pct[pct[j].L].E;
+                visited[j] := true;
+                valencybound[j] := valencybound[i];
+                val := val + 1;
+                hetj := s.hets[pct[j].het];
+                p := PongoMult(s.pongo,p,hetj.pongoelm);
+                if IsZero(s.pongo,p) then
+                    Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
+                    return 0;
+                fi;
+                if j = i then
+                    cyclecomplete := true;
+                    # Note that we have overcounted the valency by 1 here!
+                    val := val - 1;
+                    if val < 3 then
+                        Info(InfoCrawl,2,"REJECT: complete vertex of valency ",
+                                         val);
+                        return 0;
+                    fi;
+                    valencybound[i][1] := val;  # this is exact
+                    break;
+                fi;
+            od;
+            if not(cyclecomplete) then
+                # Now go in the V^-1 direction with the same check, we know
+                # here that the V-cycle is incomplete!
+                j := i;
+                while pct[pct[j].E].F <> -1 do
+                    j := pct[pct[j].E].F;
+                    visited[j] := true;
+                    valencybound[j] := valencybound[i];
+                    val := val + 1;
+                    hetj := s.hets[pct[j].het];
+                    p := PongoMult(s.pongo,hetj.pongoelm,p);
+                    if IsZero(s.pongo,p) then
+                        Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
+                        return 0;
+                    fi;
+                od;
+                # Now set the valency bound:
+                valencybound[i][1] := val + 1;
+                # because at least one more point is needed to close the
+                # V-cycle
+            fi;
+        fi;
+    od;
+
     # Trace pubcrawl, can do:
     #     die because of negativity
     #     find failure (if pubcrawl returns non-negatively)
     #     disjoin cases to make descendants
+    i := 1;   # Starting point of the pubcrawl
+    pos := node.start;
+    crawl := node.crawl;
+    curv := 0;
+    while true do   # is left by return statement in all cases
+        heti := s.hets[pct[i].het];
+        curv := curv + heti.depot + s.circle / valencybound[i][1];
+        if curv < 0 then
+            Info(InfoCrawl,2,"REJECT: boozer dies");
+            return 0;
+        fi;
+        if crawl[pos] = 'E' then
+            i := pct[i].E;   # always defined
+        elif crawl[pos] = 'F' then
+            # Look up all successor half edge types of heti
+            for het in hets do
+              x := n+1;
+              y := n+2;
+              ulist := [0..n]; ulist[1] := -1;
+              for u in ulist do
+                if u <> i then
+                  if u <> -1 then
+                    if pct[u].L <> -1 then continue; fi;
+                    # Check necklace adjacency, if not OK continue
+                  fi;
+                  wlist := [0..n]; wlist[1] := -1;
+                  for w in wlist do
+                    if w <> -1 then
+                      if w = u or pct[w].L <> -1 then continue; fi;
+                      # Check necklace adj, if not OK continue
+                    fi;
+                    vlist := [0..n]; vlist[1] := -1;
+                    for v in vlist do
+                      if v <> -1 then
+                        if pct[v].F <> -1 then continue; fi;
+                        # Check necklace adj, if not OK continue;
+                      fi;
+                      rowx := PCTRow(x,y,u,n,het.id);
+                      rowy := PCTRow(y,x,w,v,het.complement.id);
+                      newpct := ShallowCopy(pct);
+                      Add(newpct,rowx);
+                      Add(newpct,rowy);
+                      if u <> -1 then
+                        newpct[u] := ShallowCopy(newpct[u]);
+                        newpct[u].L := x;
+                      fi;
+                      if w <> -1 then
+                        newpct[w] := ShallowCopy(newpct[w]);
+                        newpct[w].L := y;
+                      fi;
+                      if v <> -1 then
+                        newpct[v] := ShallowCopy(newpct[v]);
+                        newpct[v].F := y;
+                      fi;
+                      Add(descendants, newpct);
+                    od;
+                  od;
+                fi;
+              od;
+            od;      
+        elif crawl[pos] = 'L' then
+
+        fi;
+        pos := pos + 1;
+        if pos > Length(crawl) then pos := 1; fi;
+        if i = 1 and pos = node.start then
+            # boozer returned and still lives!
+            Info(InfoCrawl,2,"FAILURE: boozer returned");
+            Add(failures,node);
+            return fail;
+        fi;
+    od;
   end );
 
