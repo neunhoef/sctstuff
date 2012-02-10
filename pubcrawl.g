@@ -46,17 +46,22 @@ end;
 IsCrawlNode := IsRecord;
 
 CreateHalfEdgeTypeIndex := function(s)
-  local het,i,index,n;
+  local endpos,het,i,index,indexr,n;
   n := Length(s.necklaces);
   index := EmptyPlist(n);
+  indexr := EmptyPlist(n);
   for i in [1..n] do
       index[i] := List([0..s.necklaces[i].primlen-1],j->[]);
+      indexr[i] := List([0..s.necklaces[i].primlen-1],j->[]);
   od;
   for i in [1..Length(s.hetypes)] do
       het := s.hetypes[i];
       Add(index[het.necklace][het.start+1],i);
+      endpos := (het.start+het.len) mod s.necklaces[het.necklace].primlen;
+      Add(indexr[het.necklace][endpos+1]);
   od;
   s.index := index;
+  s.indexr := indexr;
 end;
 
 # The following describes a pubcrawl search:
