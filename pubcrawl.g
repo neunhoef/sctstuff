@@ -92,10 +92,10 @@ DeclareOperation("DoCrawlLayer0", [IsCrawlSearch]);
 DeclareOperation("DoCrawl",[IsCrawlSearch, IsCrawlNode, IsList, IsList]);
   # --> the descendants of one node (the record) are added to the
   #     list in the 3rd argument, if the node is a completed pubcrawl
-  #     it is added to the 4th argument. It returns either fail
-  #     for a failure or the number of descendants.
+  #     it is added to the 4th argument. It returns a record
+  #     with components nradded, descendants and failures
 
-DeclareOperation("DoCrawls",[IsCrawlSearch, IsList, IsList, IsList]);
+DeclareOperation("DoCrawl",[IsCrawlSearch, IsList]);
   # --> run the above on multiple search nodes
 
 
@@ -209,13 +209,16 @@ InstallMethod( DoCrawlLayer0, "default method",
     return nodes;
   end );
 
-InstallMethod( DoCrawls, "default method",
-  [ IsCrawlSearch, IsList, IsList, IsList ],
-  function( s, nodes, descendants, failures )
-    local n;
+InstallMethod( DoCrawl, "default method",
+  [ IsCrawlSearch, IsList ],
+  function( s, nodes )
+    local n, descendants, failures, res;
+    descendants := [];
+    failures := [];
     for n in nodes do
-      DoCrawl(s, n, descendants, failures);
+        DoCrawl(s, n, descendants, failures);
     od;
+    return rec( descendants := descendants, failures := failures );
   end );
 
 # Here comes the real thing, compute the descendants of one node
@@ -243,7 +246,6 @@ CheckFCycles := function(s,node)
               Assert(1,neckid = hetj.necklace,Error("Bla 1"));
               Assert(1,(heti.start + heti.len) mod neckl.primlen =
                        hetj.start,Error("Bla 2"));
-              len := len + hetj.len;
               if j = i then
                   cyclecomplete := true;
                   if len <> neckl.primlen * neckl.power then
@@ -253,6 +255,7 @@ CheckFCycles := function(s,node)
                   fi;
                   break;
               fi;
+              len := len + hetj.len;
           od;
           if not(cyclecomplete) then
               # Now go in the L direction with the same check, we know
@@ -303,11 +306,6 @@ CheckVCycles := function(s,node)
               valencybound[j] := valencybound[i];
               val := val + 1;
               hetj := s.hetypes[pct[j].hetype];
-              p := PongoMult(s.pongo,p,hetj.pongoelm);
-              if IsZero(s.pongo,p) then
-                  Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
-                  return fail;
-              fi;
               if j = i then
                   cyclecomplete := true;
                   # Note that we have overcounted the valency by 1 here!
@@ -319,6 +317,11 @@ CheckVCycles := function(s,node)
                   fi;
                   valencybound[i][1] := val;  # this is exact
                   break;
+              fi;
+              p := PongoMult(s.pongo,p,hetj.pongoelm);
+              if IsZero(s.pongo,p) then
+                  Info(InfoCrawl,2,"REJECT: Pongo rejects vertex");
+                  return fail;
               fi;
           od;
           if not(cyclecomplete) then
@@ -389,19 +392,22 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
           vlist := [0..n]; vlist[1] := -1;
           for v in vlist do
             if v <> -1 then
-              if pct[v].F <> -1 then continue; fi;
+              if pct[v].F <> -1 or v = d then continue; fi;
+              # note that x=dF, so d=xL so v as an L-image cannot be d
               het := s.hetypes[pct[v].hetype];
               if het.necklace <> hety.necklace or
                  hety.start <> (het.start+het.len) mod neckly.primlen then
                   continue;
               fi;
             fi;
-            rowx := PCTRow(n+1,n+2,u,n,hetxid);
+            rowx := PCTRow(n+1,n+2,u,d,hetxid);
             rowy := PCTRow(n+2,n+1,w,v,hetx.complement);
             newpct := EmptyPlist(n+2);
             Append(newpct,pct);
             Add(newpct,rowx);
             Add(newpct,rowy);
+            newpct[d] := ShallowCopy(newpct[d]);
+            newpct[d].F := n+1;
             if u <> -1 then
               newpct[u] := ShallowCopy(newpct[u]);
               newpct[u].L := n+1;   # which is x
@@ -414,6 +420,18 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
               newpct[v] := ShallowCopy(newpct[v]);
               newpct[v].F := n+2;   # which is y
             fi;
+            guck := Filtered(List(newpct,x->x.F),x->x<>-1);
+            Assert(1,IsDuplicateFreeList(guck));
+            guck := Filtered(List(newpct,x->x.L),x->x<>-1);
+            Assert(1,IsDuplicateFreeList(guck));
+            for guck in [1..n+2] do
+                if newpct[guck].F <> -1 then
+                    Assert(1,newpct[newpct[guck].F].L = guck);
+                fi;
+                if newpct[guck].L <> -1 then
+                    Assert(1,newpct[newpct[guck].L].F = guck);
+                fi;
+            od;
             Add(descendants, CrawlNode(node.crawl,node.start,newpct));
             countdesc := countdesc + 1;
           od;
@@ -421,7 +439,9 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
       fi;
     od;
   od;
-  return countdesc;
+  Info(InfoCrawl,1,"Found ",countdesc," new descendants.");
+  return rec(added := countdesc, descendants := descendants,
+             failures := failures);
 end;
 
 ExtendCrawlByL := function(s,node,d,descendants,failures)
@@ -472,12 +492,14 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
                   continue;
               fi;
             fi;
-            rowx := PCTRow(n+1,n+2,n,u,hetxid);
+            rowx := PCTRow(n+1,n+2,d,u,hetxid);
             rowy := PCTRow(n+2,n+1,w,v,hetx.complement);
             newpct := EmptyPlist(n+2);
             Append(newpct,pct);
             Add(newpct,rowx);
             Add(newpct,rowy);
+            newpct[d] := ShallowCopy(newpct[d]);
+            newpct[d].L := n+1;
             if u <> -1 then
               newpct[u] := ShallowCopy(newpct[u]);
               newpct[u].F := n+1;   # which is x
@@ -490,6 +512,18 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
               newpct[v] := ShallowCopy(newpct[v]);
               newpct[v].F := n+2;   # which is y
             fi;
+            guck := Filtered(List(newpct,x->x.F),x->x<>-1);
+            Assert(1,IsDuplicateFreeList(guck));
+            guck := Filtered(List(newpct,x->x.L),x->x<>-1);
+            Assert(1,IsDuplicateFreeList(guck));
+            for guck in [1..n+2] do
+                if newpct[guck].F <> -1 then
+                    Assert(1,newpct[newpct[guck].F].L = guck);
+                fi;
+                if newpct[guck].L <> -1 then
+                    Assert(1,newpct[newpct[guck].L].F = guck);
+                fi;
+            od;
             Add(descendants, CrawlNode(node.crawl,node.start,newpct));
             countdesc := countdesc + 1;
           od;
@@ -497,7 +531,9 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
       fi;
     od;
   od;
-  return countdesc;
+  Info(InfoCrawl,1,"Found ",countdesc," new descendants.");
+  return rec(added := countdesc, descendants := descendants,
+             failures := failures);
 end;
 
 InstallMethod( DoCrawl, "default method",
@@ -506,12 +542,18 @@ InstallMethod( DoCrawl, "default method",
     local crawl,curv,d,hetd,pct,pos,valencybound;
 
     # Check (partial) F-cycles  --> could reject
-    if CheckFCycles(s,node) = fail then return 0; fi;
+    if CheckFCycles(s,node) = fail then 
+        return rec(added := 0, addedf := 0, descendants := descendants,
+                   failures := failures); 
+    fi;
 
     # Check (partial) V-cycles  --> could reject
     #   --> this gives lower bounds for the valencies
     valencybound := CheckVCycles(s,node);
-    if valencybound = fail then return 0; fi;
+    if valencybound = fail then
+        return rec(added := 0, descendants := descendants,
+                   failures := failures); 
+    fi;
 
     # Trace pubcrawl, can do:
     #     die because of negativity
@@ -527,7 +569,8 @@ InstallMethod( DoCrawl, "default method",
         curv := curv + hetd.depot + s.circle / valencybound[d][1];
         if curv < 0 then
             Info(InfoCrawl,2,"REJECT: boozer dies");
-            return 0;
+            return rec(added := 0, descendants := descendants,
+                       failures := failures); 
         fi;
         if crawl[pos] = 'E' then
             d := pct[d].E;   # always defined
@@ -548,9 +591,11 @@ InstallMethod( DoCrawl, "default method",
         if pos > Length(crawl) then pos := 1; fi;
         if d = 1 and pos = node.start then
             # boozer returned and still lives!
-            Info(InfoCrawl,2,"FAILURE: boozer returned");
+            Info(InfoCrawl,2,"FAILURE: boozer returned with curvature ",curv);
+            node.curvature := curv;
             Add(failures,node);
-            return fail;
+            return rec(added := 0, descendants := descendants,
+                       failures := failures); 
         fi;
     od;
   end );
