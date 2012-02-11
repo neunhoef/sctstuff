@@ -352,7 +352,7 @@ end;
 
 ExtendCrawlByF := function(s,node,d,descendants,failures)
   local countdesc,het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,
-        newpct,pct,pos,rowx,rowy,u,ulist,v,vlist,w,wlist;
+        newpct,pct,pos,rowx,rowy,u,ulist,v,vlist,w,wlist,guck;
 
   countdesc := 0;
   pct := node.pct;
@@ -446,7 +446,7 @@ end;
 
 ExtendCrawlByL := function(s,node,d,descendants,failures)
   local countdesc,het,hetd,hetids,hetx,hetxid,hety,n,neckid,neckl,neckly,
-        newpct,pct,rowx,rowy,u,ulist,v,vlist,w,wlist;
+        newpct,pct,rowx,rowy,u,ulist,v,vlist,w,wlist,guck;
 
   countdesc := 0;
   pct := node.pct;
