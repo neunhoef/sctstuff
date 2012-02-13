@@ -10,6 +10,7 @@ import Data.IORef
 
 import Control.Monad
 import Control.Exception
+import Control.Concurrent
 
 import Toolbox
 import Pongo
@@ -38,33 +39,27 @@ tree n
 
  - --------------------- -}
 
-data NeckFile pongo_t = NeckFile {
-        circle :: !Int,
-        necklaces :: !Necklaces,
-        edgetypes :: EdgeTypes pongo_t
-    }
-
 
 {- Initialization -}
 
 loadNecklaceFileZ3 :: FilePath -> IO (IORef (NeckFile Z3Pongo))
 loadNecklaceFileZ3 fn = do
-        (c, n, e) <- readNecklaceFileZ3 fn
-        newIORef $ NeckFile { circle = c, necklaces = n, edgetypes = e }
+        nf <- readNecklaceFileZ3 fn
+        newIORef nf
 
 type Navigation p = (NeckFile p,[CrawlExtend p])
 
-init_pubcrawl :: (Pongo p) => IORef (NeckFile p) ->
+init_pubcrawl :: (Pongo p,Show p) => IORef (NeckFile p) ->
                String -> IO (IORef (Navigation p))
 init_pubcrawl neckfile crawl = do
         nf <- readIORef neckfile
-        let ce = init_crawl_extend (circle nf) (edgetypes nf) crawl
+        let ce = init_crawl_extend (nf_circle nf) (nf_edgetypes nf) crawl
         newIORef (nf,[ce])
 
 
 {- Local -}
 
-stats :: (Pongo p) => IORef (Navigation p) -> IO ()
+stats :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 stats n = do
         (_,nav) <- readIORef n
         let (f,w,m) = head nav 
@@ -76,35 +71,51 @@ stats n = do
 
 catLines = concat . map (++ "\n")
 
-ls :: (Pongo p) => IORef (Navigation p) -> IO ()
+ls :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 ls n = do
         (_,nav) <- readIORef n
         let (f,w,m) = head nav 
         putStr $ catLines $ zipWith (\i s -> show i ++ " - " ++ s) [0..]
             $ map showCrawlDepots m
 
-failing :: (Pongo p) => IORef (Navigation p) -> IO ()
+failing :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 failing n = do
         (_,nav) <- readIORef n
         let (f,w,m) = head nav 
         putStr $ catLines $ zipWith (\i s -> show i ++ " - " ++ s) [0..]
             $ map showCrawlDepots f
 
-up :: (Pongo p) => IORef (Navigation p) -> IO ()
+stage n = do
+        (nf,nav) <- readIORef n
+        let l = length nav
+        putStr $ "stage: " ++ show l ++ ".\n"
+        let (_,_,m) = head nav
+        let pct = snd $ m !! 0
+        putStrLn $ showDepots (Vec.take (l-2) pct)
+
+up :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 up n = do 
         (nf,nav) <- readIORef n
-        writeIORef n (nf, tail nav)
+        let x = tail nav
+        if null x then putStr "stage 0.\n" else writeIORef n (nf,x)
+        -- stage n
 
-go :: (Pongo p) => IORef (Navigation p) -> Int -> IO ()
+top :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
+top n = do 
+        (nf,nav) <- readIORef n
+        writeIORef n (nf, [last nav])
+        stage n
+
+go :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ()
 go n i = do
         (nf,nav) <- readIORef n
         let (_,_,m) = head nav 
         let crpct = m !! i
         putStrLn $ "Go : " ++ showDepots (snd crpct)
-        let ce = do_crawl_extend (circle nf) (edgetypes nf) [crpct]
+        let ce = do_crawl_extend (nf_circle nf) (nf_edgetypes nf) [crpct]
         writeIORef n (nf, ce:nav)
 
-graph :: (Pongo p) => IORef (Navigation p) -> Int -> IO ()
+graph :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ()
 graph n i = do
         (nf,nav) <- readIORef n
         let (_,_,m) = head nav 
@@ -114,31 +125,33 @@ graph n i = do
 
 {- Final -}
 
-counts :: (Pongo p) => IORef (Navigation p) -> IO [Int]
+counts :: (Pongo p,Show p) => IORef (Navigation p) -> IO [Int]
 counts n = do
         (nf,nav) <- readIORef n
-        let ces = iterate_crawl_extend (circle nf) (edgetypes nf) (head nav)
+        let ces = iterate_crawl_extend (nf_circle nf) (nf_edgetypes nf) (head nav)
         return $ map (\(a,b,c) -> length c) ces
 
-finish :: (Pongo p) => IORef (Navigation p) -> IO ()
+finish :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 finish n = do
         (nf,nav) <- readIORef n
-        let ces = iterate_crawl_extend (circle nf) (edgetypes nf) (head nav)
+        let ces = iterate_crawl_extend (nf_circle nf) (nf_edgetypes nf) (head nav)
         let (f,w,m) = last ces
         putStr $ "FAILs = " ++ show (length f) ++ ".  "
         putStr $ "WINs = " ++ show w ++ ".\n"        
 
-failures :: (Pongo p) => IORef (Navigation p) -> IO ()
+failures :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 failures n = do
         (_,nav) <- readIORef n
         (nf,nav) <- readIORef n
-        let ces = iterate_crawl_extend (circle nf) (edgetypes nf) (head nav)
+        let ces = iterate_crawl_extend (nf_circle nf) (nf_edgetypes nf) (head nav)
         let (f,w,m) = last ces
         putStr $ catLines $ map showCrawlDepots f
 
-tree :: (Pongo p) => IORef (Navigation p) -> IO ()
-tree n = do
+tree :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ThreadId
+tree n k = do
         (nf,nav) <- readIORef n
-        crawl_extend_tree (circle nf) (edgetypes nf) (length nav - 1) ("", head nav)
+        t <- forkIO $ 
+          crawl_extend_tree (nf_circle nf) (nf_edgetypes nf) k ("", head nav)
+        return t
 
 

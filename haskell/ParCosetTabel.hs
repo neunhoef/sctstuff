@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -XStandaloneDeriving -XTypeSynonymInstances -XFlexibleInstances -XBangPatterns #-}
 
 module ParCosetTabel where 
 
 import Data.List
 import Data.Maybe
-
+import qualified Data.Bits as Bits
 import qualified Data.Vector as Vec
 import Data.Vector ((!), (!?), (//))
 
@@ -21,7 +22,7 @@ import Debug.Trace
 data DepotE edge_type_t = Depot {
        edge_type :: edge_type_t,
        idxI, idxE, idxF, idxL :: !Int
-    } deriving (Show, Read)
+    } 
 instance Eq (DepotE t) where
   (==) a b = idxI a == idxI b
 
@@ -31,17 +32,46 @@ type Depots pongo_t = Vec.Vector (Depot pongo_t)
 type DepotsF pongo_t = Int -> Maybe (Depot pongo_t)
 
 
+{- Read Partial Coset Tables -}
+
+type DepotIO = DepotE Int
+
+wrapDepot :: EdgeTypes p -> DepotIO -> Depot p
+wrapDepot edgetypes d = d { edge_type = edgetypes ! edge_type d }
+
+wrapDepots :: EdgeTypes p -> [DepotIO] -> Depots p
+wrapDepots et = Vec.fromList . map (wrapDepot et)
+
+readDepot et = wrapDepot et . read 
+readDepots et = wrapDepots et . read 
+
+deriving instance Read t => Read (DepotE t)
+
+
+{- Show Partial Coset Tables -}
+
+unwrapDepot :: Depot p -> DepotIO
+unwrapDepot d = d { edge_type = edgetype_id $ edge_type d }
+
+unwrapDepots = map unwrapDepot . Vec.toList
+
+showDepot = show . unwrapDepot
+showDepots = show . unwrapDepots
+
+instance Show (DepotE (EdgeType p)) where
+  show = show . unwrapDepot
+
+deriving instance Show (DepotIO)
+
+
 {- Initialize Depots -}
 
 {- We note that pub crawls always starts at zero. -}
 
 init_depot e i j = Depot { edge_type = e, idxI = i, idxE = j, idxF = -1, idxL = -1 } 
 
-init_depots e = let {
-        f = complement e ;
-        one = [init_depot e 0 0] ;
-        two = [init_depot e 0 1, init_depot f 1 0]
-   } in Vec.fromList $ if f == e then one else two
+init_depots e = Vec.fromList [init_depot e 0 1, init_depot f 1 0]
+  where f = complement e 
 
 initialize_depots :: EdgeTypes p -> [Depots p]
 initialize_depots edgetypes = map f [0..len-1]
@@ -80,9 +110,11 @@ perm_forbid :: Eq t => t -> (t -> Maybe t) -> (t -> Maybe t)
 perm_forbid x p = q
   where q i = if i == x then Nothing else p i
 
-scan_partial_perms :: (Eq t) => [t -> Maybe t] -> t -> [t]
+scan_partial_perms :: (Eq t,Show t) => [t -> Maybe t] -> t -> [t]
 scan_partial_perms ps d0 = map fromJust . takeWhile (/= Nothing) $
         scanl (>>=) (Just d0) ps
+-- ass = and $ map (<3) $ scanl (+) 0 $ map fromNegated $ zipWith notElem l (inits l)
+-- Implement frequency counter : http://snippets.dzone.com/posts/show/4263
 
 {- We use right action here because lists are presented left to right.   -}
 {- scanl (>>=) z0 l == [ z0, z1@ z0 >>= (l!!0), z2@ z1 >>= (l!!1), ... ] -}
@@ -97,22 +129,38 @@ scan_partial_perms ps d0 = map fromJust . takeWhile (/= Nothing) $
 -- http://www.haskell.org/haskellwiki/Foldl_as_foldr 
 -- http://hackage.haskell.org/packages/archive/base/latest/doc/html/Prelude.html#v:scanl
 
-cycle_partial_perms :: Eq t => [t -> Maybe t] -> t -> [t]
-cycle_partial_perms (p:ps) x = (scan_partial_perms $ p : cycle l) x
-  where pt = perm_forbid x p
+modListInt l k = l !! (k `rem` length l)
+
+modListList a b = modListInt a (length b - 1)
+
+cycle_partial_perms :: (Eq t, Show t) => [t -> Maybe t] -> t -> [t]
+cycle_partial_perms (p:ps) x = ass res
+  where res = scan_partial_perms (p : cycle l) x
+        pt = perm_forbid x p
         l = ps ++ [pt]
+        pf = modListList (p:ps) res
+        ass ll = assert ((last ll) == x || pf (last ll) == Nothing) ll
 
-iterate_partial_perms :: Eq t => (t -> Maybe t) -> t -> [t]
-iterate_partial_perms p x = scan_partial_perms (p : repeat q) x
+iterate_partial_perms :: (Eq t, Show t) => (t -> Maybe t) -> t -> [t]
+iterate_partial_perms p x = ass $ scan_partial_perms (p : repeat q) x
   where q = perm_forbid x p
+        ass l = assert (last l == x || p (last l) == Nothing) l
 
-exhaust_perm_pair :: Eq t => [t -> Maybe t] -> t -> (Bool,[t])
-exhaust_perm_pair ps d0 = let {
-        ll = map (\p -> tail $ iterate_partial_perms p d0) ps
-   } in head $
-     [ (True,d0:l) | (p,l) <- zip ps ll, 
-                     not $ null l,  p (last l) == Just d0 ]
-     ++ [( False, reverse (d0 : head ll) ++ concat (tail ll) )]
+exhaust_perm_pair :: (Eq t, Show t) => (t -> Maybe t,t -> Maybe t) -> t -> (Bool,[t])
+exhaust_perm_pair (p1,p2) d0 = let {
+        fun p = tail $ iterate_partial_perms p d0 ;
+        test p l = not (null l) && last l == d0 ;
+        ls@[l1,l2] = map fun [p1,p2] ;
+        ts = zipWith test [p1,p2] ls
+   } in if (and ts) then (True,l2) 
+        else assert ( not (or ts) || error ("exhaust_perm_pair: " ++ show (zip ts ls)) ) 
+          (False, reverse l1 ++ (d0:l2) ) 
+
+
+duplicate_counts = filter (\(n,v) -> n>1) . map (\x -> (length x,head x)) .
+                   group . sort . map idxI
+duplicate_warnings l = if null cs then True else (error $ show cs ++ show l)
+  where cs = duplicate_counts l
 
 
 {- Face & Vertex Grouping -}
@@ -133,7 +181,7 @@ group_depots depots pct = grouper_vector (Vec.length pct) find indexes err
 
 {- Vertex Verification -}
 
-vertex_depots pct = exhaust_perm_pair [mkU pct, mkV pct]
+vertex_depots pct = exhaust_perm_pair (mkU pct, mkV pct)
 
 vertices pct = group_depots (vertex_depots (pct !?)) pct
 
@@ -148,8 +196,10 @@ consider_vertex pct d0 = let {
         valency = valency_by_depots (b,ds) ;
         ps = map (pongo_element . edge_type) ds ;
         p = multiply ps ;
-        donetest = accepting (fromJust p) && valency > 2
-   } in (isJust p && (not b || donetest),
+        donetest = accepting (fromJust p) && valency > 2 ;
+        dups = duplicate_warnings $ tail ds
+   } in assert dups
+        (isJust p && (not b || donetest),
          p, valency, ds)
 
 verify_vertex pct = fr . consider_vertex pct
@@ -170,7 +220,7 @@ detect_loops pct = and (Vec.toList $ Vec.map (detect_loop (pct !?)) pct)
 
 {- Face Verification -}
 
-face_depots t = exhaust_perm_pair [mkL t, mkF t]
+face_depots t = exhaust_perm_pair (mkL t, mkF t)
 
 faces pct = group_depots (face_depots (pct !?)) pct
 
@@ -190,8 +240,9 @@ consider_face pct d0 = let {
         r = (totallength $ necklace e) - sum (map length_beads ets) ;
         rok = if b then r == 0 else r > 0 ;
         beads = and $ zipWith (==) (map end_bead ets) $
-            map start_bead $ tail ets ++ (if b then [head ets] else [])
-   } in assert (verify_necklace e ets) 
+            map start_bead $ tail ets ++ (if b then [head ets] else []) ;
+        dups = duplicate_warnings $ tail l
+   } in assert (dups && verify_necklace e ets)
         (rok && beads, r, l)
 
 available_length pct = fr . consider_face pct
@@ -210,29 +261,14 @@ verify_pcts :: (Pongo p) => [Depots p] -> [Depots p]
 verify_pcts = filter verify_pct
 
 
-{- Read Partial Coset Tables -}
+{- Detect Internal Errors -}
 
-type DepotIO = DepotE Int
-
-wrapDepot :: EdgeTypes p -> DepotIO -> Depot p
-wrapDepot edgetypes d = d { edge_type = edgetypes ! edge_type d }
-
-wrapDepots :: EdgeTypes p -> [DepotIO] -> Depots p
-wrapDepots et = Vec.fromList . map (wrapDepot et)
-
-readDepot et = wrapDepot et . read 
-readDepots et = wrapDepots et . read 
+detect_convergence pct = sum res == 0 ||
+        error ("Found #(E,F,L)=" ++ show res ++ " convergence errors in " ++ show pct)
+  where res = map (length . ddd) [idxE, idxF, idxL]
+        ddd p = snd $ Vec.foldl' f (0::Int, []) $ Vec.map p pct
+        f (!b,!l) !i = if (Bits.testBit b i) then (b, i:l) 
+                         else (Bits.setBit b i, l)
 
 
-{- Show Partial Coset Tables -}
-
-unwrapDepot :: Depot p -> DepotIO
-unwrapDepot d = d { edge_type = edgetype_id $ edge_type d }
-
-unwrapDepots = map unwrapDepot . Vec.toList
-
-showDepot = show . unwrapDepot
-showDepots = show . unwrapDepots
-
-
-
+        

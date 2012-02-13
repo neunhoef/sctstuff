@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XStandaloneDeriving -XTypeSynonymInstances -XFlexibleInstances #-}
 
 module Necklace where 
 
@@ -13,6 +14,7 @@ import Control.Exception
 
 import Toolbox
 import Pongo
+
 
 {- Necklaces and Edges -}
 
@@ -40,7 +42,7 @@ data EdgeType pongo_t =
        pongo_element :: pongo_t,
        complement :: EdgeType pongo_t,
        necklace :: Necklace
-    } deriving (Show, Read)
+    }
 end_bead e = (start_bead e + length_beads e) `rem` (primlen $ necklace e)
 
 {- We record start_bead and end_bead modulo primlen, but length_beads may -}
@@ -48,6 +50,15 @@ end_bead e = (start_bead e + length_beads e) `rem` (primlen $ necklace e)
 
 instance Eq (EdgeType pongo_t) where
   (==) a b = edgetype_id a == edgetype_id b && necklace a == necklace b
+
+showableEdgeType e = (edgetype_id e, 
+        necklace_id $ necklace e,
+        start_bead e, length_beads e,
+        edgetype_id $ complement e,
+        curvature e, pongo_element e )
+
+instance Show p => Show (EdgeType p) where
+  show = show . showableEdgeType
 
 type EdgeTypes pongo_t = Vec.Vector (EdgeType pongo_t)
 
@@ -115,11 +126,6 @@ readEdgeTypes pp necklaces = convEdgeTypes pp necklaces . map readEdgeType
 
 readEdgeTypesZ3 = readEdgeTypes parseMultZ3Pongo
 
-showEdgeType e = (edgetype_id e, edgetype_id $ complement e,
-        necklace_id $ necklace e,
-        start_bead e, length_beads e,
-        curvature e, pongo_element e )
-
 
 {- Read Necklace File -}
 
@@ -136,15 +142,24 @@ takeParker ll = splitAt (fromBS len) (tail ll)
 takeParkers ll = (a : takeParkers b)
   where (a,b) = takeParker ll
 
-readNecklaceFile :: ParsePongo p -> FilePath -> IO (Int,Necklaces,EdgeTypes p)
+data NeckFile pongo_t = NeckFile {
+        nf_circle :: !Int,
+        nf_necklaces :: !Necklaces,
+        nf_edgetypes :: EdgeTypes pongo_t
+    }
+
+readNecklaceFile :: ParsePongo p -> FilePath -> IO (NeckFile p)
 readNecklaceFile pp fn = do
         bs <- BS.readFile fn
         let (c:ll) = splitParker bs
-        let !circle = fromBS $ head c
+        let circle = fromBS $ head c
 	let ps:ns:es:_ = takeParkers ll
-	let !necklaces = readNecklaces ns
-	let !edgetypes = readEdgeTypes pp necklaces es
-        return (circle, necklaces, edgetypes)
+	let necklaces = readNecklaces ns
+	let edgetypes = readEdgeTypes pp necklaces es
+        return $ NeckFile {
+	    nf_circle = circle,
+	    nf_necklaces = necklaces,
+	    nf_edgetypes = edgetypes }
 
 readNecklaceFileZ3 = readNecklaceFile parseMultZ3Pongo
 
