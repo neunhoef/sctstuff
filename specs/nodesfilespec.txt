@@ -1,0 +1,44 @@
+Specification of a nodes file.
+
+Items are white space separated.
+
+NODESFILE ::=
+  Filename of necklace input file
+  Number of nodes
+  as many NODEs
+
+NODE ::=
+  pubcrawl string
+  PCT
+
+PCT ::=
+  Number of rows
+  as many ROWs
+
+ROW ::=
+  E value        (row numbers are 1-based)
+  F value
+  L value
+  half-edge-type number as in necklace input file
+
+That is it.
+
+Thus, one way to implement a search program is to have
+two programs:
+
+  crawlinit NECKLACEFILE CRAWLSTRING LAYER0NODESFILE
+
+which computes the layer 0 containing nodes with PCTs with 2 rows,
+and then
+
+  crawl INPUTNODES DESCENDANTS FAILURES
+
+Alternatively one could provide a complete crawler:
+
+  crawler NECKLACEFILE CRAWLSTRING TIMEOUT
+
+which produces layer after layer until one of the following happens:
+  some FAILURES were found
+  no more descendants were found (i.e. SUCCESS)
+  TIMEOUT happens
+
