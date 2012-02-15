@@ -229,7 +229,8 @@ InstallMethod( DoCrawl, "default method",
 
 CheckFCycles := function(s,node)
   # Returns fail if node is rejected due to F-cycles and true otherwise
-  local cyclecomplete,heti,hetj,i,j,len,n,neckid,neckl,pct,visited;
+  local cyclecomplete,heti,hetj,i,j,lastj,lasthetj,len,n,neckid,neckl,
+        pct,visited;
   pct := node.pct;
   n := Length(pct);
   visited := BlistList([1..n],[]);
@@ -239,15 +240,18 @@ CheckFCycles := function(s,node)
           heti := s.hetypes[pct[i].hetype];
           len := heti.len;
           j := i;
+          hetj := heti;
           cyclecomplete := false;
           neckid := heti.necklace;
           neckl  := s.necklaces[neckid];
           while pct[j].F <> -1 do
+              lastj := j;
+              lasthetj := hetj;
               j := pct[j].F;
               visited[j] := true;
               hetj := s.hetypes[pct[j].hetype];
               Assert(1,neckid = hetj.necklace,Error("Bla 1"));
-              Assert(1,(heti.start + heti.len) mod neckl.primlen =
+              Assert(1,(lasthetj.start + lasthetj.len) mod neckl.primlen =
                        hetj.start,Error("Bla 2"));
               if j = i then
                   cyclecomplete := true;
@@ -264,12 +268,15 @@ CheckFCycles := function(s,node)
               # Now go in the L direction with the same check, we know
               # here that the F-cycle is incomplete!
               j := i;
+              hetj := heti;
               while pct[j].L <> -1 do
+                  lastj := j;
+                  lasthetj := hetj;
                   j := pct[j].L;
                   visited[j] := true;
                   hetj := s.hetypes[pct[j].hetype];
                   Assert(1,neckid = hetj.necklace,Error("Bla 3"));
-                  Assert(1,heti.start =
+                  Assert(1,lasthetj.start =
                            (hetj.start + hetj.len) mod neckl.primlen,
                            Error("Bla 4"));
                   len := len + hetj.len;
