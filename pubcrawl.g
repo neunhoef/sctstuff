@@ -1,5 +1,6 @@
 DeclareInfoClass("InfoCrawl");
-SetInfoLevel(InfoCrawl,2);
+SetInfoLevel(InfoCrawl,1);
+SetAssertionLevel(1);
 
 BindGlobal("PongosFamily",NewFamily("PongosFamily"));
 DeclareCategory("IsPongo", IsObject);
@@ -141,7 +142,7 @@ InstallMethod( PongoElements, "for a cayley pongo",
   function( p ) return [1..p![2]]; end );
 
 ReadCrawlInput := function(filename,crawl)
-  local Get,M,acc,circle,hets,i,j,n,neckl,pongo,pos,r,s,st;
+  local Get,M,acc,circle,hets,i,j,n,neckl,pongo,pos,r,res,s,st;
   s := SplitString(StringFile(filename),""," \n\r\t");
   for i in [1..Length(s)] do
     st := s[i];
@@ -186,7 +187,9 @@ ReadCrawlInput := function(filename,crawl)
     Add(hets,HalfEdgeType(Get(),Get(),Get(),Get(),Get(),Get()));
   od;
 
-  return CrawlSearch(pongo,circle,neckl,hets,crawl);
+  res := CrawlSearch(pongo,circle,neckl,hets,crawl);
+  res.filename := filename;
+  return res;
 end;
 
 InstallMethod( ShowPCT, "default method", [IsList], ViewObj );
@@ -439,7 +442,7 @@ ExtendCrawlByF := function(s,node,d,descendants,failures)
       fi;
     od;
   od;
-  Info(InfoCrawl,1,"Found ",countdesc," new descendants.");
+  Info(InfoCrawl,2,"Found ",countdesc," new descendants.");
   return rec(added := countdesc, descendants := descendants,
              failures := failures);
 end;
@@ -531,7 +534,7 @@ ExtendCrawlByL := function(s,node,d,descendants,failures)
       fi;
     od;
   od;
-  Info(InfoCrawl,1,"Found ",countdesc," new descendants.");
+  Info(InfoCrawl,2,"Found ",countdesc," new descendants.");
   return rec(added := countdesc, descendants := descendants,
              failures := failures);
 end;
@@ -599,4 +602,110 @@ InstallMethod( DoCrawl, "default method",
         fi;
     od;
   end );
+
+DoCompleteCrawl := function(necklacefilename,pubcrawl,timeout)
+  local count,descendants,failures,l,layer,node,oldlen,s,starttime;
+  s := ReadCrawlInput(necklacefilename,pubcrawl);
+  Info(InfoCrawl,1,"Read input successfully from ", necklacefilename,
+       " using crawl ",pubcrawl);
+  l := DoCrawlLayer0(s);
+  Info(InfoCrawl,1,"Level 0 has ",Length(l)," nodes.");
+  if Length(l) = 0 then
+      return rec( s := s, success := true, descendants := [],
+                  failures := [], layer := 0, timeout := false );
+  fi;
+  descendants := l;
+  failures := [];
+  layer := 0;
+  starttime := Runtime();
+  while true do
+      layer := layer + 1;
+      Info(InfoCrawl,1,"Entering layer ",layer,"...");
+      l := descendants;
+      descendants := [];
+      count := 0;
+      for node in l do
+          if Runtime() - starttime > timeout then
+              if Length(failures) > 0 then
+                  Info(InfoCrawl,1,"Hit timeout, found some failures.");
+              else
+                  Info(InfoCrawl,1,"Hit timeout, no result yet.");
+              fi;
+              return rec( s := s, success := Length(failures) > 0,
+                          descendants := descendants, failures := failures,
+                          timeout := true, layer := layer );
+          fi;
+          oldlen := Length(descendants);
+          DoCrawl(s,node,descendants,failures);
+          if oldlen = Length(descendants) then count := count + 1; fi;
+      od;
+      Info(InfoCrawl,1,"Produced ",Length(descendants)," descendants, ",
+           count," nodes had no descendants.");
+      if Length(failures) > 0 then
+          Info(InfoCrawl,1,"Found ",Length(failures)," failures, ",
+               Length(descendants)," descendants still alive.");
+          return rec( s := s, success := true,
+                      descendants := descendants, failures := failures,
+                      timeout := false, layer := layer );
+      elif Length(descendants) = 0 then
+          Info(InfoCrawl,1,"SUCCESS! No more descendants, no failures!");
+          return rec( s := s, success := true,
+                      descendants := descendants, failures := failures,
+                      timeout := false, layer := layer );
+      fi;
+  od;
+
+end;
+
+ShowNodes := function(s,nodes)
+  local het,n,neckl,r;
+  for n in nodes do
+    Print("Crawl: ",n.crawl," Start: ",n.start,"\n");
+    Print("Row| E | F | L | HE-type\n");
+    Print("----------------------------------\n");
+    for r in n.pct do
+        het := s.hetypes[r.hetype];
+        neckl := s.necklaces[het.necklace];
+        Print(String(r.id,2)," |",String(r.E,2)," |",
+              String(r.F,2)," |",String(r.L,2)," | ",
+              String(r.hetype,3),"  <",
+              het.necklace,",",neckl.name,":",
+              String(neckl.primlen,2),"^",String(neckl.power,2),
+              "> depotvalue=",het.depot," pongoelm=",het.pongoelm,"\n");
+    od;
+    Print("---\n");
+  od;
+end;
+
+DumpNodes := function(s,nodes,out)
+  local c,n,r;
+  PrintTo(out,s.filename,"\n");
+  PrintTo(out,Length(nodes),"\n");
+  for n in nodes do
+      c := n.crawl{Concatenation([n.start..Length(n.crawl)],
+                                 [1..n.start-1])};
+      PrintTo(out,c,"\n");
+      PrintTo(out,Length(n.pct),"\n");
+      for r in n.pct do
+          PrintTo(out,String(r.E,3)," ",String(r.F,3)," ",String(r.L,3)," ",
+                  String(r.hetype,3),"\n");
+      od;
+  od;
+end;
+
+DumpNodesToString := function(s,nodes)
+  local st,stream;
+  st := "";
+  stream := OutputTextString(st,false);
+  DumpNodes(s,nodes,stream);
+  CloseStream(stream);
+  return st;
+end;
+
+DumpNodesToFile := function(s,nodes,filename)
+  local stream;
+  stream := OutputTextFile(filename,false);
+  DumpNodes(s,nodes,stream);
+  CloseStream(stream);
+end;
 
