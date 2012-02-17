@@ -4,8 +4,7 @@ module Necklace where
 
 import Data.List
 import Data.Maybe
-
-import qualified Data.Vector as Vec
+import qualified Data.Vector as V
 import Data.Vector ((!), (!?), (//))
 
 import qualified Data.ByteString.Char8 as BS
@@ -30,7 +29,7 @@ instance Eq Necklace where
 
 totallength n = primlen n * power n
 
-type Necklaces = Vec.Vector Necklace
+type Necklaces = V.Vector Necklace
 
 
 data EdgeType pongo_t = 
@@ -60,7 +59,7 @@ showableEdgeType e = (edgetype_id e,
 instance Show p => Show (EdgeType p) where
   show = show . showableEdgeType
 
-type EdgeTypes pongo_t = Vec.Vector (EdgeType pongo_t)
+type EdgeTypes pongo_t = V.Vector (EdgeType pongo_t)
 
 
 {- Convert Necklaces -}
@@ -69,7 +68,7 @@ convNecklace eid (prim,pow,nam) = Necklace {
   necklace_id = eid, primlen = prim, power = pow, necklace_name = nam } 
 
 convNecklaces :: [(Int,Int,BS.ByteString)] -> Necklaces
-convNecklaces = Vec.fromList . zipWith convNecklace [0..]
+convNecklaces = V.fromList . zipWith convNecklace [0..]
 
 readNecklace [a,b,c] = (fromBS a, fromBS b, c)
 
@@ -77,11 +76,33 @@ readNecklaces :: [[BS.ByteString]] -> Necklaces
 readNecklaces = convNecklaces . map readNecklace
 
 
-{- Convert EdgeTypes -}
+{- Convert Pongo -}
+
+readPongoCayleyTable :: BS.ByteString -> [[BS.ByteString]] -> PongoCayleyTable
+readPongoCayleyTable n (bs0:bss) = assert ass pct
+  where l = length bss + 1
+        rows = V.replicate l 0 : map (V.fromList . (0:) . map fromBS) bss
+        pct = PongoCayleyTable {
+	    ct_name = n,
+	    ct_accepting = V.replicate l False // map (\i -> (fromBS i,True)) bs0,
+	    ct_products = V.fromList rows }
+	ass = and $ map (== l) $ length rows : map V.length rows
 
 type PongoIO = Int
 
 type ParsePongo p = PongoIO -> p
+
+verifyPongoCayleyTable :: (Pongo p,Show p) => ParsePongo p -> PongoCayleyTable -> Bool
+verifyPongoCayleyTable pp ct = (acc && row) || err 
+  where l = V.length $ ct_products ct 
+        andz = V.and . V.tail
+        acc = andz $ V.imap (\i b -> accepting (pp i) == b) $ ct_accepting ct 
+        row = andz $ V.imap (\r v -> col (pp r) v) $ ct_products ct 
+        col r = andz . V.imap (\c u -> r **** pp c == pp u)
+        err = error "Pongo Cayley table failure"
+
+
+{- Convert EdgeTypes -}
 
 verify_edgetype_pair (a,b) = and $ map f [(a,b), (b,a)]
    where f (x,y) = (complement y) == x
@@ -115,7 +136,7 @@ pairupEdgeTypes ((a2,a):[]) = let {
 pairupEdgeTypes _ = error "You cannot pair three edges silly!"
 
 convEdgeTypes :: ParsePongo p -> Necklaces -> [EdgeTypeIO] -> EdgeTypes p
-convEdgeTypes pp necklaces = Vec.fromList .
+convEdgeTypes pp necklaces = V.fromList .
         concat . map pairupEdgeTypes . groupUsing (fst . fst) .
         zipWith (convEdgeType pp necklaces) [0..]
 
@@ -136,31 +157,42 @@ splitParker :: BS.ByteString -> [[BS.ByteString]]
 splitParker = map (filter (not . BS.null) . BS.words) . BS.lines
 
 takeParker :: [[BS.ByteString]] -> ([[BS.ByteString]],[[BS.ByteString]])
-takeParker ll = splitAt (fromBS len) (tail ll)
-  where (len:info) = head ll ;
+takeParker ll = (info:a,b)
+  where (a,b) = splitAt (fromBS len) (tail ll)
+        (len:info) = head ll
 
 takeParkers ll = (a : takeParkers b)
   where (a,b) = takeParker ll
 
 data NeckFile pongo_t = NeckFile {
         nf_circle :: !Int,
+        nf_caleytable :: !PongoCayleyTable,
         nf_necklaces :: !Necklaces,
         nf_edgetypes :: EdgeTypes pongo_t
-    }
+    } deriving (Show)
 
-readNecklaceFile :: ParsePongo p -> FilePath -> IO (NeckFile p)
+readNecklaceFile :: (Pongo p,Show p) => ParsePongo p -> FilePath -> IO (NeckFile p)
 readNecklaceFile pp fn = do
         bs <- BS.readFile fn
-        let (c:ll) = splitParker bs
-        let circle = fromBS $ head c
-	let ps:ns:es:_ = takeParkers ll
-	let necklaces = readNecklaces ns
-	let edgetypes = readEdgeTypes pp necklaces es
-        return $ NeckFile {
+        let (cnt:ll) = splitParker bs
+        let circle = fromBS $ head cnt
+	let cs:ns:es:_ = takeParkers ll
+	let caleytable = readPongoCayleyTable (BS.pack "") cs
+	let ass = verifyPongoCayleyTable pp caleytable 
+	      || error "Pongo doesn't match Cayley table"
+	let necklaces = readNecklaces (tail ns)
+	let edgetypes = readEdgeTypes pp necklaces (tail es)
+        return $ assert ass $ NeckFile {
 	    nf_circle = circle,
+	    nf_caleytable = caleytable, 
 	    nf_necklaces = necklaces,
 	    nf_edgetypes = edgetypes }
 
-readNecklaceFileZ3 = readNecklaceFile parseMultZ3Pongo
 
+readNecklaceFileTrivial = readNecklaceFile
+        parseTrivialPongo
+readNecklaceFileZ3 = readNecklaceFile 
+        parseMultZ3Pongo
+-- readNecklaceFileCayleyTable = readNecklaceFile 
+--        parseCayleyTablePongo
 

@@ -1,5 +1,5 @@
 
-module PCTGraph where 
+module Graphing where 
 
 import Data.List
 import Data.Maybe
@@ -45,11 +45,11 @@ graph_pct pct i = runGraphvizCanvas TwoPi g Xlib
 
 {- CrawlExtend Tree -}
 
-crawl_extend_tree circle edgetypes n t = runGraphvizCanvas TwoPi g Xlib
+crawl_extend_tree neckfile n t = runGraphvizCanvas TwoPi g Xlib
   where g = digraph (Int 0) $ do 
             node (fst t) [shape MDiamond] 
             cetree n t
-        do_ce crpct = do_crawl_extend circle edgetypes [crpct]
+        do_ce crpct = do_crawl_extend neckfile [crpct]
         cetree 0 _ = return ()
         cetree k (s,ce) = do
             let (_,_,m) = ce

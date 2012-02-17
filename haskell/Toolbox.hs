@@ -45,17 +45,49 @@ fixMaybe a b = a
 
 {- List -}
 
+sortUsing f = sortBy (\a b -> f a `compare` f b)
+groupUsing f = groupBy (\a b -> f a == f b)
+
+swapAt n = f . splitAt n  where  f (a,b) = b++a
+{- swapAt n = f . S.splitAt n  where  f (a,b) = b S.>< a -}
+
+
 rotations x =  take l . map (take l) $ tails (x++x)
   where  l = length x
 
 minimumRotation :: Ord a => [a] -> [a]
 minimumRotation = minimum . rotations
 
-sortUsing f = sortBy (\a b -> f a `compare` f b)
-groupUsing f = groupBy (\a b -> f a == f b)
 
-swapAt n = f . splitAt n  where  f (a,b) = b++a
-{- swapAt n = f . S.splitAt n  where  f (a,b) = b S.>< a -}
+alls alphabet = [] : [ x:xs | xs <- alls alphabet, x <- alphabet ]
+
+alls_by_len alpha = iterate pre [[]] 
+  where pre l = [ x:xs | xs <- l, x <- alpha ]
+
+divisors n = filter (\i -> n `rem` i == 0) [1..n]
+proper_divisors n = takeWhile (\i -> i+i <= n) $ divisors n
+
+powList n = concat . replicate n
+
+sooth_crawls = map head . group . sort . map minimumRotation
+
+allEFLcrawls = fun
+  where fun = zipWith (\n -> filter (`notElem` powers n)) [1..] $
+              map sooth_crawls $ iterate pre ["F"] 
+        pre l = [ x:xs | xs <- l, x <- "EFL" ]
+        powers n = [ powList (n `div` k) x | k <- proper_divisors n, x <- fun !! (k-1) ]
+
+{- We eliminate crawls of the form x^n where x is another earlier crawl    -}
+{- because :  If x fails, then x^m d = d with positive alcohol for some m, -}
+{- and so x^{nm} = d with n times more positive alcohol.  It follows that  -}
+{- powers cannot contribute to finding a crawl that never fails.           -}
+{- As an aside, if x^m fails, we might still find that x dies early.       -}
+
+clean_crawl s = and $ map ($ s) tests 
+  where tests = (\s -> head s == 'F' && last s == 'L') :
+                map isInfixOf ["EE","FL","LF"]
+
+cleanEFLcrawls = map (filter clean_crawl) allEFLcrawls
 
 
 {- Vector -}
