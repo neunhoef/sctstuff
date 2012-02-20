@@ -52,9 +52,9 @@ crawl_extend_tree neckfile n t = runGraphvizCanvas TwoPi g Xlib
         do_ce crpct = do_crawl_extend neckfile [crpct]
         cetree 0 _ = return ()
         cetree k (s,ce) = do
-            let (_,_,m) = ce
             node s [toLabel ""]
-            let l = zip (map (\i -> s ++ "." ++ show i) [0..]) $ map do_ce m
+            let l = zip (map (\i -> s ++ "." ++ show i) [0..]) $
+                    map do_ce $ ce_moars ce
             mapM_ (cetree (k-1)) l
             sequence_ $ zipWith (edge s) (map fst l) $
                   map (\i -> [toLabel (i::Int)]) [0..]

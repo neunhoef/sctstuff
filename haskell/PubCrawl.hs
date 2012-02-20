@@ -249,7 +249,10 @@ max_pubstats (a:[]) = Just a
 max_pubstats l = Just $ f $ unzip l
   where f (x,y) = (maximum x, maximum y)
 
-type CrawlExtend p = ([CrawlDepots p], Maybe PubStat, [CrawlDepots p])
+data CrawlExtend p = CrawlExtend {
+        ce_fails, ce_wins, ce_moars :: [CrawlDepots p],
+        ce_stats :: Maybe PubStat
+   }
 
 do_crawl_extend :: (Pongo p,Show p) => NeckFile p ->
                    [CrawlDepots p] -> CrawlExtend p
@@ -267,7 +270,12 @@ do_crawl_extend neckfile crpcts = let {
                  map (MOAR . (\i -> (crawl,i)) . update_depots pct) lds
               WIN x -> return $ WIN x
               FAIL _ -> return $ FAIL (crawl,pct)
-   } in (fails res, max_pubstats $ wins res, moars res)
+   } in CrawlExtend {
+           ce_fails = fails res,
+           ce_wins = [], -- wins res
+           ce_stats = max_pubstats $ wins res,
+           ce_moars = moars res
+        }
 
 init_crawl_depots :: NeckFile p -> Crawl -> [CrawlDepots p]
 init_crawl_depots neckfile crawl = do
@@ -280,20 +288,29 @@ init_crawls_depots neckfile crawl = do
         cr <- nub $ rotations crawl
         init_crawl_depots neckfile cr
 
-init_crawl_extend nf cr = ([], Nothing, init_crawl_depots nf cr)
-init_crawls_extend nf cr = ([], Nothing, init_crawls_depots nf cr)
+init_crawl_extend nf cr = CrawlExtend {
+        ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
+        ce_moars = init_crawl_depots nf cr }
+
+init_crawls_extend nf cr = CrawlExtend {
+        ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
+        ce_moars = init_crawls_depots nf cr }
 
 next_crawl_extend :: (Pongo p,Show p) => NeckFile p -> 
                      CrawlExtend p -> CrawlExtend p
-next_crawl_extend neckfile (b0,s0,pcts0) = (b0 ++ b1, stats, pcts1)
-  where (b1,s1,pcts1) = do_crawl_extend neckfile pcts0
-        stats = max_pubstats $ catMaybes [s1,s0]
+next_crawl_extend neckfile ce0 = let {
+        ce1 = do_crawl_extend neckfile $ ce_moars ce0 ;
+        stats = max_pubstats . catMaybes $ map ce_stats [ce1,ce0]
+   } in ce1 { ce_stats = stats,
+           ce_fails = ce_fails ce0 ++ ce_fails ce1,
+           ce_wins = ce_wins ce0 ++ ce_wins ce1  }
 
 iterate_crawl_extend :: (Pongo p,Show p) => NeckFile p -> 
                         CrawlExtend p -> [CrawlExtend p]
 iterate_crawl_extend neckfile ce = good ++ [all !! length good]
   where all = iterate (next_crawl_extend neckfile) ce
-        good = takeWhile (\(b,_,m) -> null b && not (null m)) all
+        good = takeWhile test all
+        test ce' = null (ce_fails ce') && not (null $ ce_moars ce')
 
 end_crawl_extend neckfile ce = (b, a, length l - 1)
   where a:b:_ = reverse l

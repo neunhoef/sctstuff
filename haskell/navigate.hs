@@ -62,35 +62,32 @@ init_pubcrawl neckfile crawl = do
 stats :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 stats n = do
         (_,nav) <- readIORef n
-        let (f,w,m) = head nav 
+        let ce = head nav 
         let len = length nav - 1
         putStr $ "stage " ++ show len ++ ":  "
-        putStr $ "FAILs = " ++ show (length f) ++ ".  "
-        putStr $ "WINs = " ++ show w ++ ".  "
-        putStr $ "MOARs = " ++ show (length m) ++ ".\n"
+        putStr $ "FAILs = " ++ show (length $ ce_fails ce) ++ ".  "
+        putStr $ "WINs = " ++ show (ce_stats ce) ++ ".  "
+        putStr $ "MOARs = " ++ show (length $ ce_moars ce) ++ ".\n"
 
 catLines = concat . map (++ "\n")
 
 ls :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 ls n = do
         (_,nav) <- readIORef n
-        let (f,w,m) = head nav 
         putStr $ catLines $ zipWith (\i s -> show i ++ " - " ++ s) [0..]
-            $ map showCrawlDepots m
+            $ map showCrawlDepots $ ce_moars $ head nav 
 
 failing :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 failing n = do
         (_,nav) <- readIORef n
-        let (f,w,m) = head nav 
         putStr $ catLines $ zipWith (\i s -> show i ++ " - " ++ s) [0..]
-            $ map showCrawlDepots f
+            $ map showCrawlDepots $ ce_fails $ head nav 
 
 stage n = do
         (nf,nav) <- readIORef n
         let l = length nav
         putStr $ "stage: " ++ show l ++ ".\n"
-        let (_,_,m) = head nav
-        let pct = snd $ m !! 0
+        let pct = snd $ ce_moars (head nav) !! 0
         putStrLn $ showDepots (V.take (l-2) pct)
 
 up :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
@@ -109,8 +106,7 @@ top n = do
 go :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ()
 go n i = do
         (nf,nav) <- readIORef n
-        let (_,_,m) = head nav 
-        let crpct = m !! i
+        let crpct = ce_moars (head nav) !! i
         putStrLn $ "Go : " ++ showDepots (snd crpct)
         let ce = do_crawl_extend nf [crpct]
         writeIORef n (nf, ce:nav)
@@ -118,8 +114,7 @@ go n i = do
 graph :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ()
 graph n i = do
         (nf,nav) <- readIORef n
-        let (_,_,m) = head nav 
-        let (_,pct) = m !! i
+        let (_,pct) = ce_moars (head nav) !! i
         graph_pct pct (length nav)
 
 
@@ -129,23 +124,23 @@ counts :: (Pongo p,Show p) => IORef (Navigation p) -> IO [Int]
 counts n = do
         (nf,nav) <- readIORef n
         let ces = iterate_crawl_extend nf (head nav)
-        return $ map (\(a,b,c) -> length c) ces
+        return $ map (length . ce_moars) ces
 
 finish :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 finish n = do
         (nf,nav) <- readIORef n
         let ces = iterate_crawl_extend nf (head nav)
-        let (f,w,m) = last ces
-        putStr $ "FAILs = " ++ show (length f) ++ ".  "
-        putStr $ "WINs = " ++ show w ++ ".\n"        
+        let ce = last ces
+        putStr $ "FAILs = " ++ show (length $ ce_fails ce) ++ ".  "
+        putStr $ "WINs = " ++ show (ce_stats ce) ++ ".\n"        
 
 failures :: (Pongo p,Show p) => IORef (Navigation p) -> IO ()
 failures n = do
         (_,nav) <- readIORef n
         (nf,nav) <- readIORef n
         let ces = iterate_crawl_extend nf (head nav)
-        let (f,w,m) = last ces
-        putStr $ catLines $ map showCrawlDepots f
+        putStr $ catLines $ map showCrawlDepots $ ce_fails $ last ces
+
 
 tree :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ThreadId
 tree n k = do

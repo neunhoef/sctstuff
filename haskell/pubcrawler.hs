@@ -38,10 +38,10 @@ count_by_str = map (\l -> head l ++ ":" ++ show (length l)) . group . sort
 running_counter :: (Pongo p) => Int -> Options -> [CrawlExtend p] -> IO ()
 running_counter k opts ces = case opt_verbosity opts of
         0 -> return ()
-        1 -> putStrLn $ show $ map (\(a,b,c) -> length c) ces
+        1 -> putStrLn $ show $ map (length . ce_moars) ces
         2 -> putStr $ concat $ zipWith show_stage [k..] ces
-  where show_stage i (a,b,c) = "Stage #" ++ show i ++ ".  " ++ 
-                (unwords . count_by_str $ map fst c) ++ "\n"
+  where show_stage i ce = "Stage #" ++ show i ++ ".  " ++ 
+                (unwords . count_by_str . map fst $ ce_moars ce) ++ "\n"
 
 saveCrawlDepots fn cd = writeFile fn $ show (length cd) ++ concat ll        
   where ll = map writeCrawlDepots cd
@@ -63,14 +63,20 @@ readCrawlDepots nf bs = let {
 
 graph_crawl_depots fn cd = return ()
 
+
+hyphenate []     =  ""
+hyphenate [w]    = w
+hyphenate (w:ws) = w ++ '-' : hyphenate ws
+
 report_results opts ces = let {
-        cd@(f,w,m) = last ces ;
-        l = length ces - 1;
+        ce = last ces ;
+        l = length ces - 1 ;
+        f = ce_fails ce;
+        crs = hyphenate $ opt_crawls opts ;
         fn = if (not . null $ opt_output opts) then opt_output opts 
-             else replaceExtension (opt_neck opts)
-                    ("f" ++ show l)
+             else replaceExtension (opt_neck opts) (crs ++ ".f" ++ show l)
    } in if null f then
-           putStrLn $ "Success!  (mu,epsilon)=" ++ show w
+           putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce)
         else do
            putStrLn $ "Found " ++ show (length f) ++ " failures!"
            saveCrawlDepots fn f
@@ -93,7 +99,9 @@ resumed_main opts pp = do
           else "Warning : You cannot specify crawls when resuming."
         nf <- readNecklaceFile pp fn
         exitFailure
-        let ce0 = ([], Nothing, readCrawlDepots nf $ BS.tail bs )
+        let ce0 = CrawlExtend {
+             ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
+             ce_moars = readCrawlDepots nf $ BS.tail bs }
         let ces = iterate_crawl_extend nf ce0
         running_counter 0 opts ces
         report_results opts ces
