@@ -25,6 +25,7 @@ import System( getArgs )
 import System.Console.GetOpt
 import System.FilePath.Posix
 import System.Exit
+import System.Directory
 
 
 {-  -}
@@ -61,20 +62,26 @@ readCrawlDepots nf bs = let {
 	fun (crawlbs,info:pctbs) = (BS.unpack $ head crawlbs, wbs pctbs)
    } in map fun ll
 
-graph_crawl_depots fn cd = return ()
+graph_crawl_depots dn cds = let {
+        fn cd k = dn ++ (pathSeparator : fst cd) ++ show k ;
+        fun cd k = graph_pct_command (snd cd) k (fn cd k)
+   } in do
+          createDirectoryIfMissing False dn
+          sequence_ $ zipWith fun cds [1..] 
 
 
 hyphenate []     =  ""
 hyphenate [w]    = w
 hyphenate (w:ws) = w ++ '-' : hyphenate ws
 
-report_results opts ces = let {
+report_results k opts ces = let {
         ce = last ces ;
         l = length ces - 1 ;
-        f = ce_fails ce;
+        ks = show $ k + l ;
+        f = ce_fails ce ;
         crs = hyphenate $ opt_crawls opts ;
         fn = if (not . null $ opt_output opts) then opt_output opts 
-             else replaceExtension (opt_neck opts) (crs ++ ".f" ++ show l)
+             else replaceExtension (opt_neck opts) (crs ++ ".f" ++ ks)
    } in if null f then
            putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce)
         else do
@@ -87,9 +94,12 @@ initialized_main opts pp = do
         let ce0 = init_crawls_extend nf $ head $ opt_crawls opts
         let ces = iterate_crawl_extend nf ce0
         running_counter 0 opts ces
-        report_results opts ces 
+        report_results 0 opts ces 
 
 resumed_main opts pp = do 
+        k <- case takeExtension (opt_resume opts) of 
+              '.':c:ks -> return $ read ks
+              ext -> do { putStrLn $ "Unknown extension '" ++ ext ++ "', resuming blind." ; return 0; }
         bs <- BS.readFile $ opt_resume opts
         let (fn:fns) = nub . filter (not . null) $
               [ BS.unpack $ splitParker bs !! 0 !! 0, opt_neck opts ]
@@ -103,8 +113,8 @@ resumed_main opts pp = do
              ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
              ce_moars = readCrawlDepots nf $ BS.tail bs }
         let ces = iterate_crawl_extend nf ce0
-        running_counter 0 opts ces
-        report_results opts ces
+        running_counter k opts ces
+        report_results k opts ces
 
 
 {- Command Line -}

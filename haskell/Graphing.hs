@@ -39,7 +39,10 @@ edges pct = map (\d -> edge (vn d) (vn $ imgE d) [ve d]) $ Vec.toList pct
         ve = toLabel . idxI
         imgE d = pct ! idxE d
 
-graph_pct pct i = runGraphvizCanvas TwoPi g Xlib
+graph_pct_canvas pct i = runGraphvizCanvas TwoPi g Xlib
+  where g = digraph (Int i) $ sequence $ edges pct
+
+graph_pct_command pct i fn = runGraphvizCommand TwoPi g Jpeg fn
   where g = digraph (Int i) $ sequence $ edges pct
 
 

@@ -115,7 +115,7 @@ graph :: (Pongo p,Show p) => IORef (Navigation p) -> Int -> IO ()
 graph n i = do
         (nf,nav) <- readIORef n
         let (_,pct) = ce_moars (head nav) !! i
-        graph_pct pct (length nav)
+        graph_pct_canvas pct (length nav)
 
 
 {- Final -}
