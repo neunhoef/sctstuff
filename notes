@@ -1,0 +1,31 @@
+One relator quotients of the modular group:
+
+
+up to 256 all finite except
+  64    (ST)^6
+  128   (ST)^7
+
+  1816   Z^3.S_4 ?
+  1892   Z^3.S_4 ?
+  6280
+  6868
+  6956
+  7372
+  7476
+  7736
+
+Confluent rewrite systems for:
+
+  1552
+  1768
+  
+length 17:
+
+length 18:
+  200 groups, about 2/3 infinite, handful finite
+
+length 19:
+  handful
+
+length 20:
+  
