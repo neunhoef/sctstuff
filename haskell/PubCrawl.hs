@@ -4,8 +4,7 @@ module PubCrawl where
 
 import Data.List
 import Data.Maybe
-
-import qualified Data.Vector as Vec
+import qualified Data.Vector as V
 import Data.Vector ((!), (!?), (//))
 
 import Control.Monad
@@ -86,7 +85,7 @@ run_pubcrawl circle crawl pct = let {
 
 {- Extend Permutation -}
 
-artificizeVector :: Vec.Vector t -> [(Int,t)] -> (Int -> Maybe t)
+artificizeVector :: V.Vector t -> [(Int,t)] -> (Int -> Maybe t)
 artificizeVector tbl m = assert (length m <= 6) $
                          \i -> fixMaybe (lookup i m) (tbl !? i)
 
@@ -105,24 +104,24 @@ verify_extension pct m@(x:y:_) = let {
 {- w and u/d0 are covered by x and y.  See diagrams below.     -}
 
 
-vector_indexer :: Int -> (t -> Int) -> Vec.Vector t -> Int -> [t]
+vector_indexer :: Int -> (t -> Int) -> V.Vector t -> Int -> [t]
 vector_indexer m idx vec = \e -> tbl ! e
-  where tbl = Vec.accumulate (flip (:)) (Vec.replicate (m+1) []) 
-                 (Vec.map (\v -> (idx v, v)) vec)
+  where tbl = V.accumulate (flip (:)) (V.replicate (m+1) []) 
+                 (V.map (\v -> (idx v, v)) vec)
 
--- depots_by_edgetype pct e = [d | d <- Vec.toList pct, e == edgetype_id (edge_type d)]
+-- depots_by_edgetype pct e = [d | d <- V.toList pct, e == edgetype_id (edge_type d)]
 depots_by_edgetype ets = vector_indexer m (edgetype_id . edge_type)
-   where m = Vec.maximum $ Vec.map edgetype_id ets
+   where m = V.maximum $ V.map edgetype_id ets
 
 -- edgetypes_by_necklace edgetypes n = 
---          [ e | e <- Vec.toList edgetypes, necklace_id (necklace e) == n ] 
+--          [ e | e <- V.toList edgetypes, necklace_id (necklace e) == n ] 
 edgetypes_by_necklace ets = vector_indexer m (necklace_id . necklace) ets
-   where m = Vec.maximum $ Vec.map (necklace_id . necklace) ets
+   where m = V.maximum $ V.map (necklace_id . necklace) ets
 
 -- depots_by_necklace pct n =
---          [ d | d <- Vec.toList pct, n == (necklace_id $ necklace $ edge_type d) ]
+--          [ d | d <- V.toList pct, n == (necklace_id $ necklace $ edge_type d) ]
 depots_by_necklace ets = vector_indexer m (necklace_id . necklace . edge_type)
-   where m = Vec.maximum $ Vec.map (necklace_id . necklace) ets
+   where m = V.maximum $ V.map (necklace_id . necklace) ets
 
 unknownEdgeType = let {
         uet s = error $ "Accessing unknownEdgeType's " ++ s ;
@@ -163,7 +162,7 @@ unknownDepot = init_depot unknownEdgeType (-1) (-1)
 
 extend_perm :: (Pongo p,Show p) => EdgeTypes p -> Depots p -> Int -> Depot p -> [[Depot p]]
 extend_perm edgetypes pct psign z = let {
-        idxIx = Vec.length pct ;
+        idxIx = V.length pct ;
         n = necklace $ edge_type z ;
         (start_bead_f,end_bead_f) = swap_by_sign psign (start_bead,end_bead) ;
         (idxF_f,idxL_f) = swap_by_sign psign (idxF,idxL) ;
@@ -173,7 +172,7 @@ extend_perm edgetypes pct psign z = let {
         d_by_n = depots_by_necklace edgetypes pct ; 
   } in assert (-1 == idxF_f z && len0 > 0) $ 
        filter (verify_extension pct) $ do
-	e0 <- [ e | e <- Vec.toList edgetypes,  (necklace e) == n,
+	e0 <- [ e | e <- V.toList edgetypes,  (necklace e) == n,
 	            start_bead_f e == z_end_bead,
 	            length_beads e <= len0  ]
 	u <- unknownDepot : [ u | 
@@ -223,7 +222,7 @@ extend_perm edgetypes pct psign z = let {
 
 
 update_depots :: Depots p -> [Depot p] -> Depots p
-update_depots pct (x:y:ds) = (pct Vec.++ Vec.fromList [x,y]) // map (\d -> (idxI d,d)) ds
+update_depots pct (x:y:ds) = (pct V.++ V.fromList [x,y]) // map (\d -> (idxI d,d)) ds
 
 
 {- Run Pub Crawl and Extend PCT -}
@@ -231,6 +230,14 @@ update_depots pct (x:y:ds) = (pct Vec.++ Vec.fromList [x,y]) // map (\d -> (idxI
 type CrawlDepots p = (Crawl,Depots p)
 
 showCrawlDepots = showDepots . snd
+
+writeDepot d = unwords $ map (show . (+1)) $
+        map ($ d) [idxE, idxF, idxL, edgetype_id . edge_type]
+
+writeCrawlDepots :: (Pongo p) => CrawlDepots p -> String
+writeCrawlDepots (crawl,pct) = unlines $
+        [crawl, show $ V.length pct]
+        ++ map writeDepot (V.toList pct)
 
 sign_of_perm 'F' = 1
 sign_of_perm 'L' = -1
@@ -242,54 +249,71 @@ max_pubstats (a:[]) = Just a
 max_pubstats l = Just $ f $ unzip l
   where f (x,y) = (maximum x, maximum y)
 
-type CrawlExtend p = ([CrawlDepots p], Maybe PubStat, [CrawlDepots p])
+data CrawlExtend p = CrawlExtend {
+        ce_fails, ce_wins, ce_moars :: [CrawlDepots p],
+        ce_stats :: Maybe PubStat
+   }
 
-do_crawl_extend :: (Pongo p,Show p) => Int -> EdgeTypes p ->
+do_crawl_extend :: (Pongo p,Show p) => NeckFile p ->
                    [CrawlDepots p] -> CrawlExtend p
-do_crawl_extend circle edgetypes crpcts = let {
+do_crawl_extend neckfile crpcts = let {
         res = do
            (crawl,pct) <- crpcts
            guard $ assert (detect_convergence pct) True
            {- guard $ detect_loops pct -}
            {- guard $ trace (showDepots pct) True -}
            guard $ verify_pct pct
-           case run_pubcrawl circle crawl pct of
+           case run_pubcrawl (nf_circle neckfile) crawl pct of
               MOAR (d,step) -> do
                  let psign = sign_of_perm $ crawl !! step
-                 let lds = extend_perm edgetypes pct psign d
+                 let lds = extend_perm (nf_edgetypes neckfile) pct psign d
                  map (MOAR . (\i -> (crawl,i)) . update_depots pct) lds
               WIN x -> return $ WIN x
               FAIL _ -> return $ FAIL (crawl,pct)
-   } in (fails res, max_pubstats $ wins res, moars res)
+   } in CrawlExtend {
+           ce_fails = fails res,
+           ce_wins = [], -- wins res
+           ce_stats = max_pubstats $ wins res,
+           ce_moars = moars res
+        }
 
-init_crawl_depots :: Int -> EdgeTypes p -> Crawl -> [CrawlDepots p]
-init_crawl_depots circle edgetypes crawl = do
-        pct <- initialize_depots edgetypes
-        guard $ 3*curvature (edge_type (pct ! 0)) >= -circle
+init_crawl_depots :: NeckFile p -> Crawl -> [CrawlDepots p]
+init_crawl_depots neckfile crawl = do
+        pct <- initialize_depots (nf_edgetypes neckfile)
+        guard $ 3*curvature (edge_type (pct ! 0)) >= -(nf_circle neckfile)
         return (crawl,pct)
 
-init_crawls_depots :: Int -> EdgeTypes p -> Crawl -> [CrawlDepots p]
-init_crawls_depots circle edgetypes crawl = do
+init_crawls_depots :: NeckFile p -> Crawl -> [CrawlDepots p]
+init_crawls_depots neckfile crawl = do
         cr <- nub $ rotations crawl
-        init_crawl_depots circle edgetypes cr
-        {- add filter (\s -> head s == 'D')  -}
+        init_crawl_depots neckfile cr
 
-init_crawl_extend circle et cr = ([], Nothing, init_crawl_depots circle et cr)
-init_crawls_extend circle et cr = ([], Nothing, init_crawls_depots circle et cr)
+init_crawl_extend nf cr = CrawlExtend {
+        ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
+        ce_moars = init_crawl_depots nf cr }
 
-next_crawl_extend :: (Pongo p,Show p) => Int -> EdgeTypes p -> 
+init_crawls_extend nf cr = CrawlExtend {
+        ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
+        ce_moars = init_crawls_depots nf cr }
+
+next_crawl_extend :: (Pongo p,Show p) => NeckFile p -> 
                      CrawlExtend p -> CrawlExtend p
-next_crawl_extend circle edgetypes (b0,s0,pcts0) = (b0 ++ b1, stats, pcts1)
-  where (b1,s1,pcts1) = do_crawl_extend circle edgetypes pcts0
-        stats = max_pubstats $ catMaybes [s1,s0]
+next_crawl_extend neckfile ce0 = let {
+        ce1 = do_crawl_extend neckfile $ ce_moars ce0 ;
+        stats = max_pubstats . catMaybes $ map ce_stats [ce1,ce0]
+   } in ce1 { ce_stats = stats,
+           ce_fails = ce_fails ce0 ++ ce_fails ce1,
+           ce_wins = ce_wins ce0 ++ ce_wins ce1  }
 
-iterate_crawl_extend :: (Pongo p,Show p) => Int -> EdgeTypes p -> 
+iterate_crawl_extend :: (Pongo p,Show p) => NeckFile p -> 
                         CrawlExtend p -> [CrawlExtend p]
-iterate_crawl_extend circle edgetypes ce = good ++ [all !! length good]
-  where all = iterate (next_crawl_extend circle edgetypes) ce
-        good = takeWhile (\(b,_,m) -> null b && not (null m)) all
+iterate_crawl_extend neckfile ce = good ++ [all !! length good]
+  where all = iterate (next_crawl_extend neckfile) ce
+        good = takeWhile test all
+        test ce' = null (ce_fails ce') && not (null $ ce_moars ce')
 
-end_crawl_extend circle edgetypes ce = (b,a)
-  where a:b:_ = reverse $ iterate_crawl_extend circle edgetypes ce
+end_crawl_extend neckfile ce = (b, a, length l - 1)
+  where a:b:_ = reverse l
+        l = iterate_crawl_extend neckfile ce
 
 

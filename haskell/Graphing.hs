@@ -1,5 +1,5 @@
 
-module PCTGraph where 
+module Graphing where 
 
 import Data.List
 import Data.Maybe
@@ -39,22 +39,25 @@ edges pct = map (\d -> edge (vn d) (vn $ imgE d) [ve d]) $ Vec.toList pct
         ve = toLabel . idxI
         imgE d = pct ! idxE d
 
-graph_pct pct i = runGraphvizCanvas TwoPi g Xlib
+graph_pct_canvas pct i = runGraphvizCanvas TwoPi g Xlib
+  where g = digraph (Int i) $ sequence $ edges pct
+
+graph_pct_command pct i fn = runGraphvizCommand TwoPi g Jpeg fn
   where g = digraph (Int i) $ sequence $ edges pct
 
 
 {- CrawlExtend Tree -}
 
-crawl_extend_tree circle edgetypes n t = runGraphvizCanvas TwoPi g Xlib
+crawl_extend_tree neckfile n t = runGraphvizCanvas TwoPi g Xlib
   where g = digraph (Int 0) $ do 
             node (fst t) [shape MDiamond] 
             cetree n t
-        do_ce crpct = do_crawl_extend circle edgetypes [crpct]
+        do_ce crpct = do_crawl_extend neckfile [crpct]
         cetree 0 _ = return ()
         cetree k (s,ce) = do
-            let (_,_,m) = ce
             node s [toLabel ""]
-            let l = zip (map (\i -> s ++ "." ++ show i) [0..]) $ map do_ce m
+            let l = zip (map (\i -> s ++ "." ++ show i) [0..]) $
+                    map do_ce $ ce_moars ce
             mapM_ (cetree (k-1)) l
             sequence_ $ zipWith (edge s) (map fst l) $
                   map (\i -> [toLabel (i::Int)]) [0..]

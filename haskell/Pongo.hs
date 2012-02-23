@@ -3,8 +3,12 @@ module Pongo where
 
 import Data.Foldable
 import Data.Maybe
+import qualified Data.Vector as V
+import Data.Vector ((!), (!?), (//))
 
 import qualified Data.ByteString.Char8 as BS
+
+import Control.Exception
 
 
 infixl 7 ****
@@ -51,6 +55,9 @@ instance InvPongo TrivialPongo where
   inverse _ = TrivialPongo ()
   pproduct _ = Just $ TrivialPongo ()
 
+parseTrivialPongo :: Int -> TrivialPongo
+parseTrivialPongo _ = TrivialPongo ()
+
 
 {- Null Pongo that dislikes multiplication -}
 
@@ -60,6 +67,11 @@ instance Pongo NullPongo where
   (****) _ _ = NPZero
   pzero = NPZero
   pone = NPOne
+
+parseNullPongo :: Int -> NullPongo
+parseNullPongo 0 = NPZero
+parseNullPongo 1 = NPOne
+parseNullPongo x = error $ "Null pongo has no " ++ show x ++ "."
 
 
 {- Z_3 Pongo -}
@@ -112,34 +124,39 @@ instance InvPongo F1Pongo where
 
 {- Cayley table pongo -}
 
-{-
-
-newtype CayleyTable = CayleyTable {
+data PongoCayleyTable = PongoCayleyTable {
         ct_name :: BS.ByteString,
-        ct_accepting :: Vec.Vector Bool,
-        ct_products :: Vec.Vector (Vec.Vector Int)
+        ct_accepting :: V.Vector Bool,
+        ct_products :: V.Vector (V.Vector Int)
    } deriving (Read, Show)
 
-instance Eq (CayleyTable) where
-  (==) a b = (ct_name $ cayleytable a) == (ct_name $ cayleytable b)
+instance Eq (PongoCayleyTable) where
+  (==) a b = (ct_name a) == (ct_name b)
 
-type CTPongo = CTPongo { 
-        ctp_cayleytable :: CayleyTable,
+data CTPongo = CTPongo { 
+        ctp_cayleytable :: PongoCayleyTable,
         ctp_index   :: !Int
-   } deriving (Read,Show)
+   }
 
 instance Eq (CTPongo) where
   (==) a b = assert (ctp_cayleytable a == ctp_cayleytable b) $
              ctp_index a == ctp_index b
 
-instance Pongo g where
-  a **** b = assert (ctp_cayleytable a == ctp_cayleytable b)
-            (ctp_cayleytable a) ! a ! b
-  accepting p = (!) $ ct_accepting (ctp_cayleytable p)
-  pzero = 0
+instance Show (CTPongo) where
+  show = ("CTElement" ++) . show . ctp_index
+
+instance Pongo (CTPongo) where
+  a **** b = let { ct = ctp_cayleytable a ; ctp = ct_products ct } in
+             assert (ctp_cayleytable a == ctp_cayleytable b)
+             CTPongo {  ctp_cayleytable = ct,
+                ctp_index = ctp ! ctp_index a ! ctp_index b }
+  accepting p = ct_accepting (ctp_cayleytable p) ! ctp_index p
+  pzero = error "zero :: CTPongo cannot implement pzero."
   pone = error "zero :: CTPongo cannot implement pone."
 
--}
+parseCayleyTablePongo :: PongoCayleyTable -> Int -> CTPongo
+parseCayleyTablePongo ct i = CTPongo { ctp_cayleytable = ct, ctp_index = i }
+
 
 {- Group Pongo -}
 
@@ -156,7 +173,6 @@ instance Group g => Pongo g where
 instance Group g => InvPongo g where
   inverse = G.inverse
 -}
-
 
 
 

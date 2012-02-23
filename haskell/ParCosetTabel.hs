@@ -5,7 +5,7 @@ module ParCosetTabel where
 import Data.List
 import Data.Maybe
 import qualified Data.Bits as Bits
-import qualified Data.Vector as Vec
+import qualified Data.Vector as V
 import Data.Vector ((!), (!?), (//))
 
 import Control.Monad
@@ -28,7 +28,7 @@ instance Eq (DepotE t) where
 
 type Depot pongo_t = DepotE (EdgeType pongo_t)
 
-type Depots pongo_t = Vec.Vector (Depot pongo_t)
+type Depots pongo_t = V.Vector (Depot pongo_t)
 type DepotsF pongo_t = Int -> Maybe (Depot pongo_t)
 
 
@@ -40,7 +40,7 @@ wrapDepot :: EdgeTypes p -> DepotIO -> Depot p
 wrapDepot edgetypes d = d { edge_type = edgetypes ! edge_type d }
 
 wrapDepots :: EdgeTypes p -> [DepotIO] -> Depots p
-wrapDepots et = Vec.fromList . map (wrapDepot et)
+wrapDepots et = V.fromList . map (wrapDepot et)
 
 readDepot et = wrapDepot et . read 
 readDepots et = wrapDepots et . read 
@@ -53,7 +53,7 @@ deriving instance Read t => Read (DepotE t)
 unwrapDepot :: Depot p -> DepotIO
 unwrapDepot d = d { edge_type = edgetype_id $ edge_type d }
 
-unwrapDepots = map unwrapDepot . Vec.toList
+unwrapDepots = map unwrapDepot . V.toList
 
 showDepot = show . unwrapDepot
 showDepots = show . unwrapDepots
@@ -70,12 +70,12 @@ deriving instance Show (DepotIO)
 
 init_depot e i j = Depot { edge_type = e, idxI = i, idxE = j, idxF = -1, idxL = -1 } 
 
-init_depots e = Vec.fromList [init_depot e 0 1, init_depot f 1 0]
+init_depots e = V.fromList [init_depot e 0 1, init_depot f 1 0]
   where f = complement e 
 
 initialize_depots :: EdgeTypes p -> [Depots p]
 initialize_depots edgetypes = map f [0..len-1]
-  where len = Vec.length edgetypes
+  where len = V.length edgetypes
         f = init_depots . (edgetypes !) 
 
 
@@ -165,15 +165,15 @@ duplicate_warnings l = if null cs then True else (error $ show cs ++ show l)
 
 {- Face & Vertex Grouping -}
 
-grouper_vector :: Int -> (Int -> t) -> (t -> [Int]) -> t -> Vec.Vector t
-grouper_vector n find indexes def = Vec.map (fromMaybe def) $
-        foldl' update_null (Vec.replicate n Nothing) [0..n]
+grouper_vector :: Int -> (Int -> t) -> (t -> [Int]) -> t -> V.Vector t
+grouper_vector n find indexes def = V.map (fromMaybe def) $
+        foldl' update_null (V.replicate n Nothing) [0..n]
   where update_null vec i = vec // if isNothing (vec ! i) then ups else []
           where l = find i
                 ups = zip (filter (<n) $ indexes l) (repeat $ Just l)
 
-group_depots :: (Depot p -> (Bool,[Depot p])) -> Depots p -> Vec.Vector (Bool,[Depot p])
-group_depots depots pct = grouper_vector (Vec.length pct) find indexes err
+group_depots :: (Depot p -> (Bool,[Depot p])) -> Depots p -> V.Vector (Bool,[Depot p])
+group_depots depots pct = grouper_vector (V.length pct) find indexes err
   where find = depots . (pct !)
         indexes (b,v) = map idxI v
         err = error "group_depots could not account for all indices"
@@ -214,7 +214,7 @@ detect_loop pct x = let {
 --        || trace ("Warning : Loop " ++ show (idxI x) ++ "-" ++ show (idxI y) 
 --             ++ " on " ++ show l ++ " found. ") False
 
-detect_loops pct = and (Vec.toList $ Vec.map (detect_loop (pct !?)) pct)
+detect_loops pct = and (V.toList $ V.map (detect_loop (pct !?)) pct)
                    || trace (showDepots pct) False
 
 
@@ -254,7 +254,7 @@ verify_face pct = fr . consider_face pct
 
 verify_depot pctf d = verify_vertex pctf d && verify_face pctf d
 
-verify_pct pct = and $ map f $ Vec.toList pct
+verify_pct pct = and $ map f $ V.toList pct
   where f = verify_depot (pct !?)
 
 verify_pcts :: (Pongo p) => [Depots p] -> [Depots p]
@@ -266,7 +266,7 @@ verify_pcts = filter verify_pct
 detect_convergence pct = sum res == 0 ||
         error ("Found #(E,F,L)=" ++ show res ++ " convergence errors in " ++ show pct)
   where res = map (length . ddd) [idxE, idxF, idxL]
-        ddd p = snd $ Vec.foldl' f (0::Int, []) $ Vec.map p pct
+        ddd p = snd $ V.foldl' f (0::Int, []) $ V.map p pct
         f (!b,!l) !i = if (Bits.testBit b i) then (b, i:l) 
                          else (Bits.setBit b i, l)
 
