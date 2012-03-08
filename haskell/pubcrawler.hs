@@ -79,20 +79,26 @@ hyphenate []     =  ""
 hyphenate [w]    = w
 hyphenate (w:ws) = w ++ '-' : hyphenate ws
 
+report_filename opts c k = if (not . null $ opt_output opts)
+        then opt_output opts 
+        else replaceExtension (opt_neck opts) (crs ++ "." ++ c ++ show k)
+  where crs = hyphenate $ opt_crawls opts 
+
 report_results k opts ces = let {
         ce = last ces ;
         l = length ces - 1 ;
-        ks = show $ k + l ;
         f = ce_fails ce ;
-        crs = hyphenate $ opt_crawls opts ;
-        fn = if (not . null $ opt_output opts) then opt_output opts 
-             else replaceExtension (opt_neck opts) (crs ++ ".f" ++ ks)
-   } in if null f then
-           putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce)
-        else do
-           putStrLn $ "Found " ++ show (length f) ++ " failures!"
-           saveCrawlDepots fn f
-           if opt_graph opts then graph_crawl_depots (fn ++ ".d") f else return ()
+        dump i = saveCrawlDepots fn (ce_moars $ ces !! i) 
+          where fn = report_filename opts "m" (k+i)
+   } in do
+          sequence_ $ map dump $ opt_dump opts
+          if null f then
+             putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce)
+          else do
+             putStrLn $ "Found " ++ show (length f) ++ " failures!"
+             let fn = report_filename opts "f" (k+l)
+             saveCrawlDepots fn f
+             if opt_graph opts then graph_crawl_depots (fn ++ ".d") f else return ()
 
 initialized_main opts pp = do
         nf <- readNecklaceFile pp $ opt_neck opts
@@ -126,8 +132,7 @@ resumed_main opts pp = do
 
 data CrawlLimits = CrawlLimits {
         opt_steps	:: !Int,
-        opt_time	:: !Int,
-        opt_alcohol	:: !Int
+        opt_time	:: !Int
     }
 
 data Options = Options {
@@ -137,6 +142,7 @@ data Options = Options {
         opt_resume	:: String,
         opt_output	:: String, 
         opt_crawls	:: [String],
+        opt_dump        :: [Int],
         opt_graph	:: Bool,
         opt_verbosity	:: Int,
         opt_limits	:: CrawlLimits
@@ -147,11 +153,12 @@ defaultOptions = Options {
         opt_pongo	= "",
         opt_neck	= "",
         opt_resume	= "",
+        opt_dump        = [],
         opt_output	= "",
         opt_crawls	= [],
         opt_verbosity   = 1,
         opt_graph	= False,
-        opt_limits = CrawlLimits { opt_steps = 0, opt_time=0, opt_alcohol=0 }
+        opt_limits = CrawlLimits { opt_steps = 0, opt_time=0 }
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -163,24 +170,36 @@ options = [
             (NoArg (\o -> o { opt_oops = do_version } ))  
             "show version number",
     Option "l" ["log"] 
-            (ReqArg (\s o -> o { opt_verbosity = read s } ) "LOGLEVEL")  
+            (ReqArg (\s o -> o { opt_verbosity = read s } ) "loglevel")  
             "set log level / verbosity",
     Option "n" ["neck"] 
-            (ReqArg (\s o -> o { opt_neck = s }) "NECKFILE")  
+            (ReqArg (\s o -> o { opt_neck = s }) "neckfile")  
             "Initialize new pubcrawl from necklace file",
     Option "r" ["resume"] 
-            (ReqArg (\s o -> o { opt_resume = s }) "RESUMEFILE")  
+            (ReqArg (\s o -> o { opt_resume = s }) "resumefile")  
             "Resume old pubcrawl",
     Option "c" ["crawl"] 
-            (ReqArg (\s o -> o { opt_crawls = s : opt_crawls o }) "CRAWL")  
+            (ReqArg (\s o -> o { opt_crawls = s : opt_crawls o }) "crawl")  
             "Resume old pubcrawl",
     Option "p" ["pongo"]
             (ReqArg (\s o -> o { opt_pongo = s }) "PONGO")
             "select optimized pongo",
     Option "g" ["graph"]  
             (NoArg (\o -> o{ opt_graph = True }))  
-            "graph failed partial coset tables"
+            "graph failed partial coset tables",
+    Option "d" ["dump"] 
+            (ReqArg (\s o -> o { opt_dump = read s : opt_dump o }) "dumpstep")  
+            "Resume old pubcrawl"
   ]
+{-
+    Option "s" ["steps"] 
+            (ReqArg (\s o -> o { opt_limits = opt_limits o { opt_steps = read s }) "step limit")  
+            "Resume old pubcrawl",
+    Option "t" ["time"] 
+            (ReqArg (\s o -> o { opt_limits = opt_limits o { opt_time = read s }) "time limit")  
+            "Resume old pubcrawl",
+-} 
+
 
 do_usage = do 
         let header = "Usage: pubcrawler [options]"
