@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -XStandaloneDeriving -XTypeSynonymInstances -XFlexibleInstances -XBangPatterns #-}
+{-# OPTIONS_GHC #-}
+{-# LANGUAGE StandaloneDeriving, TypeSynonymInstances, FlexibleInstances, BangPatterns #-}
 
 module ParCosetTabel where 
 
@@ -15,6 +16,7 @@ import Toolbox
 import Pongo
 import Necklace
 
+import GHC.Exts (inline)
 import Debug.Trace
 
 {- Depots / Partial Coset Table -}
@@ -97,22 +99,30 @@ mkPermsL pct ps = foldr (<=<) Just $ map (mkPerm pct) ps
 {- Right action yields EFV = 1 but this executes the left side first  -} 
 {- so V . F . E = 1 with usual function composition, i.e. left action -}
 
-mkE = flip mkPerm idxE
-mkF = flip mkPerm idxF
-mkL = flip mkPerm idxL			{- Finv -}
-mkV = flip mkPermsL [idxE, idxL]
-mkU = flip mkPermsL [idxF, idxE]	{- Vinv -}
+mkE pct = pct . idxE
+mkF pct = pct . idxF
+mkL pct = pct . idxL			{- Finv -}
+mkV pct = (pct . idxE) <=< (pct . idxL)
+mkU pct = (pct . idxF) <=< (pct . idxE)	{- Vinv -}
 
 
 {- Partial Permutation Iteration -}
 
+{-# INLINABLE perm_forbid #-}
 perm_forbid :: Eq t => t -> (t -> Maybe t) -> (t -> Maybe t)
 perm_forbid x p = q
   where q i = if i == x then Nothing else p i
 
-scan_partial_perms :: (Eq t,Show t) => [t -> Maybe t] -> t -> [t]
-scan_partial_perms ps d0 = map fromJust . takeWhile (/= Nothing) $
+{-# INLINABLE scan_partial_perms #-}
+scan_partial_perms :: (Eq t) => [t -> Maybe t] -> t -> [t]
+scan_partial_perms [] _ = []
+scan_partial_perms (p:ps) !x = x : r
+  where r = if y==Nothing then [] else scan_partial_perms ps (fromJust y)
+        y = p x
+
+scan_partial_perms_slow ps d0 = map fromJust . takeWhile (/= Nothing) $
         scanl (>>=) (Just d0) ps
+
 -- ass = and $ map (<3) $ scanl (+) 0 $ map fromNegated $ zipWith notElem l (inits l)
 -- Implement frequency counter : http://snippets.dzone.com/posts/show/4263
 
@@ -133,6 +143,7 @@ modListInt l k = l !! (k `rem` length l)
 
 modListList a b = modListInt a (length b - 1)
 
+{-# INLINABLE cycle_partial_perms #-}
 cycle_partial_perms :: (Eq t, Show t) => [t -> Maybe t] -> t -> [t]
 cycle_partial_perms (p:ps) x = ass res
   where res = scan_partial_perms (p : cycle l) x
@@ -141,14 +152,22 @@ cycle_partial_perms (p:ps) x = ass res
         pf = modListList (p:ps) res
         ass ll = assert ((last ll) == x || pf (last ll) == Nothing) ll
 
-iterate_partial_perms :: (Eq t, Show t) => (t -> Maybe t) -> t -> [t]
-iterate_partial_perms p x = ass $ scan_partial_perms (p : repeat q) x
+{-# INLINABLE iterate_partial_perm #-}
+iterate_partial_perm :: (Eq t, Show t) => (t -> Maybe t) -> t -> [t]
+iterate_partial_perm p x = ass $ scan_partial_perms (p : repeat q) x
   where q = perm_forbid x p
         ass l = assert (last l == x || p (last l) == Nothing) l
 
+iterate_partial_perm_slow p x0 = ass $ x0 : test go0 (p x0)
+  where test !f !y = if y==Nothing then [] else f (fromJust y)
+        go0 !x = x : test go1 (p x)
+        go1 !x = if x == x0 then [x] else go0 x
+        ass l = assert (last l == x0 || p (last l) == Nothing) l
+
+{-# INLINABLE exhaust_perm_pair #-}
 exhaust_perm_pair :: (Eq t, Show t) => (t -> Maybe t,t -> Maybe t) -> t -> (Bool,[t])
 exhaust_perm_pair (p1,p2) d0 = let {
-        fun p = tail $ iterate_partial_perms p d0 ;
+        fun p = tail $ iterate_partial_perm p d0 ;
         test p l = not (null l) && last l == d0 ;
         ls@[l1,l2] = map fun [p1,p2] ;
         ts = zipWith test [p1,p2] ls
@@ -181,7 +200,9 @@ group_depots depots pct = grouper_vector (V.length pct) find indexes err
 
 {- Vertex Verification -}
 
-vertex_depots pct = exhaust_perm_pair (mkU pct, mkV pct)
+{-# INLINABLE vertex_depots #-}
+vertex_depots pct = exhaust_perm_pair pair
+  where pair = (mkU pct, mkV pct)
 
 vertices pct = group_depots (vertex_depots (pct !?)) pct
 
@@ -190,7 +211,8 @@ vertex_depots_cached pct = \d -> tbl ! idxI d
 
 valency_by_depots (b,l) = length l + fromNegated b
 
-consider_vertex :: (Pongo p) => DepotsF p -> Depot p -> (Bool,Maybe p,Int,[Depot p])
+{-# INLINABLE consider_vertex #-}
+consider_vertex :: (Pongo p) => DepotsF p -> Depot p -> (Bool,Maybe p,Int) {- [Depot p] -}
 consider_vertex pct d0 = let {
         (b,ds) = vertex_depots pct d0 ;
         valency = valency_by_depots (b,ds) ;
@@ -200,10 +222,10 @@ consider_vertex pct d0 = let {
         dups = duplicate_warnings $ tail ds
    } in assert dups
         (isJust p && (not b || donetest),
-         p, valency, ds)
+         p, valency)  {- ds -}
 
 verify_vertex pct = fr . consider_vertex pct
-  where fr (b,_,_,_) = b
+  where fr (b,_,_) = b
 
 
 detect_loop pct x = let {
@@ -220,7 +242,9 @@ detect_loops pct = and (V.toList $ V.map (detect_loop (pct !?)) pct)
 
 {- Face Verification -}
 
-face_depots t = exhaust_perm_pair (mkL t, mkF t)
+{-# INLINABLE face_depots #-}
+face_depots t = exhaust_perm_pair pair
+  where pair = (mkL t, mkF t)
 
 faces pct = group_depots (face_depots (pct !?)) pct
 
@@ -232,7 +256,7 @@ verify_necklace e es = and $
    map (necklace_id . necklace) es
 verify_necklace_list (e:es) = verify_necklace e es
 
-consider_face :: DepotsF p -> Depot p -> (Bool,Int,[Depot p])
+consider_face :: DepotsF p -> Depot p -> (Bool,Int)  {- [Depot p] -}
 consider_face pct d0 = let {
         e = edge_type d0 ;
         (b,l) = face_depots pct d0 ;
@@ -243,18 +267,18 @@ consider_face pct d0 = let {
             map start_bead $ tail ets ++ (if b then [head ets] else []) ;
         dups = duplicate_warnings $ tail l
    } in assert (dups && verify_necklace e ets)
-        (rok && beads, r, l)
+        (rok && beads, r)  {- l -}
 
 available_length pct = fr . consider_face pct
-  where fr (_,r,_) = r    {- observe that if b then r == 0 -}
+  where fr (_,r) = r    {- observe that if b then r == 0 -}
 
 verify_face pct = fr . consider_face pct
-  where fr (b,_,_) = b
+  where fr (b,_) = b
 
 
 verify_depot pctf d = verify_vertex pctf d && verify_face pctf d
 
-verify_pct pct = and $ map f $ V.toList pct
+verify_pct pct = V.foldl' (\b t -> b && f t) True pct
   where f = verify_depot (pct !?)
 
 verify_pcts :: (Pongo p) => [Depots p] -> [Depots p]

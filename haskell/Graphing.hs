@@ -9,6 +9,7 @@ import Data.Vector ((!), (!?), (//))
 
 import Control.Monad
 
+import Data.Rotations
 import Toolbox
 import Pongo
 import Necklace

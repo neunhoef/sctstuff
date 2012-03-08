@@ -13,6 +13,8 @@ import Data.Bits hiding (complement)
 import Control.Exception
 import Debug.Trace
 
+import Data.Rotations
+
 {- Debuging -}
 
 traceVal v = traceShow v v
@@ -47,17 +49,7 @@ fixMaybe a b = a
 
 sortUsing f = sortBy (\a b -> f a `compare` f b)
 groupUsing f = groupBy (\a b -> f a == f b)
-
-swapAt n = f . splitAt n  where  f (a,b) = b++a
-{- swapAt n = f . S.splitAt n  where  f (a,b) = b S.>< a -}
-
-
-rotations x =  take l . map (take l) $ tails (x++x)
-  where  l = length x
-
-minimumRotation :: Ord a => [a] -> [a]
-minimumRotation = minimum . rotations
-
+nubUsing f = nubBy (\a b -> f a == f b)
 
 alls alphabet = [] : [ x:xs | xs <- alls alphabet, x <- alphabet ]
 

@@ -13,7 +13,7 @@ import Control.Exception
 
 import Toolbox
 import Pongo
-
+import GHC.Exts
 
 {- Necklaces and Edges -}
 
@@ -137,7 +137,7 @@ pairupEdgeTypes _ = error "You cannot pair three edges silly!"
 
 convEdgeTypes :: ParsePongo p -> Necklaces -> [EdgeTypeIO] -> EdgeTypes p
 convEdgeTypes pp necklaces = V.fromList .
-        concat . map pairupEdgeTypes . groupUsing (fst . fst) .
+        concat . map pairupEdgeTypes . groupWith (fst . fst) .
         zipWith (convEdgeType pp necklaces) [0..]
 
 readEdgeType [a,b,c,d,e,f] = (fromBS a,fromBS b,fromBS c, fromBS d, fromBS e, fromBS f)

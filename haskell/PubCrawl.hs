@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -fspec-constr-count=30 #-}
+{-# LANGUAGE ImplicitParams #-}
+
 
 module PubCrawl where
 
@@ -6,10 +8,12 @@ import Data.List
 import Data.Maybe
 import qualified Data.Vector as V
 import Data.Vector ((!), (!?), (//))
+import qualified Data.ByteString.Char8 as BS
 
 import Control.Monad
 import Control.Exception
 
+import Data.Rotations
 import Toolbox
 import Pongo
 import Necklace
@@ -18,68 +22,92 @@ import ParCosetTabel
 import Debug.Trace
 
 
+{- Pub Crawls -}
 
-{- Pub Crawl Strings -}
+type Crawl = Rotation BS.ByteString
+type CrawlPerms p = Rotation [Permutation (Depot p)]
 
-type Crawl = String
-
-parse_pubcrawl :: DepotsF p -> Crawl -> [Permutation (Depot p)]
-parse_pubcrawl pct = map f 
+crawl_perms :: DepotsF p -> Crawl -> CrawlPerms p
+crawl_perms pct = rmap $ map f . BS.unpack
   where f 'I' = Just
         f 'E' = mkE pct
         f 'F' = mkF pct
         f 'L' = mkL pct
-        f 'V' = mkV pct
-        f 'U' = mkU pct
-        f 'D' = error "Drink!"
+--      f 'V' = mkV pct
+--      f 'U' = mkU pct
 
 
-{- Pub Crawl Routines -}
+type Valency p = Depot p -> Int
+
+min_valency :: (Pongo p) => DepotsF p -> Valency p
+min_valency pctf = (\(_,_,v) -> max 3 v) . consider_vertex pctf
+
+type Drinker p = Depot p -> Int
+
+mkdrink :: (?circle :: Int) => Valency p -> Drinker p
+mkdrink valency d = curvature (edge_type d) + (?circle `div` valency d)
+
+type CrawlCoefficients = V.Vector Int
+
+mkdrinks :: (?circle :: Int) => Valency p -> Crawl -> CrawlCoefficients -> [Drinker p]
+mkdrinks valency cr coeffs = ass $ map f $ V.toList r
+  where f c = (c*) . mkdrink valency
+        r = rotate coeffs (rotation cr) 
+        ass = assert $ V.length coeffs == BS.length (unrotated cr)
+
 
 -- circle :: Int is renormilization to work with ints
 -- valency :: Depot -> Int retrieves 
 -- a drink is ( depot + circle / valency )
 -- We ultimately divide everything by the number of drinks
 
-type PubStat = (Int,Int)
+data PubStat = PubStat { ps_length,ps_mu,ps_epsilon :: !Int }
+       deriving (Eq,Read,Show)
 type PubStep p = (Depot p,Int)
-type PubCrawl p = LULZ PubStat () (PubStep p)
+type PubCrawl p = (LULZ PubStat () (PubStep p), (Bool,V.Vector Int))
 
-
-pubcrawl :: (Eq p) => (Depot p -> Int) -> [Permutation (Depot p)] -> Depot p -> PubCrawl p
-pubcrawl drink ps d0 = let {
-        dsi = cycle_partial_perms ps d0 ; 
-        csi = tail $ scanl (+) 0 $ map drink dsi ; 
+pubcrawl :: (Eq p) => [Drinker p] -> CrawlPerms p -> Depot p -> PubCrawl p
+pubcrawl drinks rperms d0 = let {
+        perms = rotated rperms ; 
+        len_perms = length perms ; 
+        dsi = cycle_partial_perms perms d0 ; 
+        vsi = zipWith ($) (cycle drinks) dsi ; 
+        csi = tail $ scanl (+) 0 vsi ; 
 	(cs,csn) = span (>= 0) csi ; 
-	epsilon = if null csn then 0 else head csn ; 
-	mu = maximum $ 0:cs ; 
-        i = length cs - 1 ; 
+        stat = PubStat { 
+           ps_length = length cs, 
+           ps_mu = maximum $ 0:cs, 
+           ps_epsilon = if null csn then 0 else head csn } ; 
+        i = ps_length stat - 1 ; 
 	df = dsi !! i ; 
-	step = i `rem` length ps ; 
-        b = (ps !! step) df == Nothing ;
-        b' = not $ step==0 && df==d0 ;
-        ass x = if (i<=0 || (b && b') == (b || b')) then x else err ;
-        err = error ("PubCrawl error " ++ show (mu,epsilon,i,df /= d0,(ps !! step) df,zip dsi cs))
-   } in if epsilon < 0 then WIN (mu, epsilon) 
-        else  if b then MOAR (df,step) 
-	      else {- traceShow (zip dsi csi) $ -} FAIL () 
+	step = i `rem` len_perms ; 
+        b = (perms !! step) df == Nothing ; 
+        b' = not $ step==0 && df==d0 ; 
+        ass x = if (i<=0 || (b && b') == (b || b')) then x else err ; 
+        err = error $ "PubCrawl error " ++ 
+                show (stat,df /= d0,(perms !! step) df,zip dsi cs) ; 
+	v = V.accum (+) (V.replicate len_perms 0) $ zip rots vs 
+	    where rots = map (`rem` len_perms) [rotation rperms ..] 
+	          vs = take (ps_length stat) vsi ; 
+   } in (if ps_epsilon stat < 0 then WIN stat 
+         else  if b then MOAR (df,step) 
+	       else {- traceShow (zip dsi csi) $ -} FAIL () ,
+	 (not b, v) )
 
-{- We employ the halting reason test (ps !! step) df == Nothing.         -}
+{- We employ the halting reason test (perms !! step) df == Nothing.         -}
 {- We observe that if returning MOAR then length cs == length dsi, but   -}
 {- if returning WIN then length cs < length dsi, meaning df cannot be    -}
 {- dsi !! length cs in both cases.  WIN doesn't compute df, b, or step.  -}
 {- Also, cycle_partial_perms and scanl each increase length by 1.        -}
 {- I suppose step==0 && df == d0 might be equivalent given i>0.          -}
 
-mkdrink circle valency d = curvature (edge_type d) + (circle `div` valency d)
-min_valency pctf = (\(_,_,v,_) -> max 3 v) . consider_vertex pctf
 
-run_pubcrawl :: (Pongo p) => Int -> Crawl -> Depots p -> PubCrawl p
-run_pubcrawl circle crawl pct = let {
+run_pubcrawl :: (Pongo p, ?circle :: Int) => Crawl -> CrawlCoefficients -> Depots p -> PubCrawl p
+run_pubcrawl cr coeffs pct = let {
         valency = min_valency (pct !?) ;
-        drink = mkdrink circle valency ;
-        ps = parse_pubcrawl (pct !?) crawl
-   } in pubcrawl drink ps (pct ! 0)
+        drinkers = mkdrinks valency cr coeffs ;
+        perms = crawl_perms (pct !?) cr
+   } in pubcrawl drinkers perms (pct ! 0)
        {- pub crawls start at zero. -}
 
 
@@ -95,6 +123,8 @@ artificizeDepots pct = artificizeVector pct . map (\d -> (idxI d, d))
 verify_extension :: (Pongo p) => Depots p -> [Depot p] -> Bool
 verify_extension pct m@(x:y:_) = let {
         f = artificizeDepots pct m ; 
+        -- pctm = update_depots pct m ; 
+        -- f = (pctm !?) ;
         pLf = maybeToList . mkL f ; 
         l = [x,y] ++ pLf x ++ pLf y   {- nub looks superfluous -}
    } in (and $ map (verify_face f) [x,y] ++ map (verify_vertex f) l)
@@ -236,7 +266,7 @@ writeDepot d = unwords $ map (show . (+1)) $
 
 writeCrawlDepots :: (Pongo p) => CrawlDepots p -> String
 writeCrawlDepots (crawl,pct) = unlines $
-        [crawl, show $ V.length pct]
+        [BS.unpack $ rotated crawl, show $ V.length pct]
         ++ map writeDepot (V.toList pct)
 
 sign_of_perm 'F' = 1
@@ -246,8 +276,10 @@ sign_of_perm _ = error "sign_of_perm : Crawl paused off face permutation"
 max_pubstats :: [PubStat] -> Maybe PubStat
 max_pubstats [] = Nothing
 max_pubstats (a:[]) = Just a
-max_pubstats l = Just $ f $ unzip l
-  where f (x,y) = (maximum x, maximum y)
+max_pubstats l = Just $ PubStat {
+        ps_length = maximum $ map ps_length l,
+        ps_mu = maximum $ map ps_mu l,
+        ps_epsilon = maximum $ map ps_epsilon l }
 
 data CrawlExtend p = CrawlExtend {
         ce_fails, ce_wins, ce_moars :: [CrawlDepots p],
@@ -256,16 +288,20 @@ data CrawlExtend p = CrawlExtend {
 
 do_crawl_extend :: (Pongo p,Show p) => NeckFile p ->
                    [CrawlDepots p] -> CrawlExtend p
-do_crawl_extend neckfile crpcts = let {
-        res = do
+do_crawl_extend neckfile crpcts = let { 
+        crawl_len = BS.length $ unrotated $ fst $ head crpcts ; 
+        coeffs = V.replicate crawl_len 1 ; 
+        res = do 
            (crawl,pct) <- crpcts
            guard $ assert (detect_convergence pct) True
-           {- guard $ detect_loops pct -}
            {- guard $ trace (showDepots pct) True -}
-           guard $ verify_pct pct
-           case run_pubcrawl (nf_circle neckfile) crawl pct of
+           {- guard $ verify_pct pct -}
+           guard $ assert (verify_pct pct) True
+           let ?circle = nf_circle neckfile 
+           let (r,(b,v)) = run_pubcrawl crawl coeffs pct 
+           case r of 
               MOAR (d,step) -> do
-                 let psign = sign_of_perm $ crawl !! step
+                 let psign = sign_of_perm $ BS.index (rotated crawl) step
                  let lds = extend_perm (nf_edgetypes neckfile) pct psign d
                  map (MOAR . (\i -> (crawl,i)) . update_depots pct) lds
               WIN x -> return $ WIN x
@@ -277,15 +313,16 @@ do_crawl_extend neckfile crpcts = let {
            ce_moars = moars res
         }
 
-init_crawl_depots :: NeckFile p -> Crawl -> [CrawlDepots p]
+init_crawl_depots :: (Pongo p) => NeckFile p -> Crawl -> [CrawlDepots p]
 init_crawl_depots neckfile crawl = do
         pct <- initialize_depots (nf_edgetypes neckfile)
+        guard $ verify_pct pct
         guard $ 3*curvature (edge_type (pct ! 0)) >= -(nf_circle neckfile)
         return (crawl,pct)
 
-init_crawls_depots :: NeckFile p -> Crawl -> [CrawlDepots p]
+init_crawls_depots :: (Pongo p) => NeckFile p -> BS.ByteString -> [CrawlDepots p]
 init_crawls_depots neckfile crawl = do
-        cr <- nub $ rotations crawl
+        cr <- nubUsing rotated $ map (Rotate crawl) [0 .. BS.length crawl - 1]
         init_crawl_depots neckfile cr
 
 init_crawl_extend nf cr = CrawlExtend {

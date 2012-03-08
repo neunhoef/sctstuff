@@ -4,16 +4,15 @@ module Main( main ) where
 
 import Data.List
 import Data.Maybe
-
 import qualified Data.Vector as Vec
 import Data.Vector ((!), (!?), (//))
-
 import qualified Data.ByteString.Char8 as BS
 
 import Control.Monad
 import Control.Exception
 import Control.Concurrent
 
+import Data.Rotations
 import Toolbox
 import Pongo
 import Necklace
@@ -42,29 +41,35 @@ running_counter k opts ces = case opt_verbosity opts of
         1 -> putStrLn $ show $ map (length . ce_moars) ces
         2 -> putStr $ concat $ zipWith show_stage [k..] ces
   where show_stage i ce = "Stage #" ++ show i ++ ".  " ++ 
-                (unwords . count_by_str . map fst $ ce_moars ce) ++ "\n"
+                (unwords . count_by_str . map (BS.unpack . unrotated . fst) $ ce_moars ce) ++ "\n"
 
-saveCrawlDepots fn cd = writeFile fn $ show (length cd) ++ concat ll        
+saveCrawlDepots fn cd = writeFile fn $ show (length cd) ++ "\n" ++ concat ll        
   where ll = map writeCrawlDepots cd
 
 takeParkers1 ll = ((head ll,a) : takeParkers1 b)
   where (a,b) = takeParker $ tail ll
 
+reRotate :: BS.ByteString -> BS.ByteString -> Rotation BS.ByteString
+reRotate x y = ass $ Rotate x $ fromJust i
+  where i = BS.findSubstring y (BS.append x x)
+        ass = assert (BS.length y == BS.length x && isJust i)
+
 readCrawlDepots :: NeckFile p -> BS.ByteString -> [CrawlDepots p]
 readCrawlDepots nf bs = let {
-	ll = takeParkers1 $ splitParker bs ;
         f k b = Depot { idxI = k,
                  idxE = fromBS $ b !! 0,
                  idxF = fromBS $ b !! 1,
                  idxL = fromBS $ b !! 2,
                  edge_type = fromBS $ b !! 3 } ;
 	wbs = wrapDepots (nf_edgetypes nf) . zipWith f [0..] ;
-	fun (crawlbs,info:pctbs) = (BS.unpack $ head crawlbs, wbs pctbs)
-   } in map fun ll
+	fun (crawlbs,info:pctbs) = (head crawlbs, wbs pctbs) ;
+	l = map fun $ takeParkers1 $ splitParker bs ;
+	crawl = fst $ head l
+   } in map (\(a,b) -> (reRotate crawl a,b)) l
 
 graph_crawl_depots dn cds = let {
-        fn cd k = dn ++ (pathSeparator : fst cd) ++ show k ;
-        fun cd k = graph_pct_command (snd cd) k (fn cd k)
+        fn cd k = dn ++ (pathSeparator : (BS.unpack . rotated $ fst cd)) ++ show k ;
+        fun cd k = graph_pct_command (snd cd) k (fn cd k ++ ".jpg")
    } in do
           createDirectoryIfMissing False dn
           sequence_ $ zipWith fun cds [1..] 
@@ -91,7 +96,7 @@ report_results k opts ces = let {
 
 initialized_main opts pp = do
         nf <- readNecklaceFile pp $ opt_neck opts
-        let ce0 = init_crawls_extend nf $ head $ opt_crawls opts
+        let ce0 = init_crawls_extend nf $ BS.pack $ head $ opt_crawls opts
         let ces = iterate_crawl_extend nf ce0
         running_counter 0 opts ces
         report_results 0 opts ces 
