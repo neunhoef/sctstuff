@@ -1,0 +1,22 @@
+For each group G where
+  1) fail
+  2) infinite
+  3) >= 100000
+print:
+    1), 2) or 3)
+    N(G)    N(G,S<->R)  
+       and N(G,flip 2^(2i)) and N(G,flip 2^(2i+1)      only for even length
+    binary expansion of relator with top bit removed
+
+For LG = 1, ..., K
+  check if relator true in LG
+  if so print char(LG)
+
+   T          S         char
+  (1,2)       ()        2
+  ()          (1,2,3)   3
+  (1,2)       (1,2,3)   S3
+  (1,2)       (2,3,4)   S4
+  (1,2)(4,5)  (2,4,5)   A5
+  ...
+  
