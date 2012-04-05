@@ -1,10 +1,13 @@
-{-# OPTIONS_GHC -XImplicitParams #-}
+{-# OPTIONS_GHC #-}
+{-# LANGUAGE ImplicitParams #-}
+
+{- ghc -L/usr/lib pubcrawler.hs #-}
 
 module Main( main ) where
 
 import Data.List
 import Data.Maybe
-import qualified Data.Vector as Vec
+import qualified Data.Vector as V
 import Data.Vector ((!), (!?), (//))
 import qualified Data.ByteString.Char8 as BS
 
@@ -26,6 +29,8 @@ import System.FilePath.Posix
 import System.Exit
 import System.Directory
 
+import Debug.Trace
+
 
 {-  -}
 
@@ -41,7 +46,7 @@ running_counter k opts ces = case opt_verbosity opts of
         1 -> putStrLn $ show $ map (length . ce_moars) ces
         2 -> putStr $ concat $ zipWith show_stage [k..] ces
   where show_stage i ce = "Stage #" ++ show i ++ ".  " ++ 
-                (unwords . count_by_str . map (BS.unpack . unrotated . fst) $ ce_moars ce) ++ "\n"
+                (unwords . count_by_str . map (V.toList . unrotated . fst) $ ce_moars ce) ++ "\n"
 
 saveCrawlDepots fn cd = writeFile fn $ show (length cd) ++ "\n" ++ concat ll        
   where ll = map writeCrawlDepots cd
@@ -49,10 +54,13 @@ saveCrawlDepots fn cd = writeFile fn $ show (length cd) ++ "\n" ++ concat ll
 takeParkers1 ll = ((head ll,a) : takeParkers1 b)
   where (a,b) = takeParker $ tail ll
 
-reRotate :: BS.ByteString -> BS.ByteString -> Rotation BS.ByteString
-reRotate x y = ass $ Rotate x $ fromJust i
-  where i = BS.findSubstring y (BS.append x x)
-        ass = assert (BS.length y == BS.length x && isJust i)
+reRotateCrawl :: BS.ByteString -> BS.ByteString -> Crawl
+reRotateCrawl x = fun
+  where sq = BS.append x x
+        rot = Rotate $ V.fromList $ BS.unpack x
+        fun y = ass $ rot $ fromJust i
+          where i = BS.findSubstring y sq
+                ass = assert (BS.length y == BS.length x && isJust i)
 
 readCrawlDepots :: NeckFile p -> BS.ByteString -> [CrawlDepots p]
 readCrawlDepots nf bs = let {
@@ -64,11 +72,11 @@ readCrawlDepots nf bs = let {
 	wbs = wrapDepots (nf_edgetypes nf) . zipWith f [0..] ;
 	fun (crawlbs,info:pctbs) = (head crawlbs, wbs pctbs) ;
 	l = map fun $ takeParkers1 $ splitParker bs ;
-	crawl = fst $ head l
-   } in map (\(a,b) -> (reRotate crawl a,b)) l
+	mkcrawl = reRotateCrawl $ fst $ head l
+   } in map (\(a,b) -> (mkcrawl a,b)) l
 
 graph_crawl_depots dn cds = let {
-        fn cd k = dn ++ (pathSeparator : (BS.unpack . rotated $ fst cd)) ++ show k ;
+        fn cd k = dn ++ (pathSeparator : (V.toList . rotated $ fst cd)) ++ show k ;
         fun cd k = graph_pct_command (snd cd) k (fn cd k ++ ".jpg")
    } in do
           createDirectoryIfMissing False dn
@@ -93,7 +101,8 @@ report_results k opts ces = let {
    } in do
           sequence_ $ map dump $ opt_dump opts
           if null f then
-             putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce)
+             putStrLn $ "Success!  (mu,epsilon) = " ++ show (ce_stats ce) ++
+                        "\n (epsilon,[x1,..) = " ++ show (ce_conclude ce)
           else do
              putStrLn $ "Found " ++ show (length f) ++ " failures!"
              let fn = report_filename opts "f" (k+l)
@@ -102,7 +111,7 @@ report_results k opts ces = let {
 
 initialized_main opts pp = do
         nf <- readNecklaceFile pp $ opt_neck opts
-        let ce0 = init_crawls_extend nf $ BS.pack $ head $ opt_crawls opts
+        let ce0 = init_crawls_extend nf $ V.fromList $ head $ opt_crawls opts
         let ces = iterate_crawl_extend nf ce0
         running_counter 0 opts ces
         report_results 0 opts ces 
@@ -120,9 +129,8 @@ resumed_main opts pp = do
           else "Warning : You cannot specify crawls when resuming."
         nf <- readNecklaceFile pp fn
         exitFailure
-        let ce0 = CrawlExtend {
-             ce_fails = [],  ce_wins = [],  ce_stats = Nothing,
-             ce_moars = readCrawlDepots nf $ BS.tail bs }
+        let cd = readCrawlDepots nf $ BS.tail bs
+        let ce0 = (init_crawl_extend nf $ unrotated $ fst $ head cd) { ce_moars = cd }
         let ces = iterate_crawl_extend nf ce0
         running_counter k opts ces
         report_results k opts ces
