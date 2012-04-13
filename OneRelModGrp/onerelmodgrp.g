@@ -295,15 +295,25 @@ DoworkTC := function(r)
   od;
 end;
 
-Savework := function()
+SaveworkOld := function()
   PrintTo("/home/neunhoef/SCT/OneRelModGrp/result.g",
           "orbs := ",orbs,";\n",
           "reps := ",reps,";\n",
           "res := ",res,";\n");
 end;
 
-Loadwork := function()
+LoadworkOld := function()
   Read("/home/neunhoef/SCT/OneRelModGrp/result.g");
+end;
+
+Savework := function()
+  PrintTo("/home/neunhoef/SCT/OneRelModGrp/resultnew.g",
+          "reps := ",reps,";\n",
+          "res := ",res,";\n");
+end;
+
+Loadwork := function()
+  Read("/home/neunhoef/SCT/OneRelModGrp/resultnew.g");
 end;
 
 Print("Use Initwork(); to start the work.\n");
@@ -317,10 +327,10 @@ Canonicalise := function(n)
   bs := NecklaceReduceBinaryString(bs);
   can := GroupNumberBinary(bs);
   # Now check:
-  pos := Position(reps,can);
-  if not(n in orbs[pos] and orbs[pos][1] = can) then
-      Error("something stinks");
-  fi;
+  #pos := Position(reps,can);
+  #if not(n in orbs[pos] and orbs[pos][1] = can) then
+  #    Error("something stinks");
+  #fi;
   return can;
 end;
 

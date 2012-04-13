@@ -1,3 +1,4 @@
+gap> for n in inter do PrettyPrintGroup(n); od;
        64 infinite 000000       64       85       85
                64 small:2,3,S3,A4
       128 infinite 0000000      128
@@ -2202,3 +2203,4 @@
                3484244 small:3,A5,A4
   2446029 57624    001010101001011001101  2446029
                3565908 small:L2(7)
+gap> LogTo();
