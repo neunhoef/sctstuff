@@ -1,0 +1,126 @@
+#gdgi
+##
+##  Stuff to check epsilon-confluence of rewrite-systems
+##  Copyright (C) 2012 by Max Neunhoeffer
+##  This file is free software, see license information at the end.
+##
+#gi
+
+# Words and cyclic words.
+
+# Words are just lists, either plain lists or strings
+# So letters are either integers or characters
+
+# Some utilities:
+
+
+DeclareOperation("EmptyList", [IsInt, IsList]);
+
+InstallMethod(EmptyList, "for an integer and a string",
+  [ IsInt, IsString and IsStringRep ],
+  function(len, l) return EmptyString(len); end );
+
+InstallMethod(EmptyList, "for an integer and a plist",
+  [ IsInt, IsList and IsPlistRep ],
+  function(len, l) return EmptyPlist(len); end );
+
+
+DeclareOperation("LexLeastRotation", [IsList]);
+
+InstallMethod( LexLeastRotation, "for a list",
+  [ IsList ],
+  function( l )
+    local a,i,j,k,n,nn;
+    if IsEmpty(l) then return ShallowCopy(l); fi;
+    n := Length(l);
+    a := EmptyList(2*n,l);
+    Append(a,l);
+    Append(a,l);
+    k := 0;
+    nn := 2*n;
+    while k < nn do
+        i := k+1;
+        j := k+2;
+        while true do
+            if j-1-k = n and n mod (j-i) = 0 then
+                return [a{[k+1..k+j-i]},n/(j-i)];
+            fi;
+            if j <= nn then
+                if a[i] < a[j] then
+                    i := k+1; j := j+1; continue;
+                elif a[i] = a[j] then
+                    i := i+1; j := j+1; continue;
+                fi;
+            fi;
+            repeat
+                k := k + (j-i);
+            until k >= i;
+            break;
+        od;
+    od;
+    return fail;
+  end );
+
+
+# Cyclic words:
+
+#type CyclicWord IsPositionalObjectRep
+
+DeclareOperation("CyclicWord",[IsList]);  # Constructor
+DeclareAttribute("Length",IsCyclicWord);
+DeclareAttribute("Word",IsCyclicWord);
+
+InstallMethod(CyclicWord, "for a list", [IsList],
+  function( l )
+    local o,len,ll;
+    len := Length(l);
+    ll := LexLeastRotation(l);
+    o := [ll[1],EmptyList(2*len,ll),len];
+    Append(o[2],ll[1]);
+    Append(o[2],ll[1]);
+    MakeImmutable(o);
+    return Objectify(CyclicWordType,o);
+  end );
+
+InstallMethod(ViewObj, "for a cyclic word",
+  [ IsCyclicWordStdRep ],
+  function( c )
+    Print("CyclicWord(");
+    ViewObj(c![1]);
+    Print(")");
+  end );
+
+InstallMethod(Length, "for a cyclic word",
+  [ IsCyclicWordStdRep ],
+  function( c )
+    return c![3];
+  end );
+
+InstallMethod(Word, "for a cyclic word",
+  [ IsCyclicWordStdRep ],
+  function( c )
+    return c![1];
+  end );
+
+
+# Rewrite systems:
+
+#type RewriteSystem IsComponentObjectRep
+
+#type RWSFSA IsComponentObjectRep
+
+#gdgi
+##
+##  This program is free software: you can redistribute it and/or modify
+##  it under the terms of the GNU General Public License as published by
+##  the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License
+##  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
