@@ -72,17 +72,27 @@ InstallMethod( ChooseHashFunction, "for strings",
 
 InstallMethod(CyclicWord, "for a list", [IsList],
   function( l )
-    local o,len,ll;
+    local i,o,len,ll,lll;
     len := Length(l);
     ll := LexLeastRotation(l);
-    o := [ll[1],EmptyList(2*len,ll),len];
-    Append(o[2],ll[1]);
-    Append(o[2],ll[1]);
+    lll := EmptyList(Length(ll[1])*ll[2],l);
+    for i in [1..ll[2]] do Append(lll,ll[1]); od;
+    o := [lll,EmptyList(2*len,l),len];
+    Append(o[2],lll);
+    Append(o[2],lll);
     MakeImmutable(o);
     return Objectify(CyclicWordType,o);
   end );
 
 InstallMethod(ViewObj, "for a cyclic word",
+  [ IsCyclicWordStdRep ],
+  function( c )
+    Print("CyclicWord(");
+    ViewObj(c![1]);
+    Print(")");
+  end );
+
+InstallMethod(PrintObj, "for a cyclic word",
   [ IsCyclicWordStdRep ],
   function( c )
     Print("CyclicWord(");
@@ -106,8 +116,16 @@ InstallMethod(Word, "for a cyclic word",
 # Rewrite systems:
 InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
   [ IsList, IsList ],
-  function( alphabet, rewrites )
+  function( a, r )
+    return RewriteSystem(a,r,rec());
+  end );
+
+InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
+  [ IsList, IsList, IsRecord ],
+  function( alphabet, rewrites, opt )
     local L,hashlen,hf,ht,i,j,len,maxlen,pre,rws,s,states,tab,w,x;
+
+    if not(IsBound(opt.check)) then opt.check := true; fi;
 
     len := Length(rewrites);
     if IsOddInt(len) then
@@ -118,6 +136,26 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
                 rights := rewrites{[2,4..len]},
                 prefixhash := fail, fsa := fail, states := fail );
     Objectify(RewriteSystemType, rws);
+    len := len / 2;
+    # Check that every left hand side does not occur in any other LHS
+    # or any right hand side:
+    if opt.check then
+        for i in [1..len] do
+            L := rws!.lefts[i];
+            for j in [1..len] do
+                if i <> j then
+                    if PositionSublist(rws!.lefts[j],L) <> fail then
+                        Error("LHS ",L," is contained in LHS ",rws!.lefts[j]);
+                        return fail;
+                    fi;
+                fi;
+                if PositionSublist(rws!.rights[j],L) <> fail then
+                    Error("LHS ",L," is contained in RHS ",rws!.rights[j]);
+                fi;
+            od;
+        od;
+    fi;
+
     # Compute prefix hash and make states for prefixes
     rws!.fsa := FSAState(alphabet,EmptyList(0,alphabet),0);
     states := [];
@@ -125,7 +163,6 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
     rws!.states := states;
     maxlen := Maximum(List(rws!.lefts,Length));
     hashlen := NextPrimeInt(QuoInt(maxlen * len * 3,2));
-    len := len / 2;
     if IsPlistRep(alphabet) then
         hf := MakeHashFunctionForPlainFlatList(hashlen);
         ht := HTCreate(alphabet,rec( hf := hf.func, hfd := hf.data,
@@ -216,17 +253,19 @@ InstallMethod( ViewObj, "for an FSAState",
 InstallMethod( LookupStep, "for an FSAState and a letter",
   [ IsFSAStateStdRep, IsObject ],
   function( s, x )
-    local pos;
+    local pos,start;
     if IsInt(x) then
         pos := x mod s!.alphsize + 1;
     elif IsChar(x) then
         pos := IntChar(x) mod s!.alphsize + 1;
     fi;
+    start := pos;
     while true do
         if not(IsBound(s!.hashels[pos])) then return fail; fi;
         if x = s!.hashels[pos] then return s!.hashvals[pos]; fi;
         pos := pos + 1;
         if pos > s!.alphsize then pos := 1; fi;
+        if pos = start then Error("Letter ",x," not in alphabet!"); fi;
     od;
   end );
 
@@ -264,7 +303,9 @@ InstallMethod( FindOneRewrite, "for a RWS and a word",
   function( rws, w )
     local i,rw,s;
     s := rws!.fsa;
-    for i in [1..Length(w)] do
+    i := 0;
+    while i < Length(w) do
+        i := i + 1;
         s := LookupStep(s,w[i]);
         rw := FoundRewrite(s);
         if rw > 0 then
@@ -279,17 +320,16 @@ InstallMethod( FindAllRewrites, "for a RWS and a word",
   function( rws, w )
     local i,res,rw,s;
     s := rws!.fsa;
-    i := 1;
+    i := 0;
     res := [];
-    while i <= Length(w) do
+    while i < Length(w) do
+        i := i + 1;
         s := LookupStep(s,w[i]);
         rw := FoundRewrite(s);
         if rw > 0 then
             Add(res,[rw,i-Length(s!.prefix)+1,i]);
-            i := i-Length(s!.prefix)+2;
+            i := i-Length(s!.prefix)+1;
             s := rws!.fsa;
-        else
-            i := i + 1;
         fi;
     od;
     return res;
@@ -306,17 +346,21 @@ InstallMethod( ApplyRewrite, "for a RWS, a word and a rewrite desc",
 InstallMethod( IsIrreducible, "for a RWS and a word",
   [ IsRewriteSystemStdRep, IsList ],
   function( rws, w )
+    local r;
     r := FindOneRewrite(rws,w);
     return r = fail;
   end );
 
 InstallMethod( FindOneRewrite, "for a RWS and a cyclic word",
   [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
-  function( rws, w )
-    # FIXME: Go on here!
-    local i,rw,s;
+  function( rws, cw )
+    local i,len,rw,s,w;
     s := rws!.fsa;
-    for i in [1..Length(w)] do
+    len := cw![3];
+    w := cw![2];
+    i := 0;
+    while i - Length(s!.prefix) + 1 <= len and Length(s!.prefix) < len do
+        i := i + 1;
         s := LookupStep(s,w[i]);
         rw := FoundRewrite(s);
         if rw > 0 then
@@ -328,27 +372,124 @@ InstallMethod( FindOneRewrite, "for a RWS and a cyclic word",
 
 InstallMethod( FindAllRewrites, "for a RWS and a word",
   [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
-  function( rws, w )
-    local i,res,rw,s;
+  function( rws, cw )
+    local i,len,res,rw,s,w;
     s := rws!.fsa;
-    i := 1;
+    len := cw![3];
+    w := cw![2];
+    i := 0;
     res := [];
-    while i <= Length(w) do
+    while i - Length(s!.prefix) + 1 <= len and Length(s!.prefix) < len do
+        i := i + 1;
         s := LookupStep(s,w[i]);
         rw := FoundRewrite(s);
         if rw > 0 then
             Add(res,[rw,i-Length(s!.prefix)+1,i]);
-            i := i-Length(s!.prefix)+2;
+            i := i-Length(s!.prefix)+1;
             s := rws!.fsa;
-        else
-            i := i + 1;
         fi;
     od;
     return res;
   end );
 
+InstallMethod( ApplyRewrite, "for a RWS, a cyclic word and a rewrite desc",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep, IsList ],
+  function( rws, cw, r )
+    if r[3] <= cw![3] then
+        return CyclicWord(Concatenation(cw![2]{[1..r[2]-1]},
+                                        rws!.rights[r[1]],
+                                        cw![2]{[r[3]+1..cw![3]]}));
+    else
+        return CyclicWord(Concatenation(cw![2]{[r[3]-cw![3]+1..r[2]-1]},
+                                        rws!.rights[r[1]]));
+    fi;
+  end );
+
+InstallMethod( IsIrreducible, "for a RWS and a word",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
+  function( rws, cw )
+    local r;
+    r := FindOneRewrite(rws,cw);
+    return r = fail;
+  end );
+
+InstallMethod( ShowRewrite, "for a rws, a word, and fail",
+  [ IsRewriteSystemStdRep, IsList, IsBool ],
+  function( rws, w, rw )
+    Print("Word: ",w,"\n   => No rewrite applies.\n");
+    return;
+  end );
 
 
+InstallMethod( ShowRewrite, "for a rws, a word, and a rewrite spec",
+  [ IsRewriteSystemStdRep, IsList, IsList ],
+  function( rws, w, rw )
+    local i,j,s;
+    if w{[rw[2]..rw[3]]} <> rws!.lefts[rw[1]] then
+        Error("Wrong rewrite!");
+    fi;
+    Print("Word: ",w,"\n");
+    Print("      ");
+    if IsStringRep(w) then
+        for i in [1..rw[2]-1] do Print(" "); od;
+        Print(w{[rw[2]..rw[3]]});
+    else
+        Print("  ");
+        for i in [1..rw[2]-1] do
+            s := String(w[i]);
+            for j in [1..Length(s)] do
+                Print(" ");
+            od;
+            Print("  ");
+        od;
+        for i in [rw[2]..rw[3]-1] do
+            Print(w[i],", ");
+        od;
+        Print(w[rw[3]]);
+    fi;
+    Print(" -> ",rws!.rights[rw[1]],"\n");
+    Print("   => ",ApplyRewrite(rws,w,rw),"\n");
+  end );
+
+InstallMethod( ShowRewrite, "for a rws, a cyclic word, and fail",
+  [ IsRewriteSystemStdRep, IsCyclicWord, IsBool ],
+  function( rws, w, rw )
+    Print(w,"\n   => No rewrite applies.\n");
+    return;
+  end );
+
+InstallMethod( ShowRewrite, "for a rws, a cyclic word, and a rewrite spec",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep, IsList ],
+  function( rws, cw, rw )
+    local i,j,s,len,w;
+    len := cw![3];
+    w := cw![2];
+    if w{[rw[2]..rw[3]]} <> rws!.lefts[rw[1]] then
+        Error("Wrong rewrite!");
+    fi;
+    Print(cw,"\n");
+    Print("           ");
+    if IsStringRep(w) then
+        Print(" ");
+        for i in [1..rw[2]-1] do Print(" "); od;
+        Print(w{[rw[2]..rw[3]]});
+    else
+        Print("  ");
+        for i in [1..rw[2]-1] do
+            s := String(w[i]);
+            for j in [1..Length(s)] do
+                Print(" ");
+            od;
+            Print("  ");
+        od;
+        for i in [rw[2]..rw[3]-1] do
+            Print(w[i],", ");
+        od;
+        Print(w[rw[3]]);
+    fi;
+    Print(" -> ",rws!.rights[rw[1]],"\n");
+    Print(" => ",ApplyRewrite(rws,cw,rw),"\n");
+  end );
 
 ##
 ##  This program is free software: you can redistribute it and/or modify

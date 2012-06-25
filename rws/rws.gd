@@ -42,7 +42,11 @@ DeclareRepresentation("IsFSAStateStdRep", IsFSAState,
 BindGlobal("FSAStateType", NewType(FSAStatesFamily, IsFSAStateStdRep));
 
 DeclareOperation( "RewriteSystem", [IsList, IsList] );
+DeclareOperation( "RewriteSystem", [IsList, IsList, IsRecord] );
 # Takes an alphabet and a zipped list of pairs of words
+# The record is an options record, options (with defaults given):
+#   check := true            do a check whether any LHS is contained
+#                            in any left or right hand side
 
 DeclareOperation( "FSAState", [IsList, IsList, IsInt] );
 # Takes a prefix and an integer, if this is 0, it is incomplete,
@@ -70,8 +74,13 @@ DeclareOperation( "ApplyRewrite", [IsRewriteSystem, IsList, IsList] );
 DeclareOperation( "ApplyRewrite", [IsRewriteSystem, IsCyclicWord, IsList] );
 # Takes a RWS, a word and a pair describing the rewrite and position as above
 
-DeclareOperation( "IsIrreducible", [IsList]);
-DeclareOperation( "IsIrreducible", [IsCyclicWord]);
+DeclareOperation( "IsIrreducible", [IsRewriteSystem, IsList]);
+DeclareOperation( "IsIrreducible", [IsRewriteSystem, IsCyclicWord]);
+
+DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsList, IsList] );
+DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsList] );
+DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsList, IsBool] );
+DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
 
 ##  This program is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
