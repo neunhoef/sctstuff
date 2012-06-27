@@ -13,6 +13,8 @@ DeclareOperation("EmptyList", [IsInt, IsList]);
 DeclareOperation("LexLeastRotation", [IsList]);
 DeclareGlobalFunction("HashFunctionForStrings");
 
+DeclareInfoClass("InfoRWS");
+SetInfoLevel(InfoRWS,3);
 
 # Cyclic words:
 
@@ -81,6 +83,39 @@ DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsList, IsList] );
 DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsList] );
 DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsList, IsBool] );
 DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
+
+# Here comes the implementation of our algorithm proper:
+
+DeclareOperation( "FindLHSDoubleOverlaps", [IsRewriteSystem, IsList]);
+
+DeclareOperation( "FindCriticalPairs", [IsRewriteSystem]);
+# This finds the initial list of so called critical pairs. That is, these
+# are two left hand sides with a non-trivial overlap, i.e. a word
+# ABC such that AB->P and BC->Q are rewrites. The pair is critical,
+# if there is no W with PC=>W and AQ=>W.
+# This function uses some heuristics to find a list of pairs which contains
+# all critical pairs.
+
+DeclareOperation( "SetupSearchList", [IsRewriteSystem, IsList]);
+# Sets up the main search list by taking the critical pairs in the second
+# argument (coming from FindCriticalPairs) and setting up the data structures
+# for the patterns.
+
+BindGlobal("CWPatternsFamily", NewFamily("CWPatternsFamily"));
+DeclareCategory("IsCWPattern", IsComponentObjectRep);
+DeclareRepresentation("IsCWPatternStdRep", IsCWPattern, []);
+BindGlobal("CWPatternType", NewType(CWPatternsFamily, IsCWPatternStdRep));
+
+DeclareOperation( "Check", [IsRewriteSystem, IsCyclicWord, IsCyclicWord]);
+# See whether or not we have found a pair of witnesses
+
+DeclareOperation( "SearchDescendants", [IsRewriteSystem, IsCWPattern]);
+# Uses Lemma 2.3 to extend the cyclic word patterns.
+# Returns a record with descendants (again cyclic word patterns) and 
+# a list of pairs of witnesses found
+
+DeclareOperation( "CheckCyclicEpsilonConfluence", [IsRewriteSystem, IsPosInt]);
+# The whole search procedure
 
 ##  This program is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by

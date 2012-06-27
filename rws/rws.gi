@@ -491,6 +491,49 @@ InstallMethod( ShowRewrite, "for a rws, a cyclic word, and a rewrite spec",
     Print(" => ",ApplyRewrite(rws,cw,rw),"\n");
   end );
 
+# Here comes the implementation of our algorithm proper:
+
+InstallMethod( FindLHSDoubleOverlaps, 
+  "for a rewrite system and a list of words",
+  [ IsRewriteSystemStdRep, IsList ],
+  function( rws, ws )
+    # The list is a list of words. This operation finds all ways in
+    # which a left hand side of the rewrite system overlaps some word in
+    # the list on both sides, closing a cyclic word. The list of cyclic
+    # words is returned.
+    local found,ht,i,j,k,l,len,len2,lhs,res,suf,tab,w;
+    res := [];
+    ht := rws!.prefixhash;
+    for w in ws do
+        len := Length(w);
+        for i in [1..len-1] do
+            suf := w{[len-i+1..len]};
+            tab := HTValue(ht,suf);
+            if tab <> fail then
+                for j in tab[2] do    # Those are the LHSs with this as prefix
+                    lhs := rws!.lefts[j];
+                    len2 := Length(lhs);
+                    for k in [1..Minimum(len2-i,len-i)] do
+                        # This is the amount of overlap between lhs and w we try
+                        found := true;
+                        for l in [1..k] do
+                            if w[l] <> lhs[len2-k+l] then
+                                found := false;
+                                break;
+                            fi;
+                        od;
+                        if found then
+                          Add(res,CyclicWord( 
+                                   Concatenation(w,lhs{[i+1..len2-k]})));
+                        fi;
+                    od;
+                od;
+            fi;
+        od;
+    od;
+    return res;
+  end );
+
 ##
 ##  This program is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
