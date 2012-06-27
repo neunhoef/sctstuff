@@ -370,7 +370,7 @@ InstallMethod( FindOneRewrite, "for a RWS and a cyclic word",
     return fail;
   end );
 
-InstallMethod( FindAllRewrites, "for a RWS and a word",
+InstallMethod( FindAllRewrites, "for a RWS and a cyclic word",
   [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
   function( rws, cw )
     local i,len,res,rw,s,w;
