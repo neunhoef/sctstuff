@@ -16,6 +16,8 @@ DeclareGlobalFunction("HashFunctionForStrings");
 DeclareInfoClass("InfoRWS");
 SetInfoLevel(InfoRWS,3);
 
+SetAssertionLevel( 1 );
+
 # Cyclic words:
 
 BindGlobal("CyclicWordsFamily", NewFamily("CyclicWordsFamily"));
@@ -26,6 +28,7 @@ BindGlobal("CyclicWordType", NewType(CyclicWordsFamily, IsCyclicWordStdRep));
 DeclareOperation("CyclicWord",[IsList]);  # Constructor
 DeclareAttribute("Length",IsCyclicWord);
 DeclareAttribute("Word",IsCyclicWord);
+DeclareOperation("StringWordStripped",[IsList]);
 
 
 # Rewrite systems:
@@ -84,6 +87,9 @@ DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsList] );
 DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsList, IsBool] );
 DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
 
+DeclareOperation( "Reduce", [IsRewriteSystem, IsList]);
+DeclareOperation( "Reduce", [IsRewriteSystem, IsCyclicWord]);
+
 # Here comes the implementation of our algorithm proper:
 
 DeclareOperation( "FindLHSDoubleOverlaps", [IsRewriteSystem, IsList]);
@@ -96,7 +102,7 @@ DeclareOperation( "FindCriticalPairs", [IsRewriteSystem]);
 # This function uses some heuristics to find a list of pairs which contains
 # all critical pairs.
 
-DeclareOperation( "SetupSearchList", [IsRewriteSystem, IsList]);
+DeclareOperation( "SetupSearchList", [IsRecord, IsList]);
 # Sets up the main search list by taking the critical pairs in the second
 # argument (coming from FindCriticalPairs) and setting up the data structures
 # for the patterns.
@@ -106,16 +112,28 @@ DeclareCategory("IsCWPattern", IsComponentObjectRep);
 DeclareRepresentation("IsCWPatternStdRep", IsCWPattern, []);
 BindGlobal("CWPatternType", NewType(CWPatternsFamily, IsCWPatternStdRep));
 
-DeclareOperation( "Check", [IsRewriteSystem, IsCyclicWord, IsCyclicWord]);
-# See whether or not we have found a pair of witnesses
+# The constructors:
+DeclareOperation("CWPattern", [IsRewriteSystem, IsList, IsList, IsList,IsChar]);
 
-DeclareOperation( "SearchDescendants", [IsRewriteSystem, IsCWPattern]);
+DeclareOperation( "Check", [IsRewriteSystem, IsCyclicWord, IsCyclicWord]);
+DeclareOperation( "Check", [IsRewriteSystem, IsList, IsList]);
+# See whether or not we have found a pair of witnesses
+# This function simply rewrites both (cyclic) words until they
+# are irreducible. If one of them ends in the empty (cyclic) word and the
+# other not, then the pair is a witness and [true,Vp,Wp] is returned,
+# where Vp and Wp are the two irreducible (cyclic) words.
+# Otherwise [false,Vp,Wp] is returned. If some (cyclic) word is found
+# to which both rewrite (for example, if the (cyclic) words are
+# equal), then fail is returned.
+
+DeclareOperation( "SearchDescendants", [IsRecord, IsCWPattern]);
 # Uses Lemma 2.3 to extend the cyclic word patterns.
-# Returns a record with descendants (again cyclic word patterns) and 
-# a list of pairs of witnesses found
+# Adds descendants (again cyclic word patterns) to r.pats and 
+# a list of pairs of witnesses found to r.wits.
 
 DeclareOperation( "CheckCyclicEpsilonConfluence", [IsRewriteSystem, IsPosInt]);
-# The whole search procedure
+# The whole search procedure. It creates a record for the search, this
+# contains among other things the rewrite system.
 
 ##  This program is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by

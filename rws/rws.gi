@@ -25,7 +25,7 @@ InstallMethod( LexLeastRotation, "for a list",
   [ IsList ],
   function( l )
     local a,i,j,k,n,nn;
-    if IsEmpty(l) then return ShallowCopy(l); fi;
+    if IsEmpty(l) then return [ShallowCopy(l),1]; fi;
     n := Length(l);
     a := EmptyList(2*n,l);
     Append(a,l);
@@ -491,47 +491,337 @@ InstallMethod( ShowRewrite, "for a rws, a cyclic word, and a rewrite spec",
     Print(" => ",ApplyRewrite(rws,cw,rw),"\n");
   end );
 
+BindGlobal( "RWS_Reduction_Function_Cyclic_and_Words",
+  function(rws,w)
+    local r;
+    while true do
+        r := FindOneRewrite(rws,w);
+        if r = fail then return w; fi;
+        w := ApplyRewrite(rws,w,r);
+    od;
+  end );
+
+InstallMethod( Reduce, "for a rewrite system and a cyclic word",
+  [IsRewriteSystemStdRep, IsCyclicWordStdRep],
+  RWS_Reduction_Function_Cyclic_and_Words );
+
+InstallMethod( Reduce, "for a rewrite system and a word",
+  [IsRewriteSystemStdRep, IsList],
+  RWS_Reduction_Function_Cyclic_and_Words );
+
+
 # Here comes the implementation of our algorithm proper:
 
 InstallMethod( FindLHSDoubleOverlaps, 
-  "for a rewrite system and a list of words",
+  "for a rewrite system and a word",
   [ IsRewriteSystemStdRep, IsList ],
-  function( rws, ws )
-    # The list is a list of words. This operation finds all ways in
-    # which a left hand side of the rewrite system overlaps some word in
-    # the list on both sides, closing a cyclic word. The list of cyclic
-    # words is returned.
-    local found,ht,i,j,k,l,len,len2,lhs,res,suf,tab,w;
+  function( rws, w )
+    # The list is word. This operation finds all ways in
+    # which a left hand side of the rewrite system overlaps the word
+    # on both sides, closing a cyclic word. A list lists is returned,
+    # each containing: The complete cyclic word as a word with w at the
+    # beginning, the length of the overlap from w to L, the length
+    # of the overlap from L to w and finally the complete cyclic word 
+    # as a word where the left hand side has been replaced by the right
+    # hand side.
+    local found,ht,i,j,k,l,len,len2,lhs,res,suf,tab;
     res := [];
     ht := rws!.prefixhash;
-    for w in ws do
-        len := Length(w);
-        for i in [1..len-1] do
-            suf := w{[len-i+1..len]};
-            tab := HTValue(ht,suf);
-            if tab <> fail then
-                for j in tab[2] do    # Those are the LHSs with this as prefix
-                    lhs := rws!.lefts[j];
-                    len2 := Length(lhs);
-                    for k in [1..Minimum(len2-i,len-i)] do
-                        # This is the amount of overlap between lhs and w we try
-                        found := true;
-                        for l in [1..k] do
-                            if w[l] <> lhs[len2-k+l] then
-                                found := false;
-                                break;
-                            fi;
-                        od;
-                        if found then
-                          Add(res,CyclicWord( 
-                                   Concatenation(w,lhs{[i+1..len2-k]})));
+    len := Length(w);
+    for i in [1..len-1] do
+        suf := w{[len-i+1..len]};
+        tab := HTValue(ht,suf);
+        if tab <> fail then
+            for j in tab[2] do    # Those are the LHSs with this as prefix
+                lhs := rws!.lefts[j];
+                len2 := Length(lhs);
+                for k in [1..Minimum(len2-i,len-i)] do
+                    # This is the amount of overlap between lhs and w we try
+                    found := true;
+                    for l in [1..k] do
+                        if w[l] <> lhs[len2-k+l] then
+                            found := false;
+                            break;
                         fi;
                     od;
+                    if found then
+                      Add(res,[Concatenation(w,lhs{[i+1..len2-k]}),i,k,
+                               Concatenation(w{[k+1..Length(w)-i]},
+                                             rws!.rights[j])]);
+                    fi;
+                od;
+            od;
+        fi;
+    od;
+    return res;
+  end );
+
+InstallMethod( CWPattern, "for a rws and lots of words",
+  [IsRewriteSystemStdRep, IsList, IsList, IsList, IsChar ],
+  function( rws, W, Pp, Qp, whereeps )
+    # The fundamental constructor, W is a list of 5 words [X,A,B,C,Y]
+    # AB -> P and BC -> Q are two overlapping rewrites,
+    # XPCY => Pp (irreducible) and XAQY => Qp (irreducible)
+    # This pattern matches all cyclic words that contain the word XABCY
+    # as a subword.
+    # We actually look for cyclic words (XABCYV) such that
+    #   - (XPCYV) => (eps)    regardless on how we rewrite
+    #   - not((XAQYV) => (eps))
+    # (case whereeps='L') or vice versa (case whereeps='R'). 
+    # In any case this implies that there is no cyclic word (W)
+    # such that both (PpV) => (W) and (QpV) => (W), in particular (PpV)<>(QpV).
+    # A forteriori, there is no word W with Pp => W and Qp => W and Pp<>Qp
+    # Furthermore, YVX is irreducible, so X and Y are irred. in particular.
+    # This describes the purpose of this data type, thus the assertions.
+    local p;
+    p := rec( rws := rws, 
+              X := W[1], A := W[2], B := W[3], C := W[4], Y := W[5], 
+              Pp := Pp, Qp := Qp, whereeps := whereeps );
+    Assert(1, IsIrreducible(rws,p.X) and IsIrreducible(rws,p.Y) and
+              IsIrreducible(rws,p.Pp) and IsIrreducible(rws,p.Qp));
+    Assert(1, Pp <> Qp);
+    return Objectify(CWPatternType,p);
+  end );
+
+InstallMethod( StringWordStripped, "for a list of integers",
+  [ IsList ],
+  function( l )
+    local i,s;
+    s := EmptyString(3*Length(l));
+    for i in l do
+        Append(s,String(i));
+        Add(s,',');
+    od;
+    Remove(s);
+    return s;
+  end );
+
+InstallMethod( ViewObj, "for a CW pattern",
+  [IsCWPatternStdRep],
+  function( p )
+    Print("<CWPat ");
+    if IsStringRep(p!.X) then
+        Print("(",p!.Pp,"|*) <= ");
+        Print("(",p!.X,"|",p!.A,"|",p!.B,"|",p!.C,"|",p!.Y,"|*)");
+        Print(" => (",p!.Qp,"|*) ");
+    else
+        Print("(",StringWordStripped(p!.Pp),"|*) <= ");
+        Print("(",StringWordStripped(p!.X),"|",
+                  StringWordStripped(p!.A),"|",
+                  StringWordStripped(p!.B),"|",
+                  StringWordStripped(p!.C),"|",
+                  StringWordStripped(p!.Y),"|*)");
+        Print(" => (",StringWordStripped(p!.Qp),"|*) ");
+    fi;
+    if p!.whereeps = 'L' then
+        Print(" left eps>");
+    else
+        Print(" right eps>");
+    fi;
+  end );
+
+InstallMethod( FindCriticalPairs, "for a rewrite system",
+  [ IsRewriteSystemStdRep ],
+  function( rws )
+    # This finds the initial list of so called critical pairs. That is, these
+    # are two left hand sides with a non-trivial overlap, i.e. a word
+    # ABC such that AB->P and BC->Q are rewrites. The pair is critical,
+    # if there is no W with PC=>W and AQ=>W.
+    # This function uses some heuristics to find a list of pairs which contains
+    # all critical pairs.
+    local A,B,C,L,P,Q,V,Vl,W,conflue,ht,i,j,k,l,l2,r,res,t,tab;
+    res := [];
+    ht := rws!.prefixhash;
+    for i in [1..Length(rws!.lefts)] do
+        L := rws!.lefts[i];
+        l := Length(L);
+        for j in [2..l] do
+            A := L{[1..j-1]};
+            B := L{[j..l]};
+            P := rws!.rights[i];
+            tab := HTValue(rws!.prefixhash,B);
+            if tab <> fail then
+                for k in tab[2] do   # this is the list of rewrites with this
+                                     # prefix in its LHS
+                    l2 := Length(rws!.lefts[k]);
+                    C := rws!.lefts[k]{[Length(B)+1..l2]};
+                    Q := rws!.rights[k];
+                    V := Concatenation(P,C);
+                    W := Concatenation(A,Q);
+                    t := Check(rws,V,W);
+                    if t <> fail then
+                        Add(res,rec( A := A, B := B, C := C, P := P, Q := Q,
+                                     Pp := t[2], Qp := t[3] ));
+                    fi;
                 od;
             fi;
         od;
     od;
     return res;
+  end );
+
+InstallMethod( EQ, "for two cyclic words",
+  [ IsCyclicWordStdRep, IsCyclicWordStdRep ],
+  function( V, W )
+    return V![1] = W![1];
+  end );
+
+InstallMethod( LT, "for two cyclic words",
+  [ IsCyclicWordStdRep, IsCyclicWordStdRep ],
+  function( V, W )
+    return V![1] < W![1];
+  end );
+
+BindGlobal( "RWS_Check_Func_For_Cyclic_and_Words",
+  function( rws, V, W )
+    # See whether or not we have found a pair of witnesses
+    # This function simply rewrites both (cyclic) words until they
+    # are irreducible. If one of them ends in the empty (cyclic) word and the
+    # other not, then the pair is a witness and [true,Vp,Wp] is returned,
+    # where Vp and Wp are the two irreducible (cyclic) words.
+    # Otherwise [false,Vp,Wp] is returned. If some (cyclic) word is found
+    # to which both rewrite (for example, if the (cyclic) words are
+    # equal), then fail is returned.
+    local Vs,r,res;
+    if V = W then return fail; fi;
+    Vs := [V];
+    Info(InfoRWS,3,"Check 1: ",V);
+    while true do
+        r := FindOneRewrite(rws,V);
+        if r = fail then break; fi;
+        V := ApplyRewrite(rws,V,r);
+        Info(InfoRWS,3,"      -> ",V);
+        if V = W then 
+            Info(InfoRWS,3,"same as second word --> fail");
+            return fail; 
+        fi;
+        AddSet(Vs,V);
+    od;
+    Info(InfoRWS,3,"Check 2: ",W);
+    while true do
+        r := FindOneRewrite(rws,W);
+        if r = fail then break; fi;
+        W := ApplyRewrite(rws,W,r);
+        Info(InfoRWS,3,"      -> ",W);
+        if Position(Vs,W) <> fail then 
+            Info(InfoRWS,3,"already seen from other word --> fail");
+            return fail; 
+         fi;
+    od;
+    res := (Length(V) = 0 and Length(W) > 0) or
+           (Length(W) = 0 and Length(V) > 0);
+    Info(InfoRWS,3,"Result of check: ",res);
+    return [res,V,W];
+  end );
+
+InstallMethod( Check, "for a rewrite system and two cyclic words",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep, IsCyclicWordStdRep ],
+  RWS_Check_Func_For_Cyclic_and_Words );
+
+InstallMethod( Check, "for a rewrite system and two words",
+  [ IsRewriteSystemStdRep, IsList, IsList ],
+  RWS_Check_Func_For_Cyclic_and_Words );
+
+InstallMethod( SetupSearchList, "for a search record and a list",
+  [ IsRecord, IsList ],
+  function( s, cr )
+    # Sets up the main search list by taking the critical pairs in the
+    # second argument (coming from FindCriticalPairs) and setting up the
+    # data structures for the patterns.
+    local c,e,pats,rws;
+    rws := s.rws;
+    pats := s.pats;
+    e := EmptyList(0,rws!.lefts[1]);
+    for c in cr do
+        Add(pats,CWPattern(rws,[e,c.A,c.B,c.C,e],c.Pp,c.Qp,'L'));
+        Add(pats,CWPattern(rws,[e,c.A,c.B,c.C,e],c.Pp,c.Qp,'R'));
+    od;
+  end );
+
+InstallMethod( SearchDescendants, "for a search record and a CW pattern",
+  [ IsRecord, IsCWPatternStdRep ],
+  function( s, cw )
+    # Uses Lemma 2.3 to extend the cyclic word patterns.
+    # Adds descendants (again cyclic word patterns) to r.pats and 
+    # a list of pairs of witnesses found to r.wits.
+    local L,Pp,Qp,X,Y,i,j,l,post,pre,r,rws;
+    rws := s.rws;
+    if cw!.whereeps = 'L' then
+        if Length(cw!.Pp) = 0 then
+            r := Check(rws,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp));
+            if r <> fail and r[1] = true then
+                Add(s.wits,[CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
+            fi;
+            for L in rws!.lefts do
+                l := Length(L);
+                for i in [1..l-1] do
+                    pre := L{[1..i]};
+                    X := Concatenation(pre,cw!.X);
+                    if IsIrreducible(rws,X) then
+                        for j in [i+1..l] do
+                            post := L{[j..l]};
+                            Y := Concatenation(cw!.Y,post);
+                            if Length(X)+Length(cw!.A)+Length(cw!.B)+
+                               Length(cw!.C)+Length(Y) <= s!.lenlim and
+                               IsIrreducible(rws,Y) then
+                              Pp := Reduce(rws,Concatenation(pre,cw!.Pp,post));
+                              Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
+                              Add(s.pats,
+                                  CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
+                                            Pp,Qp,'L'));
+                            fi;
+                        od;
+                    fi;
+                od;
+            od;
+        else
+            Error("This is the nonempty case");
+        fi;
+    else
+        Info(InfoRWS,1,"not yet implemented");
+    fi;
+  end );
+
+InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
+  [ IsRewriteSystemStdRep, IsPosInt ],
+  function( rws, n )
+    local L,P,Q,critical,d,dd,i,oldpats,p,res,s,w;
+
+    s := rec( rws := rws, lenlim := n, wits := [], pats := [], stop := false );
+
+    Info( InfoRWS, 1, "Looking for double overlaps of LHSs...");
+    for i in [1..Length(rws!.lefts)] do
+        L := rws!.lefts[i];
+        d := FindLHSDoubleOverlaps(rws, L);
+        for dd in d do
+            w := dd[1];
+            P := CyclicWord(ApplyRewrite(rws,w,[i,1,Length(L)]));
+            Q := CyclicWord(dd[4]);
+            res := Check(rws,P,Q);
+            if res <> fail and res[1] = true then
+                Add(s.wits,[P,Q]);
+            fi;
+        od;
+    od;
+    Info( InfoRWS, 1, "Found ",Length(s.wits)," witnesses.");
+
+    Info( InfoRWS, 1, "Finding critical pairs...");
+    critical := FindCriticalPairs(rws);
+    Info( InfoRWS, 1, "Found ", Length(critical), " critical pairs.");
+
+    Info( InfoRWS, 1, "Setting up pattern list...");
+    SetupSearchList(s,critical);
+
+    while Length(s.pats) > 0 and not(s.stop) do
+        Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
+              Length(s.wits)," witnesses.");
+        oldpats := s.pats;
+        s.pats := EmptyPlist(Length(s.pats));
+        for p in oldpats do
+            SearchDescendants(s,p);
+        od;
+    od;
+    return s;
   end );
 
 ##
