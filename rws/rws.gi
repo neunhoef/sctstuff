@@ -135,7 +135,7 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
     fi;
     rws := rec( alphabet := alphabet, lefts := rewrites{[1,3..len-1]},
                 rights := rewrites{[2,4..len]}, prefixhash := fail, 
-                subhash := fail, postfixhash := fail,
+                subhash := fail, suffixhash := fail,
                 fsa := fail, states := fail );
     Objectify(RewriteSystemType, rws);
     len := len / 2;
@@ -223,7 +223,7 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
     # Complete automaton:
     rws!.prefixhash := ht;
     rws!.subhash := ht2;
-    rws!.postfixhash := ht3;
+    rws!.suffixhash := ht3;
     for s in states do
         if s!.complete = 0 then  # otherwise do not bother
             for x in alphabet do
@@ -789,76 +789,104 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
     # Uses Lemma 2.3 to extend the cyclic word patterns.
     # Adds descendants (again cyclic word patterns) to r.pats and 
     # a list of pairs of witnesses found to r.wits.
-    local Extend,L,P,Pp,Q,Qp,X,Y,d,dd,i,j,l,post,pre,r,res,rws;
+    local Extend,L,P,Q,d,dd,i,j,l,r,res,rws,start,stop,study,tab;
 
     Extend := function(s,cw,pre,post)
-
+        local Pp,Qp,X,Y;
+        if Length(cw!.X)+Length(cw!.A)+Length(cw!.B)+
+           Length(cw!.C)+Length(cw!.Y)+Length(pre)+Length(post) > s!.lenlim then
+            return false;
+        fi;
+        if Length(pre) > 0 then
+            X := Concatenation(pre,cw!.X);
+            if not(IsIrreducible(rws,X)) then return false; fi;
+        else
+            X := cw!.X;
+        fi;
+        if Length(post) > 0 then
+            Y := Concatenation(cw!.Y,post);
+            if not(IsIrreducible(rws,Y)) then return false; fi;
+        else
+            Y := cw!.Y;
+        fi;
+        Pp := Reduce(rws,Concatenation(pre,cw!.Pp,post));
+        Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
+        if Pp = Qp then return false; fi;
+        Add(s.pats,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
+                             Pp,Qp,cw!.whereeps));
+        return true;
     end;
 
     rws := s.rws;
     if cw!.whereeps = 'L' then
-        if Length(cw!.Pp) = 0 then
-            # First try an empty V:
-            r := Check(rws,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp));
-            if r <> fail and r[1] = true then
-                Add(s.wits,[CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
-            fi;
-            # Now extend with all possible left hand sides:
-            for L in rws!.lefts do
-                l := Length(L);
-                for i in [1..l-1] do
-                    pre := L{[1..i]};
-                    X := Concatenation(pre,cw!.X);
-                    if IsIrreducible(rws,X) then
-                        for j in [i+1..l] do
-                            post := L{[j..l]};
-                            Y := Concatenation(cw!.Y,post);
-                            if Length(X)+Length(cw!.A)+Length(cw!.B)+
-                               Length(cw!.C)+Length(Y) <= s!.lenlim and
-                               IsIrreducible(rws,Y) then
-                              Pp := Reduce(rws,Concatenation(pre,cw!.Pp,post));
-                              Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
-                              Add(s.pats,
-                                  CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
-                                            Pp,Qp,'L'));
-                            fi;
-                        od;
-                    fi;
-                od;
+        study := cw!.Pp;
+    else
+        study := cw!.Qp;
+    fi;
+    if Length(study) = 0 then
+        # First try an empty V:
+        r := Check(rws,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp));
+        if r <> fail and r[1] = true then
+            Add(s.wits,[CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
+        fi;
+        # Now extend with all possible left hand sides:
+        for L in rws!.lefts do
+            l := Length(L);
+            for i in [1..l-1] do
+                Extend(s,cw,L{[1..i]},L{[i+1.l]});
             od;
-        else
-            # This is the nonempty case
-            # First find all double overlaps with left hand sides:
-            d := FindLHSDoubleOverlaps(rws, cw!.Pp);
-            for dd in d do
+        od;
+    else
+        # This is the nonempty case
+        # First find all double overlaps with left hand sides:
+        d := FindLHSDoubleOverlaps(rws, study);
+        for dd in d do
+            if cw!.whereeps = 'L' then
                 P := CyclicWord(dd[1]);
                 Q := CyclicWord(Concatenation(cw!.Qp,
                                      dd[1]{[Length(cw!.Pp)+1..Length(dd[1])]}));
-                res := Check(rws,P,Q);
-                if res <> fail and res[1] = true then
-                    Add(s.wits,[P,Q]);
-                fi;
+            else
+                Q := CyclicWord(dd[1]);
+                P := CyclicWord(Concatenation(cw!.Pp,
+                                     dd[1]{[Length(cw!.Qp)+1..Length(dd[1])]}));
+            fi;
+            res := Check(rws,P,Q);
+            if res <> fail and res[1] = true then
+                Add(s.wits,[P,Q]);
+            fi;
+        od;
+        # Now find all left hand sides that have study as a substring:
+        tab := HTValue(rws!.subhash,study);
+        if tab <> fail then
+            for i in [1,4..Length(tab)-2] do
+                # We extend X and Y:
+                L := rws!.lefts[tab[i]];
+                start := tab[i+1];
+                stop := tab[i+2];
+                Extend(s,cw,L{[1..start-1]},L{[stop+1..Length(L)]});
             od;
-            # Now find all left hand sides that have cw!.Pp as a substring:
-            tab := HTValue(rws!.subhash,cw!.Pp);
+        fi;
+        # Now extend to the right if study ends in a prefix of a LHS:
+        l := Length(study);
+        for i in [1..l] do
+            tab := HTValue(rws!.prefixhash,study{[l-i+1..l]});
             if tab <> fail then
-                for i in [1,4..Length(tab)-2] do
-                    # We extend X and Y:
-                    lhs := tab[i];
-                    L := rws!.lefts[lhs];
-                    start := tab[i+1];
-                    stop := tab[i+2];
-                    X := Concatenation(L{[1..start-1]},cw!.X);
-                    if IsIrreducible(rws,X) then
-                        Y := Concatenation(Y,L{[stop+1..Length(L)]});
-                        if IsIrreducible(rws,Y) then
-                            
-
+                for j in tab[2] do
+                    L := rws!.lefts[j];
+                    Extend(s,cw,[],L{[i+1..Length(L)]});
                 od;
             fi;
-        fi;
-    else
-        Info(InfoRWS,1,"not yet implemented");
+        od;
+        # Now extend to the left if study starts with a suffix of a LHS:
+        for i in [1..l] do
+            tab := HTValue(rws!.suffixhash,study{[1..i]});
+            if tab <> fail then
+                for j in tab do
+                    L := rws!.lefts[j];
+                    Extend(s,cw,L{[1..Length(L)-i]},[]);
+                od;
+            fi;
+        od;
     fi;
   end );
 
