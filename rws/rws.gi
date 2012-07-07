@@ -123,7 +123,8 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
 InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
   [ IsList, IsList, IsRecord ],
   function( alphabet, rewrites, opt )
-    local L,hashlen,hf,ht,i,j,len,maxlen,pre,rws,s,states,tab,w,x;
+    local L,hashlen,hashlen2,hf,ht,ht2,ht3,i,j,k,len,maxlen,pre,post,rws,
+          s,states,sub,tab,w,x;
 
     if not(IsBound(opt.check)) then opt.check := true; fi;
 
@@ -133,8 +134,9 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
         return fail;
     fi;
     rws := rec( alphabet := alphabet, lefts := rewrites{[1,3..len-1]},
-                rights := rewrites{[2,4..len]},
-                prefixhash := fail, fsa := fail, states := fail );
+                rights := rewrites{[2,4..len]}, prefixhash := fail, 
+                subhash := fail, postfixhash := fail,
+                fsa := fail, states := fail );
     Objectify(RewriteSystemType, rws);
     len := len / 2;
     # Check that every left hand side does not occur in any other LHS
@@ -163,12 +165,19 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
     rws!.states := states;
     maxlen := Maximum(List(rws!.lefts,Length));
     hashlen := NextPrimeInt(QuoInt(maxlen * len * 3,2));
+    hashlen2 := NextPrimeInt(QuoInt(maxlen * maxlen * len * 3,2));
     if IsPlistRep(alphabet) then
         hf := MakeHashFunctionForPlainFlatList(hashlen);
         ht := HTCreate(alphabet,rec( hf := hf.func, hfd := hf.data,
                                      hashlen := hashlen ));
+        ht2 := HTCreate(alphabet,rec( hf := hf.func, hfd := hf.data,
+                                      hashlen := hashlen2 ));
+        ht3 := HTCreate(alphabet,rec( hf := hf.func, hfd := hf.data,
+                                      hashlen := hashlen ));
     else
         ht := HTCreate(alphabet,rec( hashlen := hashlen ));
+        ht2 := HTCreate(alphabet,rec( hashlen := hashlen2 ));
+        ht3 := HTCreate(alphabet,rec( hashlen := hashlen ));
     fi;
     for i in [1..len] do
         L := rws!.lefts[i];
@@ -187,10 +196,34 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
                 AddSet(tab[2],i);
             fi;
         od;
+        for j in [2..Length(L)-1] do
+            for k in [j..Length(L)-1] do
+                sub := L{[j..k]};
+                tab := HTValue(ht2,sub);
+                if tab = fail then
+                    tab := [i,j,k];
+                    HTAdd(ht2,sub,tab);
+                else
+                    Append(tab,[i,j,k]);
+                fi;
+            od;
+        od;
+        for j in [1..Length(L)] do
+            post := L{[j..Length(L)]};
+            tab := HTValue(ht3,post);
+            if tab = fail then
+                tab := [i];
+                HTAdd(ht3,post,tab);
+            else
+                Add(tab,i);
+            fi;
+        od;
     od;
 
     # Complete automaton:
     rws!.prefixhash := ht;
+    rws!.subhash := ht2;
+    rws!.postfixhash := ht3;
     for s in states do
         if s!.complete = 0 then  # otherwise do not bother
             for x in alphabet do
@@ -240,6 +273,18 @@ InstallMethod( FSAState, "for an alphabet and a prefix and a rewrite number",
               hashvals := EmptyPlist(Length(alphabet)), 
               alphsize := Length(alphabet) );
     return Objectify(FSAStateType,s);
+  end );
+
+InstallMethod( EQ, "for two FSA states",
+  [ IsFSAStateStdRep, IsFSAStateStdRep ],
+  function( s1, s2 )
+    return s1!.prefix = s2!.prefix;
+  end );
+
+InstallMethod( LT, "for two FSA states",
+  [ IsFSAStateStdRep, IsFSAStateStdRep ],
+  function( s1, s2 )
+    return s1!.prefix < s2!.prefix;
   end );
 
 InstallMethod( ViewObj, "for an FSAState",
@@ -516,9 +561,9 @@ InstallMethod( FindLHSDoubleOverlaps,
   "for a rewrite system and a word",
   [ IsRewriteSystemStdRep, IsList ],
   function( rws, w )
-    # The list is word. This operation finds all ways in
+    # The list is a word. This operation finds all ways in
     # which a left hand side of the rewrite system overlaps the word
-    # on both sides, closing a cyclic word. A list lists is returned,
+    # on both sides, closing a cyclic word. A list of lists is returned,
     # each containing: The complete cyclic word as a word with w at the
     # beginning, the length of the overlap from w to L, the length
     # of the overlap from L to w and finally the complete cyclic word 
@@ -744,14 +789,21 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
     # Uses Lemma 2.3 to extend the cyclic word patterns.
     # Adds descendants (again cyclic word patterns) to r.pats and 
     # a list of pairs of witnesses found to r.wits.
-    local L,Pp,Qp,X,Y,i,j,l,post,pre,r,rws;
+    local Extend,L,P,Pp,Q,Qp,X,Y,d,dd,i,j,l,post,pre,r,res,rws;
+
+    Extend := function(s,cw,pre,post)
+
+    end;
+
     rws := s.rws;
     if cw!.whereeps = 'L' then
         if Length(cw!.Pp) = 0 then
+            # First try an empty V:
             r := Check(rws,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp));
             if r <> fail and r[1] = true then
                 Add(s.wits,[CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
             fi;
+            # Now extend with all possible left hand sides:
             for L in rws!.lefts do
                 l := Length(L);
                 for i in [1..l-1] do
@@ -775,7 +827,35 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
                 od;
             od;
         else
-            Error("This is the nonempty case");
+            # This is the nonempty case
+            # First find all double overlaps with left hand sides:
+            d := FindLHSDoubleOverlaps(rws, cw!.Pp);
+            for dd in d do
+                P := CyclicWord(dd[1]);
+                Q := CyclicWord(Concatenation(cw!.Qp,
+                                     dd[1]{[Length(cw!.Pp)+1..Length(dd[1])]}));
+                res := Check(rws,P,Q);
+                if res <> fail and res[1] = true then
+                    Add(s.wits,[P,Q]);
+                fi;
+            od;
+            # Now find all left hand sides that have cw!.Pp as a substring:
+            tab := HTValue(rws!.subhash,cw!.Pp);
+            if tab <> fail then
+                for i in [1,4..Length(tab)-2] do
+                    # We extend X and Y:
+                    lhs := tab[i];
+                    L := rws!.lefts[lhs];
+                    start := tab[i+1];
+                    stop := tab[i+2];
+                    X := Concatenation(L{[1..start-1]},cw!.X);
+                    if IsIrreducible(rws,X) then
+                        Y := Concatenation(Y,L{[stop+1..Length(L)]});
+                        if IsIrreducible(rws,Y) then
+                            
+
+                od;
+            fi;
         fi;
     else
         Info(InfoRWS,1,"not yet implemented");
