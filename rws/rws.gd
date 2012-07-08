@@ -90,6 +90,10 @@ DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
 DeclareOperation( "Reduce", [IsRewriteSystem, IsList]);
 DeclareOperation( "Reduce", [IsRewriteSystem, IsCyclicWord]);
 
+DeclareOperation( "DehnRewriteSystem", [IsList, IsList, IsList] );
+# Takes an alphabet, the list of inverses of the letters (inverse alphabet)
+# and a list of relators and makes the Dehn rewrite system.
+
 # Here comes the implementation of our algorithm proper:
 
 DeclareOperation( "FindLHSDoubleOverlaps", [IsRewriteSystem, IsList]);

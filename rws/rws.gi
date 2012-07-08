@@ -554,6 +554,41 @@ InstallMethod( Reduce, "for a rewrite system and a word",
   [IsRewriteSystemStdRep, IsList],
   RWS_Reduction_Function_Cyclic_and_Words );
 
+InstallMethod( DehnRewriteSystem, 
+  "for an alphabet, the inverse alphabet, and a list of relators",
+  [ IsList, IsList, IsList ],
+  function( alph, ialph, rels )
+    local i,inv,j,l,l2,l3,r,rest,rr,rws,salph,sialph;
+    if Length(Set(alph)) <> Length(alph) or
+       Length(ialph) <> Length(alph) or
+       Set(alph) <> Set(ialph) then
+        Error("Inverse alphabet incorrect");
+        return fail;
+    fi;
+    salph := ShallowCopy(alph);
+    sialph := ShallowCopy(ialph);
+    SortParallel(salph,sialph);
+    rws := [];
+    for i in [1..Length(salph)] do
+        AddSet(rws,[Concatenation(salph{[i]},sialph{[i]}),EmptyList(0,salph)]);
+    od;
+    for r in rels do
+        l := Length(r);
+        l2 := QuoInt(l,2)+1;
+        l3 := l-l2;
+        rr := Concatenation(r,r);
+        for i in [1..l] do
+            rest := rr{[i+l2..i+l2+l3]};
+            inv := EmptyList(l3,rest);
+            for j in [1..l3] do
+                inv[j] := sialph[Position(salph,rr[i+l-j])];
+            od;
+            AddSet(rws,[rr{[i+l2-1]},inv]);
+        od;
+    od;
+    return RewriteSystem(salph,Concatenation(rws));
+  end );
+
 
 # Here comes the implementation of our algorithm proper:
 
