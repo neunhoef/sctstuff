@@ -67,6 +67,16 @@ InstallMethod( ChooseHashFunction, "for strings",
     return rec( func := HashFunctionForStrings, data := len );
   end );
 
+InstallMethod( Rep, "for a list and a positive integer",
+  [ IsList, IsPosInt ],
+  function( s, n )
+    local i,t;
+    t := EmptyList(Length(s)*n,s);
+    for i in [1..n] do 
+        Append(t,s);
+    od;
+    return t;
+  end );
 
 # Cyclic words:
 
@@ -121,27 +131,45 @@ InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
   end );
 
 InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
+  [ IsList, IsList, IsList ],
+  function( a, l, r )
+    return RewriteSystem(a,l,r,rec());
+  end );
+
+InstallMethod( RewriteSystem, "for an alphabet and a list of rewrites",
   [ IsList, IsList, IsRecord ],
-  function( alphabet, rewrites, opt )
+  function( a, r, opt )
+    local len;
+    len := Length(r);
+    if IsOddInt(len) then
+        Error("list of rewrites must be of even length");
+        return fail;
+    fi;
+    return RewriteSystem(a,r{[1,3..len-1]},r{[2,4..len]},opt);
+  end );
+
+InstallMethod( RewriteSystem, "for an alphabet, two lists, and a record",
+  [ IsList, IsList, IsList, IsRecord ],
+  function( alphabet, LHSs, RHSs, opt )
     local L,hashlen,hashlen2,hf,ht,ht2,ht3,i,j,k,len,maxlen,pre,post,rws,
           s,states,sub,tab,w,x;
 
     if not(IsBound(opt.check)) then opt.check := true; fi;
 
-    len := Length(rewrites);
-    if IsOddInt(len) then
-        Error("rewrites must be a list of even length");
+    len := Length(LHSs);
+    if len <> Length(RHSs) then
+        Error("LHSs and RHSs must be lists of equal length");
         return fail;
     fi;
-    rws := rec( alphabet := alphabet, lefts := rewrites{[1,3..len-1]},
-                rights := rewrites{[2,4..len]}, prefixhash := fail, 
+    rws := rec( alphabet := alphabet, lefts := LHSs,
+                rights := RHSs, prefixhash := fail, 
                 subhash := fail, suffixhash := fail,
                 fsa := fail, states := fail );
     Objectify(RewriteSystemType, rws);
-    len := len / 2;
     # Check that every left hand side does not occur in any other LHS
     # or any right hand side:
     if opt.check then
+        Info(InfoRWS,1,"Checking soundness of rewrites...");
         for i in [1..len] do
             L := rws!.lefts[i];
             for j in [1..len] do
@@ -263,6 +291,26 @@ InstallMethod( ViewObj, "for a rewrite system",
     ViewObj(rws!.alphabet);
     Print(" with ",Length(rws!.lefts)," rewrites>");
   end);
+
+InstallMethod( Display, "for a rewrite system",
+  [ IsRewriteSystemStdRep ],
+  function( rws )
+    local i;
+    Print("<rewrite system on ");
+    ViewObj(rws!.alphabet);
+    Print(" with ",Length(rws!.lefts)," rewrites:\n");
+    if IsStringRep(rws!.alphabet) then
+        for i in [1..Length(rws!.lefts)] do
+            Print("  \"",rws!.lefts[i],"\" -> \"",rws!.rights[i],"\"\n");
+        od;
+    else
+        for i in [1..Length(rws!.lefts)] do
+            Print("  [",StringWordStripped(rws!.lefts[i]),"] -> [",
+                        StringWordStripped(rws!.rights[i]),"]\n");
+        od;
+    fi;
+    Print(" corresponding FSA has ",Length(rws!.states)," states.>\n");
+  end );
 
 InstallMethod( FSAState, "for an alphabet and a prefix and a rewrite number",
   [ IsList, IsList, IsInt ],
@@ -554,11 +602,24 @@ InstallMethod( Reduce, "for a rewrite system and a word",
   [IsRewriteSystemStdRep, IsList],
   RWS_Reduction_Function_Cyclic_and_Words );
 
+InstallMethod( Invert, "for a sorted alphabet, its inverses, and a word",
+  [IsList and IsSet, IsList, IsList],
+  function( alph, ialph, w )
+    local i,l,wi;
+    wi := EmptyList(Length(w),w);
+    l := Length(w);
+    for i in [1..l] do
+        wi[i] := ialph[Position(alph,w[l+1-i])];
+    od;
+    return wi;
+  end );
+
+
 InstallMethod( DehnRewriteSystem, 
   "for an alphabet, the inverse alphabet, and a list of relators",
   [ IsList, IsList, IsList ],
   function( alph, ialph, rels )
-    local i,inv,j,l,l2,l3,r,rest,rr,rws,salph,sialph;
+    local i,inv,l,l2,l3,r,r1,rest,rr,rws,salph,sialph;
     if Length(Set(alph)) <> Length(alph) or
        Length(ialph) <> Length(alph) or
        Set(alph) <> Set(ialph) then
@@ -572,21 +633,26 @@ InstallMethod( DehnRewriteSystem,
     for i in [1..Length(salph)] do
         AddSet(rws,[Concatenation(salph{[i]},sialph{[i]}),EmptyList(0,salph)]);
     od;
-    for r in rels do
-        l := Length(r);
-        l2 := QuoInt(l,2)+1;
-        l3 := l-l2;
-        rr := Concatenation(r,r);
-        for i in [1..l] do
-            rest := rr{[i+l2..i+l2+l3]};
-            inv := EmptyList(l3,rest);
-            for j in [1..l3] do
-                inv[j] := sialph[Position(salph,rr[i+l-j])];
+    for r1 in rels do
+        for r in Set([r1,Invert(salph,sialph,r1)]) do
+            l := Length(r);
+            l2 := QuoInt(l,2)+1;
+            l3 := l-l2;
+            rr := Concatenation(r,r);
+            for i in [1..l] do
+                rest := rr{[i+l2..i+l-1]};
+                inv := Invert(salph,sialph,rest);
+                AddSet(rws,[rr{[i..i+l2-1]},inv]);
             od;
-            AddSet(rws,[rr{[i+l2-1]},inv]);
         od;
     od;
     return RewriteSystem(salph,Concatenation(rws));
+  end );
+
+InstallMethod( DehnRewriteSystem, "for a record",
+  [ IsRecord ],
+  function( r )
+    return DehnRewriteSystem(r.alph, r.ialph, r.rels);
   end );
 
 
@@ -656,7 +722,9 @@ InstallMethod( CWPattern, "for a rws and lots of words",
     local p;
     p := rec( rws := rws, 
               X := W[1], A := W[2], B := W[3], C := W[4], Y := W[5], 
-              Pp := Pp, Qp := Qp, whereeps := whereeps );
+              Pp := Pp, Qp := Qp, whereeps := whereeps,
+              len := Length(W[1])+Length(W[2])+Length(W[3])+Length(W[4])+
+                     Length(W[5]) );
     Assert(1, IsIrreducible(rws,p.X) and IsIrreducible(rws,p.Y) and
               IsIrreducible(rws,p.Pp) and IsIrreducible(rws,p.Qp));
     Assert(1, Pp <> Qp);
@@ -694,48 +762,54 @@ InstallMethod( ViewObj, "for a CW pattern",
         Print(" => (",StringWordStripped(p!.Qp),"|*) ");
     fi;
     if p!.whereeps = 'L' then
-        Print(" left eps>");
+        Print(" left eps, len=",p!.len,">");
     else
         Print(" right eps>");
     fi;
   end );
 
 InstallMethod( FindCriticalPairs, "for a rewrite system",
-  [ IsRewriteSystemStdRep ],
-  function( rws )
+  [ IsRewriteSystemStdRep, IsCyclotomic ],
+  function( rws, maxlen )
     # This finds the initial list of so called critical pairs. That is, these
     # are two left hand sides with a non-trivial overlap, i.e. a word
     # ABC such that AB->P and BC->Q are rewrites. The pair is critical,
     # if there is no W with PC=>W and AQ=>W.
     # This function uses some heuristics to find a list of pairs which contains
     # all critical pairs.
+    # It only looks for critical pairs for which the total length of A, B
+    # and C together is at most maxlen.
     local A,B,C,L,P,Q,V,Vl,W,conflue,ht,i,j,k,l,l2,r,res,t,tab;
     res := [];
     ht := rws!.prefixhash;
     for i in [1..Length(rws!.lefts)] do
         L := rws!.lefts[i];
         l := Length(L);
-        for j in [2..l] do
-            A := L{[1..j-1]};
-            B := L{[j..l]};
-            P := rws!.rights[i];
-            tab := HTValue(rws!.prefixhash,B);
-            if tab <> fail then
-                for k in tab[2] do   # this is the list of rewrites with this
-                                     # prefix in its LHS
-                    l2 := Length(rws!.lefts[k]);
-                    C := rws!.lefts[k]{[Length(B)+1..l2]};
-                    Q := rws!.rights[k];
-                    V := Concatenation(P,C);
-                    W := Concatenation(A,Q);
-                    t := Check(rws,V,W);
-                    if t <> fail then
-                        Add(res,rec( A := A, B := B, C := C, P := P, Q := Q,
-                                     Pp := t[2], Qp := t[3] ));
-                    fi;
-                od;
-            fi;
-        od;
+        if l < maxlen then
+            for j in [2..l] do
+                A := L{[1..j-1]};
+                B := L{[j..l]};
+                P := rws!.rights[i];
+                tab := HTValue(rws!.prefixhash,B);
+                if tab <> fail then
+                    for k in tab[2] do   # this is the list of rewrites with 
+                                         # this prefix in its LHS
+                        l2 := Length(rws!.lefts[k]);
+                        C := rws!.lefts[k]{[Length(B)+1..l2]};
+                        if l + Length(C) <= maxlen then
+                            Q := rws!.rights[k];
+                            V := Concatenation(P,C);
+                            W := Concatenation(A,Q);
+                            t := Check(rws,V,W);
+                            if t <> fail then
+                                Add(res,rec( A := A, B := B, C := C, P := P, 
+                                             Q := Q, Pp := t[2], Qp := t[3] ));
+                            fi;
+                        fi;
+                    od;
+                fi;
+            od;
+        fi;
     od;
     return res;
   end );
@@ -868,7 +942,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         for L in rws!.lefts do
             l := Length(L);
             for i in [1..l-1] do
-                Extend(s,cw,L{[1..i]},L{[i+1.l]});
+                Extend(s,cw,L{[1..i]},L{[i+1..l]});
             od;
         od;
     else
@@ -926,9 +1000,9 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
   end );
 
 InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
-  [ IsRewriteSystemStdRep, IsPosInt ],
+  [ IsRewriteSystemStdRep, IsCyclotomic ],
   function( rws, n )
-    local L,P,Q,critical,d,dd,i,oldpats,p,res,s,w;
+    local L,P,Q,critical,d,dd,i,lens,oldpats,p,res,s,w;
 
     s := rec( rws := rws, lenlim := n, wits := [], pats := [], stop := false );
 
@@ -949,7 +1023,7 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     Info( InfoRWS, 1, "Found ",Length(s.wits)," witnesses.");
 
     Info( InfoRWS, 1, "Finding critical pairs...");
-    critical := FindCriticalPairs(rws);
+    critical := FindCriticalPairs(rws, n);
     Info( InfoRWS, 1, "Found ", Length(critical), " critical pairs.");
 
     Info( InfoRWS, 1, "Setting up pattern list...");
@@ -958,6 +1032,9 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     while Length(s.pats) > 0 and not(s.stop) do
         Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
               Length(s.wits)," witnesses.");
+        lens := List(s.pats,x->x!.len);
+        Info( InfoRWS, 1, "Lengths: min=",Minimum(lens)," max=",Maximum(lens),
+              " avg=",QuoInt(Sum(lens),Length(lens)) );
         oldpats := s.pats;
         s.pats := EmptyPlist(Length(s.pats));
         for p in oldpats do
@@ -966,6 +1043,49 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     od;
     return s;
   end );
+
+InstallGlobalFunction( OneRelatorQuotientOfModularGroup,
+function(n)
+  local R,S,T,alph,ialph,l,rels;
+  alph := "RST";
+  ialph := "SRT";
+  R := 'R';
+  S := 'S';
+  T := 'T';
+  rels := ["SSS"];
+  l := EmptyString(20);
+  if n > 1 then
+      while n > 1 do
+          if IsOddInt(n) then
+              Add(l,T,1);
+              Add(l,R,1);
+              n := (n-1)/2;
+          else
+              Add(l,T,1);
+              Add(l,S,1);
+              n := n/2;
+          fi;
+      od;
+      Add(rels,l);
+  fi;
+  return rec( alph := alph, ialph := ialph, rels := rels );
+end);
+
+# rws := DehnRewriteSystem(OneRelatorQuotientOfModularGroup(1235617232));
+# m11 := DehnRewriteSystem("Bab","baB",["bbbb",Rep("ab",11),Rep("abb",6),
+#                                       "ababaBababbaBabaBaB"]);
+
+# if L -> R and XLY -> Z
+# we would replace this by
+#    L -> R and XRY -> Z
+# ==> all previous V => W remain true, we only do XLY -> XRY -> Z in two steps.
+#     however, XRY could no longer be length-reducing and
+#              XRY -> Z could previously not have been possible at all!
+# 
+# if L -> R and M -> XLY
+# we would replace this by
+#    L -> R and M -> XRY
+
 
 ##
 ##  This program is free software: you can redistribute it and/or modify

@@ -18,6 +18,8 @@ SetInfoLevel(InfoRWS,3);
 
 SetAssertionLevel( 1 );
 
+DeclareOperation( "Rep", [IsList, IsPosInt] );
+
 # Cyclic words:
 
 BindGlobal("CyclicWordsFamily", NewFamily("CyclicWordsFamily"));
@@ -46,6 +48,10 @@ DeclareRepresentation("IsFSAStateStdRep", IsFSAState,
        [ "prefix", "complete", "hashels", "hashvals"]);
 BindGlobal("FSAStateType", NewType(FSAStatesFamily, IsFSAStateStdRep));
 
+DeclareOperation( "RewriteSystem", [IsList, IsList, IsList] );
+DeclareOperation( "RewriteSystem", [IsList, IsList, IsList, IsRecord] );
+# Takes an alphabet and two lists of words, one is the left hand sides,
+# and the other the right hand sides.
 DeclareOperation( "RewriteSystem", [IsList, IsList] );
 DeclareOperation( "RewriteSystem", [IsList, IsList, IsRecord] );
 # Takes an alphabet and a zipped list of pairs of words
@@ -90,21 +96,26 @@ DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
 DeclareOperation( "Reduce", [IsRewriteSystem, IsList]);
 DeclareOperation( "Reduce", [IsRewriteSystem, IsCyclicWord]);
 
+DeclareOperation( "Invert", [IsList and IsSet, IsList, IsList]);
+
 DeclareOperation( "DehnRewriteSystem", [IsList, IsList, IsList] );
 # Takes an alphabet, the list of inverses of the letters (inverse alphabet)
 # and a list of relators and makes the Dehn rewrite system.
+DeclareOperation( "DehnRewriteSystem", [IsRecord] );
 
 # Here comes the implementation of our algorithm proper:
 
 DeclareOperation( "FindLHSDoubleOverlaps", [IsRewriteSystem, IsList]);
 
-DeclareOperation( "FindCriticalPairs", [IsRewriteSystem]);
+DeclareOperation( "FindCriticalPairs", [IsRewriteSystem, IsCyclotomic]);
 # This finds the initial list of so called critical pairs. That is, these
 # are two left hand sides with a non-trivial overlap, i.e. a word
 # ABC such that AB->P and BC->Q are rewrites. The pair is critical,
 # if there is no W with PC=>W and AQ=>W.
 # This function uses some heuristics to find a list of pairs which contains
 # all critical pairs.
+# It only looks for critical pairs for which the total length of A, B
+# and C together is at most maxlen.
 
 DeclareOperation( "SetupSearchList", [IsRecord, IsList]);
 # Sets up the main search list by taking the critical pairs in the second
@@ -135,9 +146,12 @@ DeclareOperation( "SearchDescendants", [IsRecord, IsCWPattern]);
 # Adds descendants (again cyclic word patterns) to r.pats and 
 # a list of pairs of witnesses found to r.wits.
 
-DeclareOperation( "CheckCyclicEpsilonConfluence", [IsRewriteSystem, IsPosInt]);
+DeclareOperation( "CheckCyclicEpsilonConfluence", 
+                  [IsRewriteSystem, IsCyclotomic]);
 # The whole search procedure. It creates a record for the search, this
 # contains among other things the rewrite system.
+
+DeclareGlobalFunction( "OneRelatorQuotientOfModularGroup" );
 
 ##  This program is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
