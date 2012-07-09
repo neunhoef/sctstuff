@@ -14,7 +14,7 @@ DeclareOperation("LexLeastRotation", [IsList]);
 DeclareGlobalFunction("HashFunctionForStrings");
 
 DeclareInfoClass("InfoRWS");
-SetInfoLevel(InfoRWS,3);
+SetInfoLevel(InfoRWS,1);
 
 SetAssertionLevel( 1 );
 
