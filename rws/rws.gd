@@ -12,11 +12,12 @@
 DeclareOperation("EmptyList", [IsInt, IsList]);
 DeclareOperation("LexLeastRotation", [IsList]);
 DeclareGlobalFunction("HashFunctionForStrings");
+DeclareGlobalFunction("Debug");
 
 DeclareInfoClass("InfoRWS");
 SetInfoLevel(InfoRWS,1);
 
-SetAssertionLevel( 1 );
+#SetAssertionLevel( 1 );
 
 DeclareOperation( "Rep", [IsList, IsPosInt] );
 
@@ -102,6 +103,14 @@ DeclareOperation( "DehnRewriteSystem", [IsList, IsList, IsList] );
 # Takes an alphabet, the list of inverses of the letters (inverse alphabet)
 # and a list of relators and makes the Dehn rewrite system.
 DeclareOperation( "DehnRewriteSystem", [IsRecord] );
+
+DeclareGlobalFunction( "CanBeRewrittenToEmptyFunc" );
+DeclareOperation( "CanBeRewrittenToEmpty", [IsRewriteSystem, IsCyclicWord] );
+DeclareOperation( "CanBeRewrittenToEmpty", [IsRewriteSystem, IsList] );
+
+DeclareGlobalFunction( "DoesAlwaysRewriteToEmptyFunc" );
+DeclareOperation( "DoesAlwaysRewriteToEmpty", [IsRewriteSystem, IsCyclicWord] );
+DeclareOperation( "DoesAlwaysRewriteToEmpty", [IsRewriteSystem, IsList] );
 
 # Here comes the implementation of our algorithm proper:
 

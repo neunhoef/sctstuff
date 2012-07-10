@@ -4,7 +4,7 @@ f := FreeGroup("a","b");
 AssignGeneratorVariables(f);
 rels := [a*a,b*b*b,(a*b)^11,Comm(a,b)^6,(a*b*a*b*a*b^-1)^6];
 g := f/rels;
-p := Image(IsomorphismPermGroup(g)) := ShallowCopy(GeneratorsOfGroup(p));
+p := Image(IsomorphismPermGroup(g));
 gens := ShallowCopy(GeneratorsOfGroup(p));
 Add(gens,gens[2]^-1);
 gens2 := [["a",gens[1]],["b",gens[2]],["B",gens[3]]];
@@ -25,10 +25,10 @@ looker := function(o,x)
   return true;
 end;
 
-o := Orb(gens2,["",()],op,rec( hashfunc := rec(func := hf, data := hashlen), 
-         hashlen := hashlen, report := 100000, eqfunc := \=,
-         lookingfor := looker));
-Enumerate(o);
+#o := Orb(gens2,["",()],op,rec( hashfunc := rec(func := hf, data := hashlen), 
+#         hashlen := hashlen, report := 100000, eqfunc := \=,
+#         lookingfor := looker));
+#Enumerate(o);
 
 o2 := Orb(gens,(),OnRight,rec(schreier := true));
 Enumerate(o2);
@@ -49,17 +49,23 @@ MakeRandomWord := function(n)
   return x;
 end;
 
+inv := function(w) return Invert(Set("Bab"),"baB",w); end;
+
 MakeIdWord := function(n)
-  local l,s;
+  local l,s,x,y;
   l := [];
+  s := [];
   while true do
     x := MakeRandomWord(n);
     if x[2] in s then
         y := First(l,a->a[2]=x[2]);
-        return [x,y];
+        return Concatenation(x[1],inv(y[1]));
     fi;
     Add(l,x);
     AddSet(s,x[2]);
   od;
 end;
+
+
+# CyclicWord("BaBaBababaBaBaBababaBabaBaBabaBababaBabaBabaBaBaBababaBabaBabaBabaBabaBabaBaBabaBabababaBababa") kills it
 

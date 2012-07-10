@@ -13,6 +13,21 @@ LoadPackage("orb");
 
 # Some utilities:
 
+DebugRunning := false;
+
+InstallGlobalFunction( Debug,
+  function(arg)
+    local c,kb;
+    if DebugRunning then return; fi;
+    for c in arg do ViewObj(c); od; 
+    Print("\nDebug:\c");
+    kb := InputTextUser();
+    c := CharInt(ReadByte(kb));
+    Print(c,"\n");
+    if c = 'q' then Error(); fi;
+    if c = 'r' then DebugRunning := true; fi;
+  end);
+
 InstallMethod(EmptyList, "for an integer and a string",
   [ IsInt, IsString and IsStringRep ],
   function(len, l) return EmptyString(len); end );
@@ -192,7 +207,7 @@ InstallMethod( RewriteSystem, "for an alphabet, two lists, and a record",
     Add(states,rws!.fsa);
     rws!.states := states;
     maxlen := Maximum(List(rws!.lefts,Length));
-    hashlen := NextPrimeInt(QuoInt(maxlen * len * 3,2));
+    hashlen := NextPrimeInt(QuoInt(maxlen * len * 6,2));
     hashlen2 := NextPrimeInt(QuoInt(maxlen * maxlen * len * 3,2));
     if IsPlistRep(alphabet) then
         hf := MakeHashFunctionForPlainFlatList(hashlen);
@@ -477,6 +492,8 @@ InstallMethod( FindAllRewrites, "for a RWS and a cyclic word",
         s := LookupStep(s,w[i]);
         rw := FoundRewrite(s);
         if rw > 0 then
+            # We might have overrun just now:
+            if i - Length(s!.prefix) + 1 > len then break; fi;
             Add(res,[rw,i-Length(s!.prefix)+1,i]);
             i := i-Length(s!.prefix)+1;
             s := rws!.fsa;
@@ -587,9 +604,11 @@ InstallMethod( ShowRewrite, "for a rws, a cyclic word, and a rewrite spec",
 BindGlobal( "RWS_Reduction_Function_Cyclic_and_Words",
   function(rws,w)
     local r;
+    #Info(InfoRWS,3,"Reduce");
     while true do
         r := FindOneRewrite(rws,w);
         if r = fail then return w; fi;
+        #ShowRewrite(rws,w,r);
         w := ApplyRewrite(rws,w,r);
     od;
   end );
@@ -655,6 +674,54 @@ InstallMethod( DehnRewriteSystem, "for a record",
     return DehnRewriteSystem(r.alph, r.ialph, r.rels);
   end );
 
+InstallGlobalFunction(CanBeRewrittenToEmptyFunc,
+  function( rws, cw )
+    local all,res,x;
+    if Length(cw) = 0 then
+      return [cw];
+    fi;
+    all := List(FindAllRewrites(rws,cw),x->ApplyRewrite(rws,cw,x));
+    for x in all do
+      res := CanBeRewrittenToEmpty(rws,x);
+      if res <> fail then
+        Add(res,cw,1);
+        return res;
+      fi;
+    od;
+    return fail;
+  end );
+
+InstallMethod( CanBeRewrittenToEmpty, "for a rws and a cyclic word",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
+  CanBeRewrittenToEmptyFunc );
+
+InstallMethod( CanBeRewrittenToEmpty, "for a rws and a word",
+  [ IsRewriteSystemStdRep, IsList ],
+  CanBeRewrittenToEmptyFunc );
+
+InstallGlobalFunction(DoesAlwaysRewriteToEmptyFunc,
+  function( rws, cw)
+    local all,res,x;
+    if Length(cw) = 0 then return true; fi;
+    all := List(FindAllRewrites(rws,cw),x->ApplyRewrite(rws,cw,x));
+    if Length(all) = 0 then return [cw]; fi;
+    for x in all do
+      res := DoesAlwaysRewriteToEmptyFunc(rws,x);
+      if res <> true then
+        Add(res,cw,1);
+        return res;
+      fi;
+    od;
+    return true;
+  end );
+
+InstallMethod( DoesAlwaysRewriteToEmpty, "for a rws and a cyclic word",
+  [ IsRewriteSystemStdRep, IsCyclicWordStdRep ],
+  DoesAlwaysRewriteToEmptyFunc );
+
+InstallMethod( DoesAlwaysRewriteToEmpty, "for a rws and a word",
+  [ IsRewriteSystemStdRep, IsList ],
+  DoesAlwaysRewriteToEmptyFunc );
 
 # Here comes the implementation of our algorithm proper:
 
@@ -750,24 +817,25 @@ InstallMethod( ViewObj, "for a CW pattern",
     Print("<CWPat ");
     if IsStringRep(p!.X) then
         Print("(",p!.Pp,"|*) <= ");
-        Print("(",p!.X,"|",p!.A,"|",p!.B,"|",p!.C,"|",p!.Y,"|*)");
+        Print("(",p!.X,"<",p!.A,"|",p!.B,"|",p!.C,">",p!.Y,"|*)");
         Print(" => (",p!.Qp,"|*) ");
     else
         Print("(",StringWordStripped(p!.Pp),"|*) <= ");
-        Print("(",StringWordStripped(p!.X),"|",
+        Print("(",StringWordStripped(p!.X),"<",
                   StringWordStripped(p!.A),"|",
                   StringWordStripped(p!.B),"|",
-                  StringWordStripped(p!.C),"|",
+                  StringWordStripped(p!.C),">",
                   StringWordStripped(p!.Y),"|*)");
         Print(" => (",StringWordStripped(p!.Qp),"|*) ");
     fi;
     if p!.whereeps = 'L' then
-        Print(" left eps, len=",p!.len,">");
+        Print("left eps, len=",p!.len,">");
     else
-        Print(" right eps>");
+        Print("right eps, len=",p!.len,">");
     fi;
   end );
 
+ 
 InstallMethod( FindCriticalPairs, "for a rewrite system",
   [ IsRewriteSystemStdRep, IsCyclotomic ],
   function( rws, maxlen )
@@ -902,6 +970,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
 
     Extend := function(s,cw,pre,post)
         local Pp,Qp,X,Y;
+        #Debug(6,cw," Pre:",pre," Post:",post);
         if Length(cw!.X)+Length(cw!.A)+Length(cw!.B)+
            Length(cw!.C)+Length(cw!.Y)+Length(pre)+Length(post) > s!.lenlim then
             return false;
@@ -920,6 +989,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         fi;
         Pp := Reduce(rws,Concatenation(pre,cw!.Pp,post));
         Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
+        #Debug(66,Pp,Qp);
         if Pp = Qp then return false; fi;
         Add(s.pats,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
                              Pp,Qp,cw!.whereeps));
@@ -933,10 +1003,11 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         study := cw!.Qp;
     fi;
     if Length(study) = 0 then
+        #Debug(5);
         # First try an empty V:
         r := Check(rws,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp));
         if r <> fail and r[1] = true then
-            Add(s.wits,[CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
+            Add(s.wits,[cw,CyclicWord(cw!.Pp),CyclicWord(cw!.Qp)]);
         fi;
         # Now extend with all possible left hand sides:
         for L in rws!.lefts do
@@ -946,6 +1017,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
             od;
         od;
     else
+        #Debug(7);
         # This is the nonempty case
         # First find all double overlaps with left hand sides:
         d := FindLHSDoubleOverlaps(rws, study);
@@ -961,9 +1033,10 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
             fi;
             res := Check(rws,P,Q);
             if res <> fail and res[1] = true then
-                Add(s.wits,[P,Q]);
+                Add(s.wits,[cw,P,Q,"DoubleOverlap"]);
             fi;
         od;
+        #Debug(8);
         # Now find all left hand sides that have study as a substring:
         tab := HTValue(rws!.subhash,study);
         if tab <> fail then
@@ -975,6 +1048,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
                 Extend(s,cw,L{[1..start-1]},L{[stop+1..Length(L)]});
             od;
         fi;
+        #Debug(9);
         # Now extend to the right if study ends in a prefix of a LHS:
         l := Length(study);
         for i in [1..l] do
@@ -982,20 +1056,22 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
             if tab <> fail then
                 for j in tab[2] do
                     L := rws!.lefts[j];
-                    Extend(s,cw,[],L{[i+1..Length(L)]});
+                    Extend(s,cw,EmptyList(0,L),L{[i+1..Length(L)]});
                 od;
             fi;
         od;
+        #Debug(10);
         # Now extend to the left if study starts with a suffix of a LHS:
         for i in [1..l] do
             tab := HTValue(rws!.suffixhash,study{[1..i]});
             if tab <> fail then
                 for j in tab do
                     L := rws!.lefts[j];
-                    Extend(s,cw,L{[1..Length(L)-i]},[]);
+                    Extend(s,cw,L{[1..Length(L)-i]},EmptyList(0,L));
                 od;
             fi;
         od;
+        #Debug(11);
     fi;
   end );
 
@@ -1010,13 +1086,14 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     for i in [1..Length(rws!.lefts)] do
         L := rws!.lefts[i];
         d := FindLHSDoubleOverlaps(rws, L);
+        #Debug(1);
         for dd in d do
             w := dd[1];
             P := CyclicWord(ApplyRewrite(rws,w,[i,1,Length(L)]));
             Q := CyclicWord(dd[4]);
             res := Check(rws,P,Q);
             if res <> fail and res[1] = true then
-                Add(s.wits,[P,Q]);
+                Add(s.wits,[L,dd[1],P,Q,"InitialDoubleOverlap"]);
             fi;
         od;
     od;
@@ -1026,18 +1103,22 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     critical := FindCriticalPairs(rws, n);
     Info( InfoRWS, 1, "Found ", Length(critical), " critical pairs.");
 
+    #Debug(2);
+
     Info( InfoRWS, 1, "Setting up pattern list...");
     SetupSearchList(s,critical);
 
-    while Length(s.pats) > 0 and not(s.stop) do
+    while true do
         Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
               Length(s.wits)," witnesses.");
+        if Length(s.pats) = 0 or Length(s.wits) > 0 or s.stop then break; fi;
         lens := List(s.pats,x->x!.len);
         Info( InfoRWS, 1, "Lengths: min=",Minimum(lens)," max=",Maximum(lens),
               " avg=",QuoInt(Sum(lens),Length(lens)) );
         oldpats := s.pats;
         s.pats := EmptyPlist(Length(s.pats));
         for p in oldpats do
+            #Debug(3);
             SearchDescendants(s,p);
         od;
     od;
