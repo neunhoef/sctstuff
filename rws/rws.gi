@@ -1074,7 +1074,7 @@ end);
 # rws := DehnRewriteSystem(OneRelatorQuotientOfModularGroup(1235617232));
 # m11 := DehnRewriteSystem("Bab","baB",["bbbb",Rep("ab",11),Rep("abb",6),
 #                                       "ababaBababbaBabaBaB"]);
-# m12 := DehnRewriteSystem("Bab","baB",["bbb",Rep("ab",11),Rep("ababaB",6)]);
+#
 
 # if L -> R and XLY -> Z
 # we would replace this by
