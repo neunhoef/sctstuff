@@ -1,0 +1,44 @@
+gap> guck;
+CyclicWord("BBaBaBabaBaBabaBaBa")
+gap> CanBeRewrittenToEmpty(rws,guck);
+[ CyclicWord("BBaBaBabaBaBabaBaBa"), CyclicWord("BaBaBababbaBaBaba"), 
+  CyclicWord("BaBabaababbabba"), CyclicWord("BaBabbabbabba"), 
+  CyclicWord("BaBaBabbabba"), CyclicWord("aababbbabb"), 
+  CyclicWord("abbbabbb"), CyclicWord("Bbabbba"), CyclicWord("aabbb"), 
+  CyclicWord("bbb"), CyclicWord("Bb"), CyclicWord([  ]) ]
+gap> guckguck := all(guck);
+[ CyclicWord("BaBabaBaBabaBaBaba"), CyclicWord("BaBaBababbaBaBaba"), 
+  CyclicWord("BaBaBabaBaBabbaba") ]
+gap> CanBeRewrittenToEmpty(rws,guckguck[1]);
+fail
+gap> DoesAlwaysRewriteToEmpty(rws,guckguck[2]);
+true
+gap> DoesAlwaysRewriteToEmpty(rws,guckguck[3]);
+true
+gap> FindAllRewrites(rws,guck);
+[ [ 1, 1, 2 ], [ 2, 2, 7 ], [ 4, 15, 20 ] ]
+gap> for i in last do ShowRewrite(rws,guck,i); od;
+CyclicWord("BBaBaBabaBaBabaBaBa")
+            BB -> b
+ => CyclicWord("BaBabaBaBabaBaBaba")
+CyclicWord("BBaBaBabaBaBabaBaBa")
+             BaBaBa -> abab
+ => CyclicWord("BaBaBababbaBaBaba")
+CyclicWord("BBaBaBabaBaBabaBaBa")
+                          aBaBaB -> baba
+ => CyclicWord("BaBaBabaBaBabbaba")
+
+             BB
+              BaBaBa
+ baBaBa   <= BBaBaBa  => Babab
+
+       aBaBa BBaBaBa baBaBab
+             Babab 
+       aBaBa BBaBaBab aBaBab
+             BabaB
+           a BBaBaBabaBaBa baBaB
+             BaBab
+             BBaBaBabaBaBab aBaBa
+             BaBaB
+             BBaBaBabaBaBabaBaBa
+             ""
