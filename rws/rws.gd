@@ -139,6 +139,8 @@ BindGlobal("CWPatternType", NewType(CWPatternsFamily, IsCWPatternStdRep));
 # The constructors:
 DeclareOperation("CWPattern", [IsRewriteSystem, IsList, IsList, IsList,IsChar]);
 
+DeclareAttribute("WordCWPattern", IsCWPattern);
+
 DeclareOperation( "Check", [IsRewriteSystem, IsCyclicWord, IsCyclicWord]);
 DeclareOperation( "Check", [IsRewriteSystem, IsList, IsList]);
 # See whether or not we have found a pair of witnesses
@@ -159,6 +161,9 @@ DeclareOperation( "CheckCyclicEpsilonConfluence",
                   [IsRewriteSystem, IsCyclotomic]);
 # The whole search procedure. It creates a record for the search, this
 # contains among other things the rewrite system.
+DeclareOperation( "CheckCyclicEpsilonConfluence2", 
+                  [IsRewriteSystem, IsCyclotomic]);
+# A variant doing the same in a different order.
 
 DeclareGlobalFunction( "OneRelatorQuotientOfModularGroup" );
 

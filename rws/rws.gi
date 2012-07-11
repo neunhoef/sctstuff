@@ -798,6 +798,26 @@ InstallMethod( CWPattern, "for a rws and lots of words",
     return Objectify(CWPatternType,p);
   end );
 
+InstallMethod( WordCWPattern, "for a CW pattern",
+  [ IsCWPatternStdRep ],
+  function( cw )
+    return Concatenation(cw!.X, cw!.A, cw!.B, cw!.C, cw!.Y);
+  end );
+
+InstallMethod( EQ, "for two CW patterns",
+  [ IsCWPatternStdRep, IsCWPatternStdRep ],
+  function( a, b )
+    return a!.X = b!.X and a!.A = b!.A and a!.B = b!.B and
+           a!.C = b!.C and a!.Y = b!.Y and a!.whereeps = b!.whereeps;
+  end );
+
+InstallMethod( LT, "for two CW patterns",
+  [ IsCWPatternStdRep, IsCWPatternStdRep ],
+  function( a, b )
+    return [a!.len,a!.whereeps,a!.X,a!.A,a!.B,a!.C,a!.Y] <
+           [b!.len,b!.whereeps,b!.X,b!.A,b!.B,b!.C,b!.Y];
+  end );
+
 InstallMethod( StringWordStripped, "for a list of integers",
   [ IsList ],
   function( l )
@@ -958,6 +978,7 @@ InstallMethod( SetupSearchList, "for a search record and a list",
         Add(pats,CWPattern(rws,[e,c.A,c.B,c.C,e],c.Pp,c.Qp,'L'));
         Add(pats,CWPattern(rws,[e,c.A,c.B,c.C,e],c.Pp,c.Qp,'R'));
     od;
+    s.pats := Set(pats);   # Sort and remove duplicates
   end );
 
 InstallMethod( SearchDescendants, "for a search record and a CW pattern",
@@ -991,8 +1012,8 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
         #Debug(66,Pp,Qp);
         if Pp = Qp then return false; fi;
-        Add(s.pats,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
-                             Pp,Qp,cw!.whereeps));
+        AddSet(s.pats,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
+                                Pp,Qp,cw!.whereeps));
         return true;
     end;
 
@@ -1117,10 +1138,57 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
               " avg=",QuoInt(Sum(lens),Length(lens)) );
         oldpats := s.pats;
         s.pats := EmptyPlist(Length(s.pats));
+        Debug("x",Length(oldpats));
         for p in oldpats do
             #Debug(3);
             SearchDescendants(s,p);
         od;
+    od;
+    return s;
+  end );
+
+InstallMethod( CheckCyclicEpsilonConfluence2, "for a rws and a pos integer",
+  [ IsRewriteSystemStdRep, IsCyclotomic ],
+  function( rws, n )
+    local L,P,Q,critical,d,dd,i,lens,p,res,s,w;
+
+    s := rec( rws := rws, lenlim := n, wits := [], pats := [], stop := false );
+
+    Info( InfoRWS, 1, "Looking for double overlaps of LHSs...");
+    for i in [1..Length(rws!.lefts)] do
+        L := rws!.lefts[i];
+        d := FindLHSDoubleOverlaps(rws, L);
+        #Debug(1);
+        for dd in d do
+            w := dd[1];
+            P := CyclicWord(ApplyRewrite(rws,w,[i,1,Length(L)]));
+            Q := CyclicWord(dd[4]);
+            res := Check(rws,P,Q);
+            if res <> fail and res[1] = true then
+                Add(s.wits,[L,dd[1],P,Q,"InitialDoubleOverlap"]);
+            fi;
+        od;
+    od;
+    Info( InfoRWS, 1, "Found ",Length(s.wits)," witnesses.");
+
+    Info( InfoRWS, 1, "Finding critical pairs...");
+    critical := FindCriticalPairs(rws, n);
+    Info( InfoRWS, 1, "Found ", Length(critical), " critical pairs.");
+
+    #Debug(2);
+
+    Info( InfoRWS, 1, "Setting up pattern list...");
+    SetupSearchList(s,critical);
+
+    while true do
+        Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
+              Length(s.wits)," witnesses.");
+        if Length(s.pats) = 0 or Length(s.wits) > 0 or s.stop then break; fi;
+        lens := List(s.pats,x->x!.len);
+        Info( InfoRWS, 1, "Lengths: min=",Minimum(lens)," max=",Maximum(lens),
+              " avg=",QuoInt(Sum(lens),Length(lens)) );
+        p := Remove(s.pats,1);
+        SearchDescendants(s,p);
     od;
     return s;
   end );
