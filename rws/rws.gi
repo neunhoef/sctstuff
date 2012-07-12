@@ -621,7 +621,179 @@ InstallMethod( Reduce, "for a rewrite system and a word",
   [IsRewriteSystemStdRep, IsList],
   RWS_Reduction_Function_Cyclic_and_Words );
 
-InstallMethod( Invert, "for a sorted alphabet, its inverses, and a word",
+# Infrastructures:
+
+InstallMethod( InfraStructure, 
+  "for an alphabet, the inverses, some rewrites, a comp function, data",
+  [ IsList, IsList, IsList, IsFunction, IsRecord ],
+  function( alph, ialph, rws, comp, data )
+    # This takes an alphabet, the list of inverses in the corresponding order,
+    # a zipped list of additional infrastructure rewrites, a comparison
+    # function and a record of additional data for the comparison.
+    # The comparison function is called with (infra, a, b) where
+    # infra is the infrastructure object. The components of the record
+    # are copied into infra. a and b are words (represented as lists).
+    local L,R,infra,n,pos,x;
+    alph := ShallowCopy(alph);
+    ialph := ShallowCopy(ialph);
+    if Length(Set(alph)) <> Length(alph) then
+        Error("Alphabet must not contain duplicates");
+        return fail;
+    fi;
+    # Complete infrastructure rewrite system:
+    rws := Set(ShallowCopy(rws));
+    for n in [1..Length(alph)] do
+        L := EmptyList(2,alph);
+        R := EmptyList(0,alph);
+        L[1] := alph[n];
+        L[2] := ialph[n];
+        AddSet(rws,[L,R]);
+    od;
+    infra := rec( alph := alph, ialph := ialph, alphsize := Length(alph),
+                  alphhash := EmptyList(Length(alph),alph),
+                  alphposs := EmptyPlist(Length(alph)),
+                  lefts := List(rws,x->x[1]),
+                  rights := List(rws,x->x[2]),
+                  rws := RewriteSystem(alph,Concatenation(rws)),
+                  compare := comp );
+    for n in RecFields(data) do
+        infra.(n) := data.(n);
+    od;
+    # Build up hash:
+    for n in [1..Length(alph)] do
+        x := alph[n];
+        if IsInt(x) then
+            pos := x mod infra!.alphsize + 1;
+        else
+            pos := IntChar(x) mod infra!.alphsize + 1;
+        fi;
+        while true do
+            if not(IsBound(infra!.alphhash[pos])) then break; fi;
+            pos := pos + 1;
+            if pos > infra!.alphsize then pos := 1; fi;
+        od;
+        infra!.alphhash[pos] := x;
+        infra!.alphposs[pos] := n;
+    od;
+    return Objectify(InfraStructureType, infra);
+  end );
+
+InstallMethod( ViewObj, "for an infrastructure",
+  [IsInfraStructureStdRep],
+  function(i)
+    local n;
+    Print("<infrastructure alph=",i!.alph," ialph=",i!.ialph,"\n");
+    if IsStringRep(i!.alph) then
+        for n in [1..Length(i!.lefts)] do
+            Print(" "); ViewObj(i!.lefts[n]); 
+            Print("->"); ViewObj(i!.rights[n]);
+        od;
+    else
+        for n in [1..Length(i!.lefts)] do
+            Print(" [",StringWordStripped(i!.lefts[n]),
+                 "]->[",StringWordStripped(i!.rights[n]),"]");
+        od;
+    fi;
+    if IsBound(i!.weights) then
+        Print(" weights=", i!.weights);
+    fi;
+    Print(">");
+  end );
+
+InstallMethod( Lookup, "for an infrastructure and a letter",
+  [ IsInfraStructureStdRep, IsObject ],
+  function(i, x)
+    local pos;
+    if IsInt(x) then
+        pos := x mod i!.alphsize + 1;
+    else
+        pos := IntChar(x) mod i!.alphsize + 1;
+    fi;
+    while true do
+        if i!.alphhash[pos] = x then return i!.alphposs[pos]; fi;
+        pos := pos + 1;
+        if pos > i!.alphsize then
+            pos := 1;
+        fi;
+    od;
+  end );
+
+InstallMethod( Invert, "for an infrastructure and a word",
+  [ IsInfraStructureStdRep, IsList ],
+  function( i, w )
+    local n,l,wi;
+    wi := EmptyList(Length(w),w);
+    l := Length(w);
+    for n in [1..l] do
+        wi[n] := i!.ialph[Lookup(i,w[l+1-n])];
+    od;
+    return wi;
+  end );
+
+InstallMethod( Invert, "for an infrastructure and a cyclic word",
+  [ IsInfraStructureStdRep, IsCyclicWordStdRep ],
+  function( i, cw )
+    return CyclicWord(Invert(i,cw![1]));
+  end );
+
+InstallMethod( Cancel, "for an infrastructure and a word",
+  [ IsInfraStructureStdRep, IsList ],
+  function( i, w )
+    return Reduce(i!.rws,w);
+  end );
+
+InstallMethod( Cancel, "for an infrastructure and a cyclic word",
+  [ IsInfraStructureStdRep, IsCyclicWordStdRep ],
+  function( i, cw )
+    return Reduce(i!.rws,cw);
+  end );
+
+InstallMethod( IsCancelled, "for an infrastructure and a word",
+  [ IsInfraStructureStdRep, IsList ],
+  function( i, w )
+    return IsIrreducible(i!.rws,w);
+  end );
+ 
+InstallMethod( IsCancelled, "for an infrastructure and a cyclic word",
+  [ IsInfraStructureStdRep, IsCyclicWordStdRep ],
+  function( i, cw )
+    return IsIrreducible(i!.rws,cw);
+  end );
+ 
+InstallGlobalFunction( CompareByWeights,
+  function( infra, a, b )
+    local wa, wb;
+    wa := Sum(a,x->infra!.weights[Lookup(infra,x)]);
+    wb := Sum(b,x->infra!.weights[Lookup(infra,x)]);
+    return wa - wb;
+  end );
+
+InstallMethod( Compare, "for an infrastructure and two words",
+  [ IsInfraStructureStdRep, IsList, IsList ],
+  function( infra, a, b )
+    return infra!.compare(infra,a,b);
+  end );
+
+InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
+  [ IsInfraStructureStdRep, IsList ],
+  function( infra, rels )
+    # Plan:
+    #   Maintain:
+    #     infrastructure rewrites
+    #     additional rewrites
+    #     equations
+    #     what overlaps have been checked
+    #   Always either do:
+    #     - check another overlap between infrastructure rewrite and additional
+    #       --> This can produce a new rewrite or move all rewrites to
+    #           the equations
+    #     - resolve an equation by adding a rewrite
+    #   Give preference to the former
+
+  end );
+
+
+InstallMethod( InvertOld, "for a sorted alphabet, its inverses, and a word",
   [IsList and IsSet, IsList, IsList],
   function( alph, ialph, w )
     local i,l,wi;
@@ -653,14 +825,14 @@ InstallMethod( DehnRewrites1,
         AddSet(rws,[Concatenation(salph{[i]},sialph{[i]}),EmptyList(0,salph)]);
     od;
     for r1 in rels do
-        for r in Set([r1,Invert(salph,sialph,r1)]) do
+        for r in Set([r1,InvertOld(salph,sialph,r1)]) do
             l := Length(r);
             l2 := QuoInt(l,2)+1;
             l3 := l-l2;
             rr := Concatenation(r,r);
             for i in [1..l] do
                 rest := rr{[i+l2..i+l-1]};
-                inv := Invert(salph,sialph,rest);
+                inv := InvertOld(salph,sialph,rest);
                 AddSet(rws,[rr{[i..i+l2-1]},inv]);
             od;
         od;

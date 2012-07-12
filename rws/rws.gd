@@ -97,12 +97,46 @@ DeclareOperation( "ShowRewrite", [IsRewriteSystem, IsCyclicWord, IsBool] );
 DeclareOperation( "Reduce", [IsRewriteSystem, IsList]);
 DeclareOperation( "Reduce", [IsRewriteSystem, IsCyclicWord]);
 
-DeclareOperation( "Invert", [IsList and IsSet, IsList, IsList]);
+BindGlobal("InfraStructuresFamily", NewFamily("InfraStructuresFamily"));
+DeclareCategory("IsInfraStructure", IsComponentObjectRep);
+DeclareRepresentation("IsInfraStructureStdRep", IsInfraStructure, 
+       [ "alph", "alphhash", "alphposs", "ialph", "lefts", "rights", "rws",
+         "compare", "alphsize" ]);
+BindGlobal("InfraStructureType", 
+           NewType(InfraStructuresFamily, IsInfraStructureStdRep));
+
+DeclareOperation( "InfraStructure", 
+  [IsList, IsList, IsList, IsFunction, IsRecord] );
+# This takes an alphabet, the list of inverses in the corresponding order,
+# a zipped list of additional infrastructure rewrites, a comparison
+# function and a record of additional data for the comparison.
+# The comparison function is called with (infra, a, b) where
+# infra is the infrastructure object. The components of the record
+# are copied into infra. a and b are words (represented as lists).
+
+DeclareOperation( "Lookup", [IsInfraStructure, IsObject] );
+DeclareOperation( "Invert", [IsInfraStructure, IsList] );
+DeclareOperation( "Invert", [IsInfraStructure, IsCyclicWord] );
+DeclareOperation( "Cancel", [IsInfraStructure, IsList] );
+DeclareOperation( "Cancel", [IsInfraStructure, IsCyclicWord] );
+DeclareOperation( "IsCancelled", [IsInfraStructure, IsList] );
+DeclareOperation( "IsCancelled", [IsInfraStructure, IsCyclicWord] );
+DeclareOperation( "Compare", [IsInfraStructure, IsList, IsList] );
+DeclareGlobalFunction( "CompareByWeights" );
+
+DeclareOperation( "InvertOld", [IsSet and IsList, IsList, IsList] );
 
 DeclareOperation( "DehnRewrites1", [IsList, IsList, IsList] );
 # Takes an alphabet, the list of inverses of the letters (inverse alphabet)
 # and a list of relators and makes the Dehn rewrite system.
 DeclareOperation( "DehnRewrites1", [IsRecord] );
+
+DeclareOperation( "DehnRewrites", [IsInfraStructure, IsList] );
+# Takes an infrastructure and a list of relators (words)
+# and produces a Dehn rewrite system containing both the infrastructure
+# rewrites and all reducing rewrites for the relators such
+# that all overlaps between the infrastructure LHSs and
+# the other LHSs conflue.
 
 DeclareGlobalFunction( "CanBeRewrittenToEmptyFunc" );
 DeclareOperation( "CanBeRewrittenToEmpty", [IsRewriteSystem, IsCyclicWord] );
