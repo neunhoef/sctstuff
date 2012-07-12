@@ -789,6 +789,22 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
     #           the equations
     #     - resolve an equation by adding a rewrite
     #   Give preference to the former
+    irws := List([1..Length(infra!.lefts)],
+                 i->[infra!.lefts,infra!.rights]);
+    arws := [];
+    eqts := List(rels,r->[r,EmptyList(0,r)]);
+    itocheck := 1;
+    atocheck := 1;
+    
+    CheckOverlap := function(i,a)
+    end;
+    
+    ResolveEquation := function(e)
+    end;
+
+    while true do
+        if atocheck <=     
+    od;
 
   end );
 
