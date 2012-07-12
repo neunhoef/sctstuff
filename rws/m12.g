@@ -1,5 +1,6 @@
 LoadPackage("orb");
-m12 := DehnRewriteSystem("Bab","baB",["bbb",Rep("ab",11),Rep("ababaB",6)]);
+rws := DehnRewrites1("Bab","baB",["bbb",Rep("ab",11),Rep("ababaB",6)]);
+m12 := RewriteSystem(rws.alph,rws.ialph,rws.rws);
 f := FreeGroup("a","b");
 AssignGeneratorVariables(f);
 rels := [a*a,b*b*b,(a*b)^11,Comm(a,b)^6,(a*b*a*b*a*b^-1)^6];

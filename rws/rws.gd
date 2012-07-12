@@ -99,10 +99,10 @@ DeclareOperation( "Reduce", [IsRewriteSystem, IsCyclicWord]);
 
 DeclareOperation( "Invert", [IsList and IsSet, IsList, IsList]);
 
-DeclareOperation( "DehnRewriteSystem", [IsList, IsList, IsList] );
+DeclareOperation( "DehnRewrites1", [IsList, IsList, IsList] );
 # Takes an alphabet, the list of inverses of the letters (inverse alphabet)
 # and a list of relators and makes the Dehn rewrite system.
-DeclareOperation( "DehnRewriteSystem", [IsRecord] );
+DeclareOperation( "DehnRewrites1", [IsRecord] );
 
 DeclareGlobalFunction( "CanBeRewrittenToEmptyFunc" );
 DeclareOperation( "CanBeRewrittenToEmpty", [IsRewriteSystem, IsCyclicWord] );

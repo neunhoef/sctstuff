@@ -634,7 +634,7 @@ InstallMethod( Invert, "for a sorted alphabet, its inverses, and a word",
   end );
 
 
-InstallMethod( DehnRewriteSystem, 
+InstallMethod( DehnRewrites1,
   "for an alphabet, the inverse alphabet, and a list of relators",
   [ IsList, IsList, IsList ],
   function( alph, ialph, rels )
@@ -665,13 +665,13 @@ InstallMethod( DehnRewriteSystem,
             od;
         od;
     od;
-    return RewriteSystem(salph,Concatenation(rws));
+    return rec( alph := salph, ialph := sialph, rws := Concatenation(rws) );
   end );
 
-InstallMethod( DehnRewriteSystem, "for a record",
+InstallMethod( DehnRewrites1, "for a record",
   [ IsRecord ],
   function( r )
-    return DehnRewriteSystem(r.alph, r.ialph, r.rels);
+    return DehnRewrites1(r.alph, r.ialph, r.rels);
   end );
 
 InstallGlobalFunction(CanBeRewrittenToEmptyFunc,
