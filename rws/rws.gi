@@ -778,12 +778,13 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
   [ IsInfraStructureStdRep, IsList ],
   function( infra, rels )
     local AddNewRewrite,CheckOverlap,Reduce,ResolveEquation,
-          arws,atocheck,eqts,irws,itocheck;
+          arws,atocheck,eqeq,eqts,irws,itocheck;
 
     irws := List([1..Length(infra!.lefts)],
                  i->[infra!.lefts[i],infra!.rights[i]]);
     arws := [];
     eqts := List(rels,r->[r,EmptyList(0,r)]);
+    eqeq := [];
     itocheck := 1;
     atocheck := 1;
     
@@ -883,7 +884,11 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
         b := Reduce(eq[2]);
         if a = b then return; fi;   # everything OK
         c := Compare(infra,a,b);
-        if c = 0 then Error("two reductions compare equal"); fi;
+        if c = 0 then 
+            Info(InfoRWS,1,"Two reductions compare equal:",a," ",b); 
+            Add(eqeq,[a,b]);
+            return;
+        fi;
         if c < 0 then 
             # a is smaller
             c := a; a := b; b := c;
@@ -907,7 +912,8 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
 
     return rec( rws := Concatenation(irws,arws),
                 infra := infra,
-                nrirws := Length(irws) );
+                nrirws := Length(irws),
+                equations := eqeq );
   end );
 
 
@@ -1398,6 +1404,7 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
     Info( InfoRWS, 1, "Looking for double overlaps of LHSs...");
     for i in [1..Length(rws!.lefts)] do
         L := rws!.lefts[i];
+        #Debug(0);
         d := FindLHSDoubleOverlaps(rws, L);
         #Debug(1);
         for dd in d do
@@ -1453,9 +1460,11 @@ InstallMethod( CheckCyclicEpsilonConfluence2,
     Info( InfoRWS, 1, "Looking for double overlaps of LHSs...");
     for i in [1..Length(rws!.lefts)] do
         L := rws!.lefts[i];
+        #Debug(0,L);
         d := FindLHSDoubleOverlaps(rws, L);
         #Debug(1);
         for dd in d do
+            #Debug(2,dd);
             w := dd[1];
             P := CyclicWord(ApplyRewrite(rws,w,[i,1,Length(L)]));
             Q := CyclicWord(dd[4]);
@@ -1476,7 +1485,7 @@ InstallMethod( CheckCyclicEpsilonConfluence2,
     Info( InfoRWS, 1, "Setting up pattern list...");
     SetupSearchList(s,critical);
 
-    count := 0;
+    count := -1;
     while true do
         count := count + 1;
         if count mod 1000 = 0 then
