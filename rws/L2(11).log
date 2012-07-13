@@ -1,0 +1,48 @@
+gap> infra := InfraStructure("RST","SRT",[["SS","R"],["RR","S"]],
+>                         CompareByWeights, rec( weights := [17,18,17] ));
+#I  Checking soundness of rewrites...
+<infrastructure alph=RST ialph=SRT
+ "RR"->"S" "RS"->"" "SR"->"" "SS"->"R" "TT"->"" weights=[ 17, 18, 17 ]>
+gap> r := DehnRewrites(infra,[Rep("TS",11),Rep("TSTSTSTRTRTR",2)]);
+Error, two reductions compare equal called from
+ResolveEquation(  ); called from
+<function "unknown">( <arguments> )
+ called from read-eval loop at line 59 of *stdin*
+you can 'quit;' to quit to outer loop, or
+you can 'return;' to continue
+brk> eq;
+[ "TSTSTSTRTRTR", "STSTSTRTRTRT" ]
+brk> irws;
+[ [ "RR", "S" ], [ "RS", "" ], [ "SR", "" ], [ "SS", "R" ], [ "TT", "" ] ]
+brk> arws;
+[ [ "RTSTSTSTRTRTR", "TSTSTRTRTRT" ] ]
+brk> gap> OneRelatorQuotientOfModularGroup(256);
+rec( alph := "RST", ialph := "SRT", rels := [ "SSS", "STSTSTSTSTSTSTST" ] )
+gap> r := DehnRewrites(infra,[Rep("ST",8)]);
+rec( infra := <infrastructure alph=RST ialph=SRT
+     "RR"->"S" "RS"->"" "SR"->"" "SS"->"R" "TT"->"" weights=[ 17, 18, 17 ]>, 
+  nrirws := 5, 
+  rws := [ [ "RR", "S" ], [ "RS", "" ], [ "SR", "" ], [ "SS", "R" ], 
+      [ "TT", "" ], [ "RTSTSTSTR", "STRTRTRTS" ], [ "RTRTRTRTS", "TSTSTSTR" ],
+      [ "RTRTRTRTR", "TSTSTST" ], [ "STSTSTST", "TRTRTRTR" ], 
+      [ "TRTRTRTRT", "STSTSTS" ], [ "TSTSTSTS", "RTRTRTRT" ], 
+      [ "STRTRTRTR", "RTSTSTST" ] ] )
+gap> rws := RewriteSystem("RST",Concatenation(r.rws));
+#I  Checking soundness of rewrites...
+<rewrite system on "RST" with 12 rewrites>
+gap> Display(rws);
+<rewrite system on "RST" with 12 rewrites:
+  "RR" -> "S"
+  "RS" -> ""
+  "SR" -> ""
+  "SS" -> "R"
+  "TT" -> ""
+  "RTSTSTSTR" -> "STRTRTRTS"
+  "RTRTRTRTS" -> "TSTSTSTR"
+  "RTRTRTRTR" -> "TSTSTST"
+  "STSTSTST" -> "TRTRTRTR"
+  "TRTRTRTRT" -> "STSTSTS"
+  "TSTSTSTS" -> "RTRTRTRT"
+  "STRTRTRTR" -> "RTSTSTST"
+ corresponding FSA has 54 states.>
+gap> LogTo();

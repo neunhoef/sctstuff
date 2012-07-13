@@ -1,0 +1,754 @@
+gap> infra := InfraStructure("RST","SRT",[["SS","R"],["RR","S"]],
+>                         CompareByWeights, rec( weights := [17,18,17] ));
+#I  Checking soundness of rewrites...
+<infrastructure alph=RST ialph=SRT
+ "RR"->"S" "RS"->"" "SR"->"" "SS"->"R" "TT"->"" weights=[ 17, 18, 17 ]>
+gap> r := DehnRewrites(infra,[Rep("ST",5)]);
+rec( infra := <infrastructure alph=RST ialph=SRT
+     "RR"->"S" "RS"->"" "SR"->"" "SS"->"R" "TT"->"" weights=[ 17, 18, 17 ]>, 
+  nrirws := 5, 
+  rws := [ [ "RR", "S" ], [ "RS", "" ], [ "SR", "" ], [ "SS", "R" ], 
+      [ "TT", "" ], [ "TRTRTS", "STSTR" ], [ "TRTRTR", "STST" ], 
+      [ "TSTST", "RTRTR" ], [ "RTRTRT", "TSTS" ], [ "STSTS", "TRTRT" ], 
+      [ "STRTRT", "RTSTS" ] ] )
+gap> rws := RewriteSystem("RST",Concatenation(r.rws));
+#I  Checking soundness of rewrites...
+<rewrite system on "RST" with 11 rewrites>
+gap> Display(rws);
+<rewrite system on "RST" with 11 rewrites:
+  "RR" -> "S"
+  "RS" -> ""
+  "SR" -> ""
+  "SS" -> "R"
+  "TT" -> ""
+  "TRTRTS" -> "STSTR"
+  "TRTRTR" -> "STST"
+  "TSTST" -> "RTRTR"
+  "RTRTRT" -> "TSTS"
+  "STSTS" -> "TRTRT"
+  "STRTRT" -> "RTSTS"
+ corresponding FSA has 32 states.>
+gap> CheckCyclicEpsilonConfluence2(rws,infinity,rec(infra := infra));
+#I  Looking for double overlaps of LHSs...
+#I  Found 0 witnesses.
+#I  Finding critical pairs...
+#I  Found 8 critical pairs.
+#I  Setting up pattern list...
+#I  Currently have 331 patterns and 0 witnesses.
+#I  Lengths: min=20 max=25 avg=21
+rec( infra := <infrastructure alph=RST ialph=SRT
+     "RR"->"S" "RS"->"" "SR"->"" "SS"->"R" "TT"->"" weights=[ 17, 18, 17 ]>, 
+  lenlim := infinity, 
+  pats := 
+    [ 
+      <CWPat (R|*) <= (<STST|S|TRTRT>STSTRTSTRTST|*) => (STSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (<TRTR|TS|TST>RTRTSTRTSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (<TRTR|TS|TST>RTRTSTRTSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (<TST|ST|RTRT>STSTRTSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (<TST|ST|RTRT>STSTRTSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (<TSTS|T|RTRTS>TSTRTSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (<TSTS|T|RTRTS>TSTRTSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (R<TRTR|TS|TST>RTRTSTRTSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (R<TST|ST|RTRT>STSTRTSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (R<TSTS|T|RTRTS>TSTRTSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RT<STRTR|T|STST>RTRTSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (RTR<TST|ST|RTRT>STSTRTSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTR<TSTS|T|RTRTS>TSTRTSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRT<STRTR|T|STST>RTRTSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTS<TRTR|TS|TST>RTRTSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTR<TST|ST|RTRT>STSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (STRTSTRTS|*) <= (RTRTSTR<TSTS|T|RTRTR>TRTRT|*) => (RTSTRTSTR|*) \
+left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTR<TSTS|T|RTRTS>TSTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTRT<STRTR|T|STST>RTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (STSTRTST|*) <= (RTRTSTRT<STRTR|T|STST>STST|*) => (RTRTSTRTSTRTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTRTS<TRTR|TS|TST>RTRT|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (STSTRTST|*) <= (RTRTSTRTS<TRTR|TS|TST>STST|*) => (RTRTSTRTSTRTS|\
+*) left eps, len=22>, 
+      <CWPat (TRTSTRTR|*) <= (RTRTSTRTS<TRTRT|S|TSTS>TST|*) => (RTRTSTRTSTRTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTRTSTR<TST|ST|RTRT>ST|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (RTRTSTRTSTR<TSTS|T|RTRTS>T|*) => (RTRTSTRTSTRTSTRTSTRT|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (RTRTSTRTSTRT<STRTR|T|STST>|*) => (RTRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (RTRTSTRTSTRTS<TRTR|TS|TST>|*) => (RTRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (RTS<TRTR|TS|TST>RTRTSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTR<TST|ST|RTRT>STSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTR<TSTS|T|RTRTS>TSTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRT<STRTR|T|STST>RTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRTS<TRTR|TS|TST>RTRTST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (STSTRTSTS|*) <= (RTSTRTSTR<TST|ST|RTRT>RTRT|*) => (RTSTRTSTRTSTR\
+|*) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRTSTR<TST|ST|RTRT>STST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (STSTRTSTS|*) <= (RTSTRTSTR<TSTS|T|RTRTR>TRT|*) => (RTSTRTSTRTSTR\
+|*) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRTSTR<TSTS|T|RTRTS>TST|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRTSTRT<STRTR|T|STST>RT|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (RTSTRTSTRTS<TRTR|TS|TST>RT|*) => (RTSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (RTSTRTSTRTSTR<TST|ST|RTRT>|*) => (RTSTRTSTRTSTRTSTRTSTS\
+|*) left eps, len=22>, 
+      <CWPat (|*) <= (S<TRTR|TS|TST>RTRTSTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (S<TST|ST|RTRT>STSTRTSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (S<TSTS|T|RTRTS>TSTRTSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (ST<STRTR|T|STST>RTRTSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (STR<TST|ST|RTRT>STSTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STR<TSTS|T|RTRTS>TSTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STRT<STRTR|T|STST>RTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STRTS<TRTR|TS|TST>RTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STRTSTR<TST|ST|RTRT>STSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (TRTSTRTS|*) <= (STRTSTR<TSTS|T|RTRTR>TRTRT|*) => (STSTRTSTR|*) l\
+eft eps, len=22>, 
+      <CWPat (|*) <= (STRTSTR<TSTS|T|RTRTS>TSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STRTSTRT<STRTR|T|STST>RTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (RTRTSTRTR|*) <= (STRTSTRT<STRTR|T|STST>STST|*) => (STRTSTRTSTRTS\
+|*) left eps, len=22>, 
+      <CWPat (|*) <= (STRTSTRTS<TRTR|TS|TST>RTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (RTRTSTRTR|*) <= (STRTSTRTS<TRTR|TS|TST>STST|*) => (STRTSTRTSTRTS\
+|*) left eps, len=22>, 
+      <CWPat (RTRTSTRTR|*) <= (STRTSTRTS<TRTRT|S|TSTS>TST|*) => (STRTSTRTSTRTS\
+|*) left eps, len=22>, 
+      <CWPat (|*) <= (STRTSTRTSTR<TST|ST|RTRT>ST|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (STRTSTRTSTR<TSTS|T|RTRTS>T|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (STRTSTRTSTRT<STRTR|T|STST>|*) => (STRTSTRTSTRTSTRTSTRTR\
+|*) left eps, len=22>, 
+      <CWPat (R|*) <= (STRTSTRTSTRTS<TRTR|TS|TST>|*) => (STRTSTRTSTRTSTRTSTRTR\
+|*) left eps, len=22>, 
+      <CWPat (R|*) <= (STS<TRTR|TS|TST>RTRTSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTR<TST|ST|RTRT>STSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTR<TSTS|T|RTRTS>TSTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRT<STRTR|T|STST>RTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRTS<TRTR|TS|TST>RTRTST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (TSTRTSTS|*) <= (STSTRTSTR<TST|ST|RTRT>RTRT|*) => (STSTRTSTRTSTR|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRTSTR<TST|ST|RTRT>STST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (TSTRTSTS|*) <= (STSTRTSTR<TSTS|T|RTRTR>TRT|*) => (STSTRTSTRTSTR|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRTSTR<TSTS|T|RTRTS>TST|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRTSTRT<STRTR|T|STST>RT|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (R|*) <= (STSTRTSTRTS<TRTR|TS|TST>RT|*) => (STSTRTSTRTSTRTSTRTST|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (STSTRTSTRTSTR<TST|ST|RTRT>|*) => (STSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (T<STRTR|T|STST>RTRTSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (T<STRTR|T|STST>RTRTSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (TR<TST|ST|RTRT>STSTRTSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TR<TST|ST|RTRT>STSTRTSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TR<TSTS|T|RTRTS>TSTRTSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TR<TSTS|T|RTRTS>TSTRTSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRT<STRTR|T|STST>RTRTSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRT<STRTR|T|STST>RTRTSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (STSTRTSTRT|*) <= (TRTRT<RTRTR|T|STST>RTRTSTR|*) => (RTRTSTRTSTR|\
+*) left eps, len=22>, 
+      <CWPat (STSTRTSTRTR|*) <= (TRTRT<RTRTR|T|STST>RTRTSTS|*) => (RTRTSTRTSTS\
+|*) left eps, len=22>, 
+      <CWPat (RTS|*) <= (TRTRT<STST|S|TRTRT>STSTRTR|*) => (STSTRTSTRTSTRTSTRTR\
+|*) left eps, len=22>, 
+      <CWPat (RT|*) <= (TRTRT<STST|S|TRTRT>STSTRTS|*) => (STSTRTSTRTSTRTSTRTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTS<TRTR|TS|TST>RTRTSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTS<TRTR|TS|TST>RTRTSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTR<TST|ST|RTRT>STSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTR<TST|ST|RTRT>STSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTR<TSTS|T|RTRTS>TSTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTR<TSTS|T|RTRTS>TSTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTRT<STRTR|T|STST>RTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRT<STRTR|T|STST>RTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (STRTSTRTS|*) <= (TRTSTRT<STRTR|T|STST>STSTR|*) => (TRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTRTS<TRTR|TS|TST>RTRTR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRTS<TRTR|TS|TST>RTRTS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (STRTSTRTS|*) <= (TRTSTRTS<TRTR|TS|TST>STSTR|*) => (TRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (STRTSTRTS|*) <= (TRTSTRTS<TRTRT|S|TSTS>TSTR|*) => (TRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (STRTSTRT|*) <= (TRTSTRTS<TRTRT|S|TSTS>TSTS|*) => (TRTSTRTSTRTR|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTRTSTR<TST|ST|RTRT>STR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRTSTR<TST|ST|RTRT>STS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TRTSTRTSTR<TSTS|T|RTRTS>TR|*) => (TRTSTRTSTRTSTRTSTRTR|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRTSTR<TSTS|T|RTRTS>TS|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRTSTRT<STRTR|T|STST>R|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TRTSTRTSTRT<STRTR|T|STST>S|*) => (TRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TRTSTRTSTRTS<TRTR|TS|TST>R|*) => (TRTSTRTSTRTSTRTSTRTS|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TRTSTRTSTRTS<TRTR|TS|TST>S|*) => (TRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TRTSTRTSTRTS<TRTRT|S|TSTS>|*) => (TRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TS<TRTR|TS|TST>RTRTSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TS<TRTR|TS|TST>RTRTSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTR<TST|ST|RTRT>STSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTR<TST|ST|RTRT>STSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTR<TSTS|T|RTRTS>TSTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTR<TSTS|T|RTRTS>TSTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRT<STRTR|T|STST>RTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTRT<STRTR|T|STST>RTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTS<TRTR|TS|TST>RTRTSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTRTS<TRTR|TS|TST>RTRTSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (RTSTRTST|*) <= (TSTRTSTR<TST|ST|RTRT>RTRTR|*) => (TSTRTSTRTSTS|*\
+) left eps, len=22>, 
+      <CWPat (RTSTRTSTR|*) <= (TSTRTSTR<TST|ST|RTRT>RTRTS|*) => (TSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTR<TST|ST|RTRT>STSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (RTSTRTST|*) <= (TSTRTSTR<TSTS|T|RTRTR>TRTR|*) => (TSTRTSTRTSTS|*\
+) left eps, len=22>, 
+      <CWPat (RTSTRTSTR|*) <= (TSTRTSTR<TSTS|T|RTRTR>TRTS|*) => (TSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTR<TSTS|T|RTRTS>TSTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTRTSTR<TSTS|T|RTRTS>TSTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTRT<STRTR|T|STST>RTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTRTSTRT<STRTR|T|STST>RTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTRTS<TRTR|TS|TST>RTR|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (R|*) <= (TSTRTSTRTS<TRTR|TS|TST>RTS|*) => (TSTRTSTRTSTRTSTRTSTS|\
+*) left eps, len=22>, 
+      <CWPat (S|*) <= (TSTRTSTRTSTR<TST|ST|RTRT>R|*) => (TSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTRTSTR<TST|ST|RTRT>S|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (S|*) <= (TSTRTSTRTSTR<TSTS|T|RTRTR>|*) => (TSTRTSTRTSTRTSTRTST|*\
+) left eps, len=22>, 
+      <CWPat (|*) <= (TSTRTSTRTSTR<TSTS|T|RTRTS>|*) => (TSTRTSTRTSTRTSTRTSTR|*\
+) left eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTST|*) <= (<RTRTR|T|STST>RTSTRTSTRTST|*) => (S|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (<STRTR|T|STST>RTSTRTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRT|*) <= (<STST|S|TRTRT>STRTSTRTSTRT|*) => (R|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTSTR|*) <= (<TRTR|TS|TST>RTSTRTSTRTSTR|*) => (S\
+|*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTSTS|*) <= (<TRTR|TS|TST>RTSTRTSTRTSTS|*) => (|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTR|*) <= (<TST|ST|RTRT>STRTSTRTSTRTR|*) => (|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTS|*) <= (<TST|ST|RTRT>STRTSTRTSTRTS|*) => (R\
+|*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTR|*) <= (<TSTS|T|RTRTS>TRTSTRTSTRTR|*) => (|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTS|*) <= (<TSTS|T|RTRTS>TRTSTRTSTRTS|*) => (R\
+|*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTST|*) <= (R<TRTR|TS|TST>RTSTRTSTRTST|*) => (S|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (R<TST|ST|RTRT>STRTSTRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (R<TSTS|T|RTRTS>TRTSTRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RT<STRTR|T|STST>RTSTRTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTR<TST|ST|RTRT>STRTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTR<TSTS|T|RTRTS>TRTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTST|*) <= (RTRT<RTRTR|T|STST>RTSTRTST|*) => (TSTRTSTR|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTST|*) <= (RTRTR<TRTR|TS|TST>RTSTRTST|*) => (TSTRTSTR|*\
+) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTR<TST|ST|RTRT>STRTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTR<TSTS|T|RTRTS>TRTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTST<STRTR|T|STST>RTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTRTR<TST|ST|RTRT>STRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTRTR<TSTS|T|RTRTS>TRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTRTST<STRTR|T|STST>RT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTRTSTRTR<TST|ST|RTRT>|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTRTSTS<TRTR|TS|TST>RT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTRTSTS<TRTR|TS|TST>RTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRT|*) <= (RTS<TRTR|TS|TST>RTSTRTSTRT|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTST<STRTR|T|STST>RTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRT|*) <= (RTST<STST|S|TRTRT>STRTSTRT|*) => (STRTSTRTS|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTR<TST|ST|RTRT>STRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTR<TSTS|T|RTRTS>TRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTST<STRTR|T|STST>RTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTSTRTR<TST|ST|RTRT>ST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTSTRTR<TSTS|T|RTRTS>T|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTSTRTST<STRTR|T|STST>|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTSTRTSTS<TRTR|TS|TST>|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTRTSTS<TRTR|TS|TST>RTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (RTSTS<TRTR|TS|TST>RTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRT|*) <= (RTSTS<TST|ST|RTRT>STRTSTRT|*) => (STRTSTRTS|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRT|*) <= (RTSTS<TSTS|T|RTRTS>TRTSTRT|*) => (STRTSTRTS|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTRTSTRTST|*) <= (S<TRTR|TS|TST>RTSTRTSTRTST|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRT|*) <= (S<TST|ST|RTRT>STRTSTRTSTRT|*) => (R|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRT|*) <= (S<TSTS|T|RTRTS>TRTSTRTSTRT|*) => (R|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (ST<STRTR|T|STST>RTSTRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STR<TST|ST|RTRT>STRTSTRTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STR<TSTS|T|RTRTS>TRTSTRTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTST|*) <= (STRT<RTRTR|T|STST>RTSTRTST|*) => (RTSTRTSTR|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTST|*) <= (STRTR<TRTR|TS|TST>RTSTRTST|*) => (RTSTRTSTR|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTR<TST|ST|RTRT>STRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTR<TSTS|T|RTRTS>TRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTST<STRTR|T|STST>RTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTRTR<TST|ST|RTRT>STRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTRTR<TSTS|T|RTRTS>TRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTRTST<STRTR|T|STST>RT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTRTSTRTR<TST|ST|RTRT>|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTRTSTS<TRTR|TS|TST>RT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STRTSTS<TRTR|TS|TST>RTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRT|*) <= (STS<TRTR|TS|TST>RTSTRTSTRT|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STST<STRTR|T|STST>RTSTRTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (RTRTSTRTSTRT|*) <= (STST<STST|S|TRTRT>STRTSTRT|*) => (TRTSTRTS|*\
+) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTR<TST|ST|RTRT>STRTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTR<TSTS|T|RTRTS>TRTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTST<STRTR|T|STST>RTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTSTRTR<TST|ST|RTRT>ST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTSTRTR<TSTS|T|RTRTS>T|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTSTRTST<STRTR|T|STST>|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTSTRTSTS<TRTR|TS|TST>|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STSTRTSTRTSTRTSTRTST|*) <= (STSTRTSTS<TRTR|TS|TST>RTST|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (T<STRTR|T|STST>RTSTRTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (T<STRTR|T|STST>RTSTRTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TR<TST|ST|RTRT>STRTSTRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TR<TST|ST|RTRT>STRTSTRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TR<TSTS|T|RTRTS>TRTSTRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TR<TSTS|T|RTRTS>TRTSTRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTR|*) <= (TRT<RTRTR|T|STST>RTSTRTSTR|*) => (STSTRTSTS\
+|*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTS|*) <= (TRT<RTRTR|T|STST>RTSTRTSTS|*) => (STSTRTST|\
+*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTR|*) <= (TRTR<TRTR|TS|TST>RTSTRTSTR|*) => (STSTRTSTS\
+|*) right eps, len=22>, 
+      <CWPat (RTSTRTSTRTSTS|*) <= (TRTR<TRTR|TS|TST>RTSTRTSTS|*) => (STSTRTST|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTR<TST|ST|RTRT>STRTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTR<TST|ST|RTRT>STRTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTR<TSTS|T|RTRTS>TRTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTR<TSTS|T|RTRTS>TRTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (RTSTRTSTR|*) <= (TRTRT<RTRTR|T|STST>RTSTRTR|*) => (STRTSTRTS|*) \
+right eps, len=22>, 
+      <CWPat (RTSTRTSTS|*) <= (TRTRT<RTRTR|T|STST>RTSTRTS|*) => (STRTSTRT|*) r\
+ight eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTR|*) <= (TRTRT<STST|S|TRTRT>RTSTRTR|*) => (STRTSTS|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTS|*) <= (TRTRT<STST|S|TRTRT>RTSTRTS|*) => (STRTST|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTST<STRTR|T|STST>RTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTST<STRTR|T|STST>RTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTR<TST|ST|RTRT>STRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTR<TST|ST|RTRT>STRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTR<TSTS|T|RTRTS>TRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTR<TSTS|T|RTRTS>TRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTST<STRTR|T|STST>RTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTST<STRTR|T|STST>RTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTSTRTR<TST|ST|RTRT>R|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTSTRTR<TST|ST|RTRT>S|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTSTRTR<TSTS|T|RTRTR>|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTSTRTR<TSTS|T|RTRTS>|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTRTSTS<TRTR|TS|TST>RTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTRTSTS<TRTR|TS|TST>RTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TRTSTS<TRTR|TS|TST>RTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TRTSTS<TRTR|TS|TST>RTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTR|*) <= (TS<TRTR|TS|TST>RTSTRTSTRTR|*) => (S|\
+*) right eps, len=22>, 
+      <CWPat (TRTSTRTSTRTSTRTSTRTS|*) <= (TS<TRTR|TS|TST>RTSTRTSTRTS|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TST<STRTR|T|STST>RTSTRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TST<STRTR|T|STST>RTSTRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTR|*) <= (TST<STST|S|TRTRT>STRTSTRTR|*) => (RTRTSTRT|\
+*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTS|*) <= (TST<STST|S|TRTRT>STRTSTRTS|*) => (RTRTSTRTR\
+|*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTR<TST|ST|RTRT>STRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTR<TST|ST|RTRT>STRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTR<TSTS|T|RTRTS>TRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTR<TSTS|T|RTRTS>TRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTST<STRTR|T|STST>RTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTST<STRTR|T|STST>RTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTSTRTR<TST|ST|RTRT>STR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTRTR<TST|ST|RTRT>STS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTSTRTR<TSTS|T|RTRTS>TR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTRTR<TSTS|T|RTRTS>TS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTSTRTST<STRTR|T|STST>R|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTRTST<STRTR|T|STST>S|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTSTRTSTS<TRTR|TS|TST>R|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTRTSTS<TRTR|TS|TST>S|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTRTSTS<TRTRT|S|TSTS>|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTRTSTS<TRTR|TS|TST>RTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTRTSTS<TRTR|TS|TST>RTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTR|*) <= (TSTS<TRTR|TS|TST>RTSTRTSTR|*) => (|*\
+) right eps, len=22>, 
+      <CWPat (TSTRTSTRTSTRTSTRTSTS|*) <= (TSTS<TRTR|TS|TST>RTSTRTSTS|*) => (R|\
+*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTR|*) <= (TSTS<TST|ST|RTRT>STRTSTRTR|*) => (RTRTSTRT|\
+*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTS|*) <= (TSTS<TST|ST|RTRT>STRTSTRTS|*) => (RTRTSTRTR\
+|*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTR|*) <= (TSTS<TSTS|T|RTRTS>TRTSTRTR|*) => (RTRTSTRT|\
+*) right eps, len=22>, 
+      <CWPat (STRTSTRTSTRTS|*) <= (TSTS<TSTS|T|RTRTS>TRTSTRTS|*) => (RTRTSTRTR\
+|*) right eps, len=22>, 
+      <CWPat (|*) <= (<RTRTR|T|STST>RTRTSTRTSTRTR|*) => (RTRTSTRTSTRTSTRTSTRTR\
+|*) left eps, len=23>, 
+      <CWPat (R|*) <= (<RTRTR|T|STST>RTRTSTRTSTRTS|*) => (RTRTSTRTSTRTSTRTSTRT\
+S|*) left eps, len=23>, 
+      <CWPat (|*) <= (RTRTSTRT<STRTR|T|STST>RTRTR|*) => (RTRTSTRTSTRTSTRTSTRTR\
+|*) left eps, len=23>, 
+      <CWPat (R|*) <= (RTRTSTRT<STRTR|T|STST>RTRTS|*) => (RTRTSTRTSTRTSTRTSTRT\
+S|*) left eps, len=23>, 
+      <CWPat (TRTSTRTS|*) <= (RTRTSTRT<STRTR|T|STST>STSTR|*) => (RTRTSTRTSTRT|\
+*) left eps, len=23>, 
+      <CWPat (|*) <= (RTRTSTRTS<TRTR|TS|TST>RTRTR|*) => (RTRTSTRTSTRTSTRTSTRTR\
+|*) left eps, len=23>, 
+      <CWPat (R|*) <= (RTRTSTRTS<TRTR|TS|TST>RTRTS|*) => (RTRTSTRTSTRTSTRTSTRT\
+S|*) left eps, len=23>, 
+      <CWPat (TRTSTRTS|*) <= (RTRTSTRTS<TRTR|TS|TST>STSTR|*) => (RTRTSTRTSTRT|\
+*) left eps, len=23>, 
+      <CWPat (TRTSTRTS|*) <= (RTRTSTRTS<TRTRT|S|TSTS>TSTR|*) => (RTRTSTRTSTRT|\
+*) left eps, len=23>, 
+      <CWPat (TRTSTRT|*) <= (RTRTSTRTS<TRTRT|S|TSTS>TSTS|*) => (RTRTSTRTSTRTR|\
+*) left eps, len=23>, 
+      <CWPat (TRTRT|*) <= (RTRTSTRTSTR<TST|ST|RTRT>RTS|*) => (RTRTSTRTSTRTSTRT\
+R|*) left eps, len=23>, 
+      <CWPat (TRTRT|*) <= (RTRTSTRTSTR<TSTS|T|RTRTR>TS|*) => (RTRTSTRTSTRTSTRT\
+R|*) left eps, len=23>, 
+      <CWPat (RTRTSTRTS|*) <= (STRTSTRT<STRTR|T|STST>STSTR|*) => (STRTSTRTSTRT\
+|*) left eps, len=23>, 
+      <CWPat (RTRTSTRTS|*) <= (STRTSTRTS<TRTR|TS|TST>STSTR|*) => (STRTSTRTSTRT\
+|*) left eps, len=23>, 
+      <CWPat (RTRTSTRTS|*) <= (STRTSTRTS<TRTRT|S|TSTS>TSTR|*) => (STRTSTRTSTRT\
+|*) left eps, len=23>, 
+      <CWPat (RTRTSTRT|*) <= (STRTSTRTS<TRTRT|S|TSTS>TSTS|*) => (STRTSTRTSTRTR\
+|*) left eps, len=23>, 
+      <CWPat (TSTRTST|*) <= (STSTRTSTR<TST|ST|RTRT>RTRTR|*) => (STSTRTSTRTSTS|\
+*) left eps, len=23>, 
+      <CWPat (TSTRTSTR|*) <= (STSTRTSTR<TST|ST|RTRT>RTRTS|*) => (STSTRTSTRTST|\
+*) left eps, len=23>, 
+      <CWPat (TSTRTST|*) <= (STSTRTSTR<TSTS|T|RTRTR>TRTR|*) => (STSTRTSTRTSTS|\
+*) left eps, len=23>, 
+      <CWPat (TSTRTSTR|*) <= (STSTRTSTR<TSTS|T|RTRTR>TRTS|*) => (STSTRTSTRTST|\
+*) left eps, len=23>, 
+      <CWPat (STSTRTSTR|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRT|*) => (RTRTSTRTSTRT\
+|*) left eps, len=23>, 
+      <CWPat (R|*) <= (TRTRT<STST|S|TRTRT>STSTRTST|*) => (STSTRTSTRTSTRTSTRTST\
+|*) left eps, len=23>, 
+      <CWPat (STSTRTSTRTSTS|*) <= (RTRT<RTRTR|T|STST>RTSTRTSTS|*) => (TSTRTST|\
+*) right eps, len=23>, 
+      <CWPat (STSTRTSTRTSTS|*) <= (RTRTR<TRTR|TS|TST>RTSTRTSTS|*) => (TSTRTST|\
+*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTR|*) <= (RTRTR<TST|ST|RTRT>STRTSTRTR|*) => (\
+|*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTSTRTSTRTR|*) <= (RTRTR<TSTS|T|RTRTS>TRTSTRTR|*) => (\
+|*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTR|*) <= (RTST<STST|S|TRTRT>STRTSTRTR|*) => (STRTSTRT|\
+*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTS|*) <= (RTST<STST|S|TRTRT>STRTSTRTS|*) => (STRTSTRTR\
+|*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTR|*) <= (RTSTS<TST|ST|RTRT>STRTSTRTR|*) => (STRTSTRT|\
+*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTS|*) <= (RTSTS<TST|ST|RTRT>STRTSTRTS|*) => (STRTSTRTR\
+|*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTR|*) <= (RTSTS<TSTS|T|RTRTS>TRTSTRTR|*) => (STRTSTRT|\
+*) right eps, len=23>, 
+      <CWPat (TRTSTRTSTRTS|*) <= (RTSTS<TSTS|T|RTRTS>TRTSTRTS|*) => (STRTSTRTR\
+|*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTSTRTR|*) <= (ST<RTRTR|T|STST>RTSTRTSTRTR|*) => (TRTR\
+T|*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTSTRTR|*) <= (STR<TRTR|TS|TST>RTSTRTSTRTR|*) => (TRTR\
+T|*) right eps, len=23>, 
+      <CWPat (TSTRTSTRTSTS|*) <= (STRT<RTRTR|T|STST>RTSTRTSTS|*) => (RTSTRTST|\
+*) right eps, len=23>, 
+      <CWPat (TSTRTSTRTSTS|*) <= (STRTR<TRTR|TS|TST>RTSTRTSTS|*) => (RTSTRTST|\
+*) right eps, len=23>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRTR|*) <= (STRTR<TST|ST|RTRT>STRTSTRTR|*) => (\
+R|*) right eps, len=23>, 
+      <CWPat (STRTSTRTSTRTSTRTSTRTR|*) <= (STRTR<TSTS|T|RTRTS>TRTSTRTR|*) => (\
+R|*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTR|*) <= (STST<STST|S|TRTRT>STRTSTRTR|*) => (TRTSTRT|\
+*) right eps, len=23>, 
+      <CWPat (RTRTSTRTSTRTS|*) <= (STST<STST|S|TRTRT>STRTSTRTS|*) => (TRTSTRTR\
+|*) right eps, len=23>, 
+      <CWPat (STSTRTST|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRTS|*) => (RTRTSTRTSTRT\
+S|*) left eps, len=24>, 
+      <CWPat (S|*) <= (TRTRT<STST|S|TRTRT>STSTRTSTR|*) => (STSTRTSTRTSTRTSTRTS\
+TR|*) left eps, len=24>, 
+      <CWPat (|*) <= (TRTRT<STST|S|TRTRT>STSTRTSTS|*) => (STSTRTSTRTSTRTSTRTST\
+S|*) left eps, len=24>, 
+      <CWPat (STSTRTS|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRTST|*) => (RTRTSTRTSTRT\
+ST|*) left eps, len=25>, 
+      <CWPat (ST|*) <= (TRTRT<STST|S|TRTRT>STSTRTSTRT|*) => (STSTRTSTRTSTRTSTR\
+TSTRT|*) left eps, len=25>, 
+      <CWPat (STSTRT|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRTSTR|*) => (RTRTSTRTSTRT\
+STR|*) left eps, len=26>, 
+      <CWPat (STSTRTR|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRTSTS|*) => (RTRTSTRTSTR\
+TSTS|*) left eps, len=26>, 
+      <CWPat (STR|*) <= (TRTRT<STST|S|TRTRT>STSTRTSTRTR|*) => (STSTRTSTRTSTRTS\
+TRTSTRTR|*) left eps, len=26>, 
+      <CWPat (STS|*) <= (TRTRT<STST|S|TRTRT>STSTRTSTRTS|*) => (STSTRTSTRTSTRTS\
+TRTSTRTS|*) left eps, len=26>, 
+      <CWPat (TRTRT|*) <= (ST<STRTR|T|STST>RTRTSTRTSTRTSTS|*) => (STSTRTSTRTST\
+RTSTRTSTRTSTS|*) left eps, len=27>, 
+      <CWPat (STSTR|*) <= (TRTRT<RTRTR|T|STST>RTRTSTRTSTRT|*) => (RTRTSTRTSTRT\
+STRT|*) left eps, len=27> ], rws := <rewrite system on "RST" with 11 rewrites>
+    , stop := false, 
+  wits := 
+    [ 
+      [ 
+          <CWPat (|*) <= (<STRTR|T|STST>RTRTSTRTSTRT|*) => (STRTSTRTSTRTSTRTSTRT|*\
+) left eps, len=22>, CyclicWord([  ]), CyclicWord("RTSTRTSTRTSTRTSTRTST") ] ] 
+ )
+gap> R;
+Error, Variable: 'R' must have a value
+not in any function at line 31 of *stdin*
+gap> S;
+Error, Variable: 'S' must have a value
+not in any function at line 32 of *stdin*
+gap> T;
+Error, Variable: 'T' must have a value
+not in any function at line 33 of *stdin*
+gap> f := FreeGroup("R","S","T");
+<free group on the generators [ R, S, T ]>
+gap> AssignGeneratorVariables(f);
+#I  Assigned the global variables [ R, S, T ]
+gap> rels := [R*S,T*T,S*S*S,(S*T)^5];
+[ R*S, T^2, S^3, S*T*S*T*S*T*S*T*S*T ]
+gap> g := f/rels;
+<fp group on the generators [ R, S, T ]>
+gap> Size(g),
+Syntax error: ; expected
+Size(g),
+       ^
+gap> Size(g);
+60
+gap> p := Image(IsomorphismPermGroup(g));
+Group([ (2,3,4), (2,4,3), (1,2)(3,5) ])
+gap> R := (2,3,4);
+(2,3,4)
+gap> S := (2,4,3);
+(2,4,3)
+gap> T := (1,2)(3,5);
+(1,2)(3,5)
+gap> R*T*S*T*R*T*S*T*R*T*S*T*R*T*S*T*R*T*S*T;
+()
+gap> r := DehnRewrites(infra,[Rep("ST",5),"RTSTRTSTRTSTRTSTRTST"]);
+Error, two reductions compare equal called from
+ResolveEquation(  ); called from
+<function "unknown">( <arguments> )
+ called from read-eval loop at line 45 of *stdin*
+you can 'quit;' to quit to outer loop, or
+you can 'return;' to continue
+brk> a;
+"TRTSTRTSTR"
+brk> b;
+"RTSTRTSTRT"
+brk> irws;
+[ [ "RR", "S" ], [ "RS", "" ], [ "SR", "" ], [ "SS", "R" ], [ "TT", "" ] ]
+brk> arws;
+[ [ "RTSTRTSTRTR", "TRTSTRTSTS" ], [ "STRTSTRTSTS", "TSTRTSTRTR" ], 
+  [ "STRTSTRTSTR", "TSTRTSTRT" ], [ "RTRTSTRTSTR", "STSTRTSTRT" ] ]
+brk> eqts;
+[ [ "RTSTRTSTRTSTRTSTRTS", "T" ], [ "TRTSTRTSTRTR", "RTSTRTSTS" ], 
+  [ "RTRTSTRTSTRTR", "STSTRTSTS" ], [ "STRTSTRTSTRTR", "TSTRTSTS" ], 
+  [ "TSTRTSTRTSTRTR", "STRTSTS" ], [ "RTSTRTSTRTSTRTR", "TRTSTS" ], 
+  [ "TRTSTRTSTRTSTRTR", "RTSTS" ], [ "RTRTSTRTSTRTSTRTR", "STSTS" ], 
+  [ "STRTSTRTSTRTSTRTR", "TSTS" ], [ "TSTRTSTRTSTRTSTRTR", "STS" ], 
+  [ "RTSTRTSTRTSTRTSTRTR", "TS" ], [ "RTSTRTSTRTSTRTSTRTST", "" ], 
+  [ "STSTSTSTST", "" ], [ "STSTRTSTRTSTRTSTRTST", "R" ], 
+  [ "TSTRTSTRTSTRTSTRTST", "S" ], [ "STSTRTSTRTSTRTSTRTS", "RT" ], 
+  [ "TSTRTSTRTSTRTSTRTS", "ST" ], [ "TR", "RTSTRTSTRTSTRTSTRT" ], 
+  [ "STSTRTSTRTSTRTSTRTR", "RTS" ], [ "TR", "RTSTRTSTRTSTRTSTRT" ], 
+  [ "ST", "TSTRTSTRTSTRTSTRTS" ], [ "STR", "TSTRTSTRTSTRTSTRT" ], 
+  [ "TST", "STRTSTRTSTRTSTRTS" ], [ "TRTSTRTSTRTSTRTR", "RTSTS" ], 
+  [ "TSTR", "STRTSTRTSTRTSTRT" ], [ "STST", "RTRTSTRTSTRTSTRTS" ], 
+  [ "STSTR", "RTRTSTRTSTRTSTRT" ], [ "RTST", "TRTSTRTSTRTSTRTS" ], 
+  [ "RTSTR", "TRTSTRTSTRTSTRT" ], [ "STSTRTSTRTSTRTR", "RTRTSTS" ], 
+  [ "TRTST", "RTSTRTSTRTSTRTS" ], [ "TRTSTR", "RTSTRTSTRTSTRT" ], 
+  [ "STRTST", "TSTRTSTRTSTRTS" ], [ "STRTSTR", "TSTRTSTRTSTRT" ], 
+  [ "TSTRTST", "STRTSTRTSTRTS" ], [ "TRTSTRTSTRTR", "RTSTRTSTS" ], 
+  [ "TSTRTSTR", "STRTSTRTSTRT" ], [ "STSTRTST", "RTRTSTRTSTRTS" ], 
+  [ "STSTRTSTR", "RTRTSTRTSTRT" ], [ "RTSTRTST", "TRTSTRTSTRTS" ], 
+  [ "RTSTRTSTR", "TRTSTRTSTRT" ], [ "STSTRTSTRTR", "RTRTSTRTSTS" ], 
+  [ "TRTSTRTST", "RTSTRTSTRTS" ], [ "TRTSTRTSTR", "RTSTRTSTRT" ], 
+  [ "TSTRTSTRTS", "STRTSTRTST" ], [ "RTRTSTRTSTS", "STSTRTSTRTR" ], 
+  [ "TRTSTRTSTR", "RTSTRTSTRT" ], [ "TSTRTSTRTS", "STRTSTRTST" ], 
+  [ "STSTRTSTRTR", "RTRTSTRTSTS" ], [ "STSTRTSTRTS", "RTRTSTRTST" ] ]
+brk> eq;
+[ "TRTSTRTSTR", "RTSTRTSTRT" ]
+brk> gap> LogTo();
