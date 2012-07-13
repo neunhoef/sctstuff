@@ -196,7 +196,7 @@ DeclareOperation( "CheckCyclicEpsilonConfluence",
 # The whole search procedure. It creates a record for the search, this
 # contains among other things the rewrite system.
 DeclareOperation( "CheckCyclicEpsilonConfluence2", 
-                  [IsRewriteSystem, IsCyclotomic]);
+                  [IsRewriteSystem, IsCyclotomic, IsRecord]);
 # A variant doing the same in a different order.
 
 DeclareGlobalFunction( "OneRelatorQuotientOfModularGroup" );

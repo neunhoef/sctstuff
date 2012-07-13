@@ -827,7 +827,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
         local A,I,P,Q,l,lA,lI;
         I := irws[i][1];
         A := arws[a][1];
-        Debug("CheckOverlap",I,A);
+        #Debug("CheckOverlap",I,A);
         lI := Length(I);
         lA := Length(A);
         for l in [1..Minimum(lI,lA)-1] do  # len of overlap
@@ -841,7 +841,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
                 Q := Reduce(Concatenation(A{[1..lA-l]},irws[i][2]));
                 if P <> Q then 
                     Add(eqts,[P,Q]); 
-                    Debug("Adding equation",[P,Q]);
+                    #Debug("Adding equation",[P,Q]);
                 fi;
             fi;
         od;
@@ -849,7 +849,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
     
     AddNewRewrite := function(L,R)
         local i,pos,pos2;
-        Debug("AddRewrite",[L,R]);
+        #Debug("AddRewrite",[L,R]);
         Add(arws,[L,R]);
         for i in [1..Length(irws)] do
             pos := PositionSublist(irws[i][1],L);
@@ -866,7 +866,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
             pos := PositionSublist(arws[i][1],L);
             pos2 := PositionSublist(arws[i][2],L);
             if pos <> fail or pos2 <> fail then
-                Debug("Removing rewrite",arws[i]);
+                #Debug("Removing rewrite",arws[i]);
                 Add(eqts,Remove(arws,i),1);
                 if atocheck > i then atocheck := atocheck - 1; fi;
             else
@@ -878,7 +878,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
     ResolveEquation := function()
         local a,b,c,eq;
         eq := Remove(eqts);
-        Debug("ResolveEquation",eq);
+        #Debug("ResolveEquation",eq);
         a := Reduce(eq[1]);
         b := Reduce(eq[2]);
         if a = b then return; fi;   # everything OK
@@ -892,7 +892,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
     end;
 
     while true do
-        Debug("Main loop",irws,arws,eqts);
+        #Debug("Main loop",irws,arws,eqts);
         while atocheck <= Length(arws) do
             while itocheck <= Length(irws) do
                 CheckOverlap(itocheck,atocheck);
@@ -1277,9 +1277,9 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
     # Uses Lemma 2.3 to extend the cyclic word patterns.
     # Adds descendants (again cyclic word patterns) to r.pats and 
     # a list of pairs of witnesses found to r.wits.
-    local Extend,L,P,Q,d,dd,i,j,l,r,res,rws,start,stop,study,tab;
+    local Extend,L,P,Q,d,dd,desc,i,j,l,r,res,rws,start,stop,study,tab;
 
-    Extend := function(s,cw,pre,post)
+    Extend := function(cw,pre,post)
         local Pp,Qp,X,Y;
         #Debug(6,cw," Pre:",pre," Post:",post);
         if Length(cw!.X)+Length(cw!.A)+Length(cw!.B)+
@@ -1302,11 +1302,12 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         Qp := Reduce(rws,Concatenation(pre,cw!.Qp,post));
         #Debug(66,Pp,Qp);
         if Pp = Qp then return false; fi;
-        AddSet(s.pats,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
-                                Pp,Qp,cw!.whereeps));
+        Add(desc,CWPattern(rws,[X,cw!.A,cw!.B,cw!.C,Y],
+                           Pp,Qp,cw!.whereeps));
         return true;
     end;
 
+    desc := [];   # Here we collect the results
     rws := s.rws;
     if cw!.whereeps = 'L' then
         study := cw!.Pp;
@@ -1324,7 +1325,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
         for L in rws!.lefts do
             l := Length(L);
             for i in [1..l-1] do
-                Extend(s,cw,L{[1..i]},L{[i+1..l]});
+                Extend(cw,L{[1..i]},L{[i+1..l]});
             od;
         od;
     else
@@ -1356,7 +1357,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
                 L := rws!.lefts[tab[i]];
                 start := tab[i+1];
                 stop := tab[i+2];
-                Extend(s,cw,L{[1..start-1]},L{[stop+1..Length(L)]});
+                Extend(cw,L{[1..start-1]},L{[stop+1..Length(L)]});
             od;
         fi;
         #Debug(9);
@@ -1367,7 +1368,7 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
             if tab <> fail then
                 for j in tab[2] do
                     L := rws!.lefts[j];
-                    Extend(s,cw,EmptyList(0,L),L{[i+1..Length(L)]});
+                    Extend(cw,EmptyList(0,L),L{[i+1..Length(L)]});
                 od;
             fi;
         od;
@@ -1378,12 +1379,13 @@ InstallMethod( SearchDescendants, "for a search record and a CW pattern",
             if tab <> fail then
                 for j in tab do
                     L := rws!.lefts[j];
-                    Extend(s,cw,L{[1..Length(L)-i]},EmptyList(0,L));
+                    Extend(cw,L{[1..Length(L)-i]},EmptyList(0,L));
                 od;
             fi;
         od;
         #Debug(11);
     fi;
+    return desc;
   end );
 
 InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
@@ -1428,21 +1430,25 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
               " avg=",QuoInt(Sum(lens),Length(lens)) );
         oldpats := s.pats;
         s.pats := EmptyPlist(Length(s.pats));
-        Debug("x",Length(oldpats));
+        #Debug("x",Length(oldpats));
         for p in oldpats do
             #Debug(3);
-            SearchDescendants(s,p);
+            Append(s.pats,SearchDescendants(s,p));
         od;
     od;
     return s;
   end );
 
-InstallMethod( CheckCyclicEpsilonConfluence2, "for a rws and a pos integer",
-  [ IsRewriteSystemStdRep, IsCyclotomic ],
-  function( rws, n )
-    local count,L,P,Q,critical,d,dd,i,lens,p,res,s,w;
+InstallMethod( CheckCyclicEpsilonConfluence2, 
+  "for a rws and a pos integer and a record",
+  [ IsRewriteSystemStdRep, IsCyclotomic, IsRecord ],
+  function( rws, n, opt )
+    local count,L,P,Q,critical,d,dd,i,lens,newpats,p,res,s,w;
 
     s := rec( rws := rws, lenlim := n, wits := [], pats := [], stop := false );
+    if IsBound(opt.infra) then
+        s.infra := opt.infra;
+    fi;
 
     Info( InfoRWS, 1, "Looking for double overlaps of LHSs...");
     for i in [1..Length(rws!.lefts)] do
@@ -1484,7 +1490,14 @@ InstallMethod( CheckCyclicEpsilonConfluence2, "for a rws and a pos integer",
                   Maximum(lens)," avg=",QuoInt(Sum(lens),Length(lens)) );
         fi;
         p := Remove(s.pats,1);
-        SearchDescendants(s,p);
+        newpats := Set(SearchDescendants(s,p));
+        if IsBound(opt.infra) then
+            #Debug("pre",Length(newpats));
+            newpats := Filtered(newpats,
+                                p->IsCancelled(opt.infra,WordCWPattern(p)));
+            #Debug("post",Length(newpats));
+        fi;
+        UniteSet(s.pats,newpats);
     od;
     return s;
   end );
