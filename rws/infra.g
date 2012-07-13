@@ -3,7 +3,7 @@ infra2 := InfraStructure("RST","SRT",[["SS","R"],["RR","S"]],
     local la, lb;
     la := Length(a);
     lb := Length(b);
-    if   la > lb then return -1;
+    if   la < lb then return -1;
     elif la = lb then return 0;
     else              return 1;
     fi;

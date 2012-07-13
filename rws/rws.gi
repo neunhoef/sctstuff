@@ -777,35 +777,137 @@ InstallMethod( Compare, "for an infrastructure and two words",
 InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
   [ IsInfraStructureStdRep, IsList ],
   function( infra, rels )
-    # Plan:
-    #   Maintain:
-    #     infrastructure rewrites
-    #     additional rewrites
-    #     equations
-    #     what overlaps have been checked
-    #   Always either do:
-    #     - check another overlap between infrastructure rewrite and additional
-    #       --> This can produce a new rewrite or move all rewrites to
-    #           the equations
-    #     - resolve an equation by adding a rewrite
-    #   Give preference to the former
+    local AddNewRewrite,CheckOverlap,Reduce,ResolveEquation,
+          arws,atocheck,eqts,irws,itocheck;
+
     irws := List([1..Length(infra!.lefts)],
-                 i->[infra!.lefts,infra!.rights]);
+                 i->[infra!.lefts[i],infra!.rights[i]]);
     arws := [];
     eqts := List(rels,r->[r,EmptyList(0,r)]);
     itocheck := 1;
     atocheck := 1;
     
+    Reduce := function(w)
+        local a,i,pos;
+        i := 1;
+        a := 1;
+        # Print("Newreduce\n");
+        while true do
+            # Print("Reduce:",w,"\n");
+            while i <= Length(irws) do
+                pos := PositionSublist(w,irws[i][1]);
+                if pos <> fail then
+                    w := Concatenation(w{[1..pos-1]},
+                                       irws[i][2],
+                                       w{[pos+Length(irws[i][1])..Length(w)]});
+                    i := 1;
+                else
+                    i := i + 1;
+                fi;
+            od;
+            if Length(arws) = 0 then return w; fi;
+            while true do
+                pos := PositionSublist(w,arws[a][1]);
+                if pos <> fail then
+                    w := Concatenation(w{[1..pos-1]},
+                                       arws[a][2],
+                                       w{[pos+Length(arws[a][1])..Length(w)]});
+                    i := 1;
+                    a := 1;
+                    break;
+                else
+                    a := a + 1;
+                    if a > Length(arws) then return w; fi;
+                fi;
+            od;
+        od;
+    end;
+
     CheckOverlap := function(i,a)
+        local A,I,P,Q,l,lA,lI;
+        I := irws[i][1];
+        A := arws[a][1];
+        Debug("CheckOverlap",I,A);
+        lI := Length(I);
+        lA := Length(A);
+        for l in [1..Minimum(lI,lA)-1] do  # len of overlap
+            if I{[lI-l+1]} = A{[1..l]} then
+                P := Reduce(Concatenation(irws[i][2],A{[l+1..lA]}));
+                Q := Reduce(Concatenation(I{[1..lI-l]},arws[a][2]));
+                if P <> Q then Add(eqts,[P,Q]); fi;
+            fi;
+            if A{[lA-l+1]} = I{[1..l]} then
+                P := Reduce(Concatenation(arws[a][2],I{[l+1..lI]}));
+                Q := Reduce(Concatenation(A{[1..lA-l]},irws[i][2]));
+                if P <> Q then 
+                    Add(eqts,[P,Q]); 
+                    Debug("Adding equation",[P,Q]);
+                fi;
+            fi;
+        od;
     end;
     
-    ResolveEquation := function(e)
+    AddNewRewrite := function(L,R)
+        local i,pos,pos2;
+        Debug("AddRewrite",[L,R]);
+        Add(arws,[L,R]);
+        for i in [1..Length(irws)] do
+            pos := PositionSublist(irws[i][1],L);
+            if pos <> fail then
+                Error("LHS of new rewrite is contained in infrastructure LHS");
+            fi;
+            pos := PositionSublist(irws[i][2],L);
+            if pos <> fail then
+                Error("LHS of new rewrite is contained in infrastructure RHS");
+            fi;
+        od;
+        i := 1;
+        while i < Length(arws) do   # skip ourselves!
+            pos := PositionSublist(arws[i][1],L);
+            pos2 := PositionSublist(arws[i][2],L);
+            if pos <> fail or pos2 <> fail then
+                Debug("Removing rewrite",arws[i]);
+                Add(eqts,Remove(arws,i),1);
+                if atocheck > i then atocheck := atocheck - 1; fi;
+            else
+                i := i + 1;
+            fi;
+        od;
+    end;
+
+    ResolveEquation := function()
+        local a,b,c,eq;
+        eq := Remove(eqts);
+        Debug("ResolveEquation",eq);
+        a := Reduce(eq[1]);
+        b := Reduce(eq[2]);
+        if a = b then return; fi;   # everything OK
+        c := Compare(infra,a,b);
+        if c = 0 then Error("two reductions compare equal"); fi;
+        if c < 0 then 
+            # a is smaller
+            c := a; a := b; b := c;
+        fi;
+        AddNewRewrite(a,b);
     end;
 
     while true do
-        if atocheck <=     
+        Debug("Main loop",irws,arws,eqts);
+        while atocheck <= Length(arws) do
+            while itocheck <= Length(irws) do
+                CheckOverlap(itocheck,atocheck);
+                itocheck := itocheck + 1;
+            od;
+            itocheck := 1;
+            atocheck := atocheck + 1;
+        od;
+        if Length(eqts) = 0 then break; fi;
+        ResolveEquation();
     od;
 
+    return rec( rws := Concatenation(irws,arws),
+                infra := infra,
+                nrirws := Length(irws) );
   end );
 
 
@@ -1338,7 +1440,7 @@ InstallMethod( CheckCyclicEpsilonConfluence, "for a rws and a pos integer",
 InstallMethod( CheckCyclicEpsilonConfluence2, "for a rws and a pos integer",
   [ IsRewriteSystemStdRep, IsCyclotomic ],
   function( rws, n )
-    local L,P,Q,critical,d,dd,i,lens,p,res,s,w;
+    local count,L,P,Q,critical,d,dd,i,lens,p,res,s,w;
 
     s := rec( rws := rws, lenlim := n, wits := [], pats := [], stop := false );
 
@@ -1368,13 +1470,19 @@ InstallMethod( CheckCyclicEpsilonConfluence2, "for a rws and a pos integer",
     Info( InfoRWS, 1, "Setting up pattern list...");
     SetupSearchList(s,critical);
 
+    count := 0;
     while true do
-        Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
-              Length(s.wits)," witnesses.");
+        count := count + 1;
+        if count mod 1000 = 0 then
+            Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
+                  Length(s.wits)," witnesses.");
+        fi;
         if Length(s.pats) = 0 or Length(s.wits) > 0 or s.stop then break; fi;
         lens := List(s.pats,x->x!.len);
-        Info( InfoRWS, 1, "Lengths: min=",Minimum(lens)," max=",Maximum(lens),
-              " avg=",QuoInt(Sum(lens),Length(lens)) );
+        if count mod 1000 = 0 then
+            Info( InfoRWS, 1, "Lengths: min=",Minimum(lens)," max=",
+                  Maximum(lens)," avg=",QuoInt(Sum(lens),Length(lens)) );
+        fi;
         p := Remove(s.pats,1);
         SearchDescendants(s,p);
     od;
