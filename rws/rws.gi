@@ -886,7 +886,7 @@ InstallMethod( DehnRewrites, "for an infrastructure and a list of relators",
         c := Compare(infra,a,b);
         if c = 0 then 
             Info(InfoRWS,1,"Two reductions compare equal:",a," ",b); 
-            Add(eqeq,[a,b]);
+            AddSet(eqeq,Set([a,b]));
             return;
         fi;
         if c < 0 then 
