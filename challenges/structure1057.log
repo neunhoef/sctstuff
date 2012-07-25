@@ -1,0 +1,161 @@
+gap> g := OneRelatorQuotientOfModularGroup(1057);
+[ <free group on the generators [ S, T ]>, 
+  [ S^3, T^2, S*T*S*T*S*T*S*T*S^2*T*S*T*S*T*S*T*S*T*S^2*T ], 
+  <fp group on the generators [ S, T ]> ]
+gap> g := g[3];
+<fp group on the generators [ S, T ]>
+gap> RelatorsOfFpGroup(g);
+[ S^3, T^2, S*T*S*T*S*T*S*T*S^2*T*S*T*S*T*S*T*S*T*S^2*T ]
+gap> l := LowIndexSubgroupsFpGroup(g[3],2);
+Error, no method found! For debugging hints type ?Recovery from NoMethodFound
+Error, no 1st choice method found for `[]' on 2 arguments called from
+<function "HANDLE_METHOD_NOT_FOUND">( <arguments> )
+ called from read-eval loop at line 68 of *stdin*
+you can 'quit;' to quit to outer loop, or
+you can 'return;' to continue
+brk> gap> l := LowIndexSubgroupsFpGroup(g,2);
+[ Group(<fp, no generators known>), Group(<fp, no generators known>) ]
+gap> h := l[2];
+Group(<fp, no generators known>)
+gap> GeneratorsOfGroup(h);
+[ S, T*S*T^-1 ]
+gap> Index(g,h);
+2
+gap> hh := Image(IsomorphismFpGroup(h));
+<fp group on the generators [ F1, F2 ]>
+gap> RelatorsOfFpGroup(hh);
+[ F1^3, F2^3, F1*F2*F1*F2*F1^-1*F2*F1*F2*F1*F2^-1 ]
+gap> l := LowIndexSubgroupsFpGroup(hh,20);
+[ Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>) ]
+gap> List(l,x->Index(hh,x));
+[ 1, 3, 4, 8, 7, 7, 9, 12, 13, 13, 16, 19, 19, 3, 9, 12, 3, 6, 12, 9, 12, 15, 
+  18, 12, 3, 9, 12, 9, 12, 15, 18, 12, 18, 18 ]
+gap> List(l,AbelianInvariants);
+[ [ 3, 3 ], [ 3, 3 ], [ 2, 3, 3 ], [ 3, 3 ], [ 3, 3 ], [ 3, 3 ], [ 3, 3 ], 
+  [ 2, 3, 3 ], [ 3, 3 ], [ 3, 3 ], [ 2, 3, 3 ], [ 3, 3 ], [ 3, 3 ], [ 3, 3 ], 
+  [ 3, 3 ], [ 2, 3, 3 ], [ 0, 0 ], [ 0, 0, 2 ], [ 0, 0 ], [ 0, 0 ], 
+  [ 0, 0, 2 ], [ 0, 0 ], [ 0, 0, 2 ], [ 0, 0 ], [ 3, 3 ], [ 3, 3 ], 
+  [ 2, 3, 3 ], [ 0, 0 ], [ 0, 0, 2 ], [ 0, 0 ], [ 0, 0, 2 ], [ 0, 0, 2 ], 
+  [ 0, 0, 2 ], [ 0, 0, 2 ] ]
+gap> Positions(last,[0,0]);
+[ 17, 19, 20, 22, 24, 28, 30 ]
+gap> ll := l{last};
+[ Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>), Group(<fp, no generators known>), 
+  Group(<fp, no generators known>) ]
+gap> hhh := List(ll,x->Image(IsomorphismFpGroup(x)));
+[ <fp group on the generators [ F1, F2 ]>, 
+  <fp group of size infinity on the generators [ F1, F2 ]>, 
+  <fp group on the generators [ F1, F2 ]>, 
+  <fp group on the generators [ F1, F2 ]>, 
+  <fp group of size infinity on the generators [ F1, F2 ]>, 
+  <fp group on the generators [ F1, F2 ]>, 
+  <fp group on the generators [ F1, F2 ]> ]
+gap> List(ll,x->Index(hh,x));
+[ 3, 12, 9, 15, 12, 9, 15 ]
+gap> k := ll[2];
+Group([ F2*F1^-1, F2^-1*F1*F2^-1*F1 ])
+gap> GeneratorsOfGroup(k);
+[ F2*F1^-1, F2^-1*F1*F2^-1*F1 ]
+gap> kk := Image(IsomorphismFpGroup(k));
+<fp group of size infinity on the generators [ F1, F2 ]>
+gap> RelatorsOfFpGroup(kk);
+[ F2*F1*F2^-1*F1^-1 ]
+gap> g;
+<fp group on the generators [ S, T ]>
+gap> RelatorsOfFpGroup(g);
+[ S^3, T^2, S*T*S*T*S*T*S*T*S^2*T*S*T*S*T*S*T*S*T*S^2*T ]
+gap> h;
+Group([ S, T*S*T^-1 ])
+gap> iso1 := IsomorphismFpGroup(h);
+[ <[ [ 1, 1 ] ]|S>, <[ [ 2, 1 ] ]|T*S*T^-1> ] -> [ F1, F2 ]
+gap> hh=Image(iso1);
+true
+gap> hh;
+<fp group on the generators [ F1, F2 ]>
+gap> List(GeneratorsOfGroup(h),x->ImageElm(iso1,x));
+[ F1, F2 ]
+gap> k;
+Group([ F2*F1^-1, F2^-1*F1*F2^-1*F1 ])
+gap> Index(hh,k);
+12
+gap> iso2 := IsomorphismFpGroup(k);
+[ <[ [ 1, 1 ] ]|F2*F1^-1>, <[ [ 1, -1, 1, -1, 2, 1 ] ]|F1*F2^-1*F1*F2^
+    -2*F1*F2^-1*F1> ] -> [ F1, F2 ]
+gap> Image(iso2)=kk;
+true
+gap> List(GeneratorsOfGroup(k),x->ImageElm(iso2,x));
+[ F1, F1*F2*F1 ]
+gap> GeneratorsOfGroup(kk);
+[ F1, F2 ]
+gap> RelatorsOfFpGroup(kk);
+[ F2*F1*F2^-1*F1^-1 ]
+gap> p := IsomorphismPermGroup(hh/k);
+Error, <N> must be a normal subgroup of <G> called from
+<function "FactorGroup">( <arguments> )
+ called from read-eval loop at line 99 of *stdin*
+you can 'quit;' to quit to outer loop, or
+you can 'return;' to continue
+brk> gap> FactorCosetAction(hh,k);
+[ F1, F2 ] -> [ (1,2,3)(4,5,7)(6,8,9)(10,11,12), 
+  (1,2,4)(3,5,6)(7,10,9)(8,11,12) ]
+gap> p := Image(last);
+Group([ (1,2,3)(4,5,7)(6,8,9)(10,11,12), (1,2,4)(3,5,6)(7,10,9)(8,11,12) ])
+gap> u := Kernel(last2);
+Group(<fp, no generators known>)
+gap> GeneratorsOfGroup(u);
+[ F2*F1^-1*F2*F1^-1*F2*F1^-1*F2*F1^-1, F2^-1*F1*F2^-1*F1*F2^-1*F1*F2^-1*F1 ]
+gap> IsomorphismFpGroup(u);
+[ <[ [ 1, 1 ] ]|F2*F1^-1*F2*F1^-1*F2*F1^-1*F2*F1^-1>, 
+  <[ [ 2, 1 ] ]|F2^-1*F1*F2^-1*F1*F2^-1*F1*F2^-1*F1> ] -> [ F1, F2 ]
+gap> Image(last);
+<fp group of size infinity on the generators [ F1, F2 ]>
+gap> RelatorsOfFpGroup(last);
+[ F2^-1*F1*F2*F1^-1 ]
+gap> Size(p);
+96
+gap> DisplayCompositionSeries(p);
+G (6 gens, size 96)
+ | Z(3)
+S (5 gens, size 32)
+ | Z(2)
+S (4 gens, size 16)
+ | Z(2)
+S (3 gens, size 8)
+ | Z(2)
+S (2 gens, size 4)
+ | Z(2)
+S (1 gens, size 2)
+ | Z(2)
+1 (0 gens, size 1)
+gap> IsSolvable(p);
+true
+gap> NormalSubgroups(p);
+[ Group([ (1,2,3)(4,5,7)(6,8,9)(10,11,12), (1,2,4)(3,5,6)(7,10,9)(8,11,12) ]),
+  Group([ (2,6,12,7)(3,4)(5,9)(8,10), (1,9,11,5)(2,7)(4,8)(6,12), 
+      (3,10)(4,8), (2,12)(6,7), (1,11)(5,9) ]), 
+  Group([ (1,11)(2,12)(3,10)(4,8)(5,9)(6,7), (2,12)(6,7), (1,11)(5,9) ]), 
+  Group([ (1,11)(3,10)(4,8)(5,9), (1,11)(2,12)(5,9)(6,7) ]), 
+  Group([ (1,11)(2,12)(3,10)(4,8)(5,9)(6,7) ]), Group(()) ]
+gap> List(last,Size);
+[ 96, 32, 8, 4, 2, 1 ]
+gap> StructureDescription(p);
+"((C4 x C2) : C4) : C3"
+gap> 

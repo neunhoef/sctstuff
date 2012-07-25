@@ -16,6 +16,42 @@ G2 := <S,T | 1=TT=SSS=(ST)^7=(STSST)^13>
     Magma can find an automatic structure
     not classical small cancellation
 
+==> KBMAG with "large" option driven from GAP finds an automatic
+    structure in 138 seconds. 
+
+==> Low index finds a quotient L2(13) acting on the cosets of an
+    index 14 subgroup.
+    Also finds the following finite index subgroups (all up to 100):
+       Index    Kernel-Index
+        14      1092
+        28      1092
+        56      641078629761024
+        70      8557366719283200000000000000
+        98      15579466529747423241022264792055808
+        98      740619595551108
+        56      17891328
+        98      15579466529747423241022264792055808
+        98      740619595551108
+        84      2388204
+        98      454810213917965717722711308655971532800000000000000
+        98      454810213917965717722711308655971532800000000000000
+        91      1092
+        28      9828
+        56      1319091830784
+        91      1092
+        42      1092
+        84      17891328
+        84      8557366719283200000000000000
+        42      2388204
+        84      17891328
+        84      641078629761024
+        78      1092
+        84      641078629761024
+        84      1092
+        84      2388204
+
+       
+
 
 =========================================================================
 
@@ -102,6 +138,10 @@ G4 := <S,T | 1=TT=SSS=(ST)^13=(STSST)^4>
 
 ==> papers about this group available
 
+==> Low Index up to 80 works and finds 33 finite factors of sizes 5616 (L3(3))
+    7800 (L2(25)) and 23003136 (2^12.L3(3))
+
+
 
 =========================================================================
 
@@ -111,4 +151,12 @@ G5 := <S,T | 1=TT=SSS=((ST)^7 (SST)^4 ST (SST)^3 ST (SST)^4>
     this is related to OneRelModGrpRichard(1791624)=OneRelModGrpMax(1119917)
     because they have isomorphic index 2 subgroups.
 
-==> nothing much known
+==> LowIndex finds as finite quotients among other things:
+    S_7 acting 7 points
+    S_7 acting on 21 points
+    S_19 acting on 19 points 
+    L3(3).2 acting on 26 points
+    L2(23) acting on 24 points, here the kernel has abelian invariants [0,2]
+       this proves the group to be infinite
+
+
