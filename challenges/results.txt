@@ -1,0 +1,114 @@
+G1 := <a,b,c,d | 1=[a,b][c,d]>   where [a,b] = aba^-1b^-1
+
+--> Classical small cancellation
+
+==> is hyperbolic, Dehn's algorithm solves the word problem
+    our programs should deal with it easily
+
+
+=========================================================================
+
+G2 := <S,T | 1=TT=SSS=(ST)^7=(STSST)^13>
+
+--> Pubcrawl works, automatic structure can be obtained
+
+==> pubcrawl EFEFE does the job, 2-dimensional analysis works
+    Magma can find an automatic structure
+    not classical small cancellation
+
+
+=========================================================================
+
+G3 := <S,T | 1=TT=SSS=((ST)^4 SST)^2>
+
+--> conjectured to be Z^3.(2 x S_4)     flat
+    aka OneRelModGrpMax(1057) = OneRelModGrpRichard(1557)
+
+==> Richard has confluent rewrite system solving the word problem
+
+==> Structure as found by low index methods in GAP:
+
+    <S,T*S*T^-1> < G3                    has index 2
+    isomorphic to   (via F1 := S, F2 := T*S*T^-1)
+    H := <F1,F2 | F2*F1^-1, F2^-1*F1*F2^-1*F1>
+
+    <F2*F1^-1, F2^-1*F1*F2^-1*F1> < H    has index 12
+    isomorphic to   (via F1 -> G1, F2 -> G1*G2*G1)
+    K := <G1,G2 | G2*G1*G2^-1*G1^-1> = Z^2
+
+    Also, the kernel of the action of H on H/K is isomorphic to Z^2 as well.
+
+    That is, G3 is isomorphic to Z^2 . (P . 2) where P is a solvable group
+    of order 96, so it is flat and not hyperbolic.
+
+GAP log of result:
+
+gap> g;                 
+<fp group on the generators [ S, T ]>
+gap> RelatorsOfFpGroup(g);
+[ S^3, T^2, S*T*S*T*S*T*S*T*S^2*T*S*T*S*T*S*T*S*T*S^2*T ]
+gap> h;
+Group([ S, T*S*T^-1 ])
+gap> iso1 := IsomorphismFpGroup(h);
+[ <[ [ 1, 1 ] ]|S>, <[ [ 2, 1 ] ]|T*S*T^-1> ] -> [ F1, F2 ]
+gap> hh=Image(iso1);
+true
+gap> hh;
+<fp group on the generators [ F1, F2 ]>
+gap> List(GeneratorsOfGroup(h),x->ImageElm(iso1,x));
+[ F1, F2 ]
+gap> k;
+Group([ F2*F1^-1, F2^-1*F1*F2^-1*F1 ])
+gap> Index(hh,k);
+12
+gap> iso2 := IsomorphismFpGroup(k);
+[ <[ [ 1, 1 ] ]|F2*F1^-1>, <[ [ 1, -1, 1, -1, 2, 1 ] ]|F1*F2^-1*F1*F2^
+    -2*F1*F2^-1*F1> ] -> [ F1, F2 ]
+gap> Image(iso2)=kk;
+true
+gap> List(GeneratorsOfGroup(k),x->ImageElm(iso2,x));
+[ F1, F1*F2*F1 ]
+gap> GeneratorsOfGroup(kk);
+[ F1, F2 ]
+gap> RelatorsOfFpGroup(kk);
+[ F2*F1*F2^-1*F1^-1 ]
+gap> FactorCosetAction(hh,k);
+[ F1, F2 ] -> [ (1,2,3)(4,5,7)(6,8,9)(10,11,12), 
+  (1,2,4)(3,5,6)(7,10,9)(8,11,12) ]
+gap> p := Image(last);
+Group([ (1,2,3)(4,5,7)(6,8,9)(10,11,12), (1,2,4)(3,5,6)(7,10,9)(8,11,12) ])
+gap> u := Kernel(last2);
+Group(<fp, no generators known>)
+gap> GeneratorsOfGroup(u);
+[ F2*F1^-1*F2*F1^-1*F2*F1^-1*F2*F1^-1, F2^-1*F1*F2^-1*F1*F2^-1*F1*F2^-1*F1 ]
+gap> IsomorphismFpGroup(u);
+[ <[ [ 1, 1 ] ]|F2*F1^-1*F2*F1^-1*F2*F1^-1*F2*F1^-1>, 
+  <[ [ 2, 1 ] ]|F2^-1*F1*F2^-1*F1*F2^-1*F1*F2^-1*F1> ] -> [ F1, F2 ]
+gap> Image(last);
+<fp group of size infinity on the generators [ F1, F2 ]>
+gap> RelatorsOfFpGroup(last);
+[ F2^-1*F1*F2*F1^-1 ]
+gap> Size(p);
+96
+
+
+
+=========================================================================
+
+G4 := <S,T | 1=TT=SSS=(ST)^13=(STSST)^4>
+
+--> finite and hard, has order 2^21 3^4 5^2 13^2
+    see Havas et. al. Groups St Andrews 2009
+
+==> papers about this group available
+
+
+=========================================================================
+
+G5 := <S,T | 1=TT=SSS=((ST)^7 (SST)^4 ST (SST)^3 ST (SST)^4>
+
+--> OneRelModGrpMax(1056495), known to be infinite
+    this is related to OneRelModGrpRichard(1791624)=OneRelModGrpMax(1119917)
+    because they have isomorphic index 2 subgroups.
+
+==> nothing much known

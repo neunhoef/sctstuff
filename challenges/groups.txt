@@ -1,0 +1,29 @@
+G1 := <a,b,c,d | 1=[a,b][c,d]>   where [a,b] = aba^-1b^-1
+
+--> Classical small cancellation
+
+
+G2 := <S,T | 1=TT=SSS=(ST)^7=(STSST)^13>
+
+--> Pubcrawl works, automatic structure can be obtained
+
+
+G3 := <S,T | 1=TT=SSS=((ST)^4 SST)^2>
+
+--> conjectured to be Z^3.(2 x S_4)     flat
+    aka OneRelModGrpMax(1057) = OneRelModGrpRichard(1557)
+
+
+G4 := <S,T | 1=TT=SSS=(ST)^13=(STSST)^4>
+
+--> finite and hard, has order 2^21 3^4 5^2 13^2
+    see Havas et. al. Groups St Andrews 2009
+
+
+G5 := <S,T | 1=TT=SSS=((ST)^7 (SST)^4 ST (SST)^3 ST (SST)^4>
+
+--> OneRelModGrpMax(1056495), known to be infinite
+    this is related to OneRelModGrpRichard(1791624)=OneRelModGrpMax(1119917)
+    because they have isomorphic index 2 subgroups.
+
+
