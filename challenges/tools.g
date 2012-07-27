@@ -22,7 +22,7 @@ NormalFinder := function(g)
   local found,h,inds,l,limit,ll,minpos,n,poss;
   h := g;
   repeat
-      limit := 0;
+      limit := 6;
       repeat
           limit := limit + 6;
           Print("Finding low index subgroups up to index ",limit,"...\n");
