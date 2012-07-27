@@ -62,6 +62,8 @@ G3 := <S,T | 1=TT=SSS=((ST)^4 SST)^2>
 
 ==> Richard has confluent rewrite system solving the word problem
 
+==> Is: (2 x Z x Z) . (2 x A_4)
+
 ==> Structure as found by low index methods in GAP:
 
     <S,T*S*T^-1> < G3                    has index 2
@@ -141,6 +143,8 @@ G4 := <S,T | 1=TT=SSS=(ST)^13=(STSST)^4>
 ==> Low Index up to 80 works and finds 33 finite factors of sizes 5616 (L3(3))
     7800 (L2(25)) and 23003136 (2^12.L3(3))
 
+==> Combining all perm reps gives finite quotient of order
+    2^19 3^4 5^2 13^2
 
 
 =========================================================================
