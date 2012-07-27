@@ -1220,7 +1220,7 @@ BindGlobal( "RWS_Check_Func_For_Cyclic_and_Words",
     # Otherwise [false,Vp,Wp] is returned. If some (cyclic) word is found
     # to which both rewrite (for example, if the (cyclic) words are
     # equal), then fail is returned.
-    local Vs,r,res;
+    local Vs,r,res,Ws;
     if V = W then return fail; fi;
     Vs := [V];
     Info(InfoRWS,3,"Check 1: ",V);
@@ -1233,9 +1233,13 @@ BindGlobal( "RWS_Check_Func_For_Cyclic_and_Words",
             Info(InfoRWS,3,"same as second word --> fail");
             return fail; 
         fi;
+        if Position(Vs,V) <> fail then
+            Error("Found cycle of rewrites");
+        fi;
         AddSet(Vs,V);
     od;
     Info(InfoRWS,3,"Check 2: ",W);
+    Ws := [W];
     while true do
         r := FindOneRewrite(rws,W);
         if r = fail then break; fi;
@@ -1244,7 +1248,11 @@ BindGlobal( "RWS_Check_Func_For_Cyclic_and_Words",
         if Position(Vs,W) <> fail then 
             Info(InfoRWS,3,"already seen from other word --> fail");
             return fail; 
-         fi;
+        fi;
+        if Position(Ws,W) <> fail then
+            Error("Found cycle of rewrites");
+        fi;
+        AddSet(Ws,W);
     od;
     res := (Length(V) = 0 and Length(W) > 0) or
            (Length(W) = 0 and Length(V) > 0);
