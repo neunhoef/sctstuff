@@ -1499,6 +1499,7 @@ InstallMethod( CheckCyclicEpsilonConfluence2,
         if count mod 1000 = 0 then
             Info( InfoRWS, 1, "Currently have ",Length(s.pats)," patterns and ",
                   Length(s.wits)," witnesses.");
+            Debug("currently",Length(s.pats));
         fi;
         if Length(s.pats) = 0 or Length(s.wits) > 0 or s.stop then break; fi;
         lens := List(s.pats,x->x!.len);
@@ -1546,6 +1547,50 @@ function(n)
   return rec( alph := alph, ialph := ialph, rels := rels );
 end);
 
+AllRewrites := function(rws,w,set)
+  # Finds all words to which w can be rewritten, stops if a word in set
+  # is found.
+  local all,found,foundset,i,rw,v,vv;
+
+  foundset := [];
+  found := [w];
+
+  i := 1;
+  while i <= Length(found) do
+    v := found[i];
+    all := FindAllRewrites(rws,v);
+    for rw in all do
+      vv := ApplyRewrite(rws,v,rw);
+      if not(vv in foundset) then
+          AddSet(foundset,vv);
+          Add(found,vv);
+          if vv in set then
+            return rec(foundset := foundset, found := found, i := i,
+                       collision := true);
+          fi;
+      fi;
+    od;
+    i := i + 1;
+  od;
+  return rec(foundset := foundset, found := found, i := i,
+             collision := false);
+end;
+
+PrunePattern := function(p)
+  # Returns true if pattern can be discarded
+  local desc1,desc2,w1,w2;
+  w1 := Concatenation(p!.A,p!.B);
+  w1 := ApplyRewrite(p!.rws,w1,FindOneRewrite(p!.rws,w1));
+  w1 := Concatenation(p!.X,w1,p!.C,p!.Y);
+  w2 := Concatenation(p!.B,p!.C);
+  w2 := ApplyRewrite(p!.rws,w2,FindOneRewrite(p!.rws,w2));
+  w2 := Concatenation(p!.X,p!.A,w2,p!.Y);
+  desc1 := AllRewrites(p!.rws,w1,[]);
+  desc2 := AllRewrites(p!.rws,w2,desc1.foundset);
+#Error();
+  return desc2.collision;
+end;
+  
 # rws := DehnRewriteSystem(OneRelatorQuotientOfModularGroup(1235617232));
 # m11 := DehnRewriteSystem("Bab","baB",["bbbb",Rep("ab",11),Rep("abb",6),
 #                                       "ababaBababbaBabaBaB"]);
