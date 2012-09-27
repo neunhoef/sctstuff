@@ -157,7 +157,8 @@ ReadLEAInput := function(filename)
   res := LEASearch(pongo,circle,neckl,hets);
   res.filename := filename;
 
-  # Now make the graph with its nodes and arrows:
+  # The following encodes which edges can precede a given edge round
+  # a vertix (F^1E), we might need this later...
   nrnodes := Length(res.hetypes);
   res.nrnodes := nrnodes;
   res.arrows := EmptyPlist(nrnodes);
@@ -211,7 +212,7 @@ end;
 PreparePathClassification := function(r,Amax,Slack)
   # This sets up the S function, the M table and the result table P
   # It also computes P[1] and M[1]
-  local A,B,arr,cur,i,lim,tup;
+  local A,B,arr,c,cur,i,lim,tup;
   r.Amax := Amax;
   r.Slack := Slack;
   r.SExc := [];
@@ -254,3 +255,165 @@ PreparePathClassification := function(r,Amax,Slack)
       fi;
   od;
 end;
+
+InstallMethod(\+,[IsInt,IsNegInfinity],function(a,b) return -infinity; end);
+InstallMethod(\+,[IsNegInfinity,IsInt],function(a,b) return -infinity; end);
+InstallMethod(\+,[IsNegInfinity,IsNegInfinity],
+              function(a,b) return -infinity; end);
+InstallMethod(\/,[IsNegInfinity,IsInt],function(a,b) return -infinity; end);
+
+ComputeC1 := function(r)
+  # First setup a bijection between (necklaceID,start) <-> matrix index:
+  local M,het1,het2,i,j,ntnr1,ntnr2;
+  r.notchtypes := [];
+  r.ntnumber := List([1..Length(r.necklaces)],x->[]);
+  for i in [1..Length(r.necklaces)] do
+      for j in [0..r.necklaces[i].primlen-1] do
+          Add(r.notchtypes,[i,j]);
+          r.ntnumber[i][j+1] := Length(r.notchtypes);
+      od;
+  od;
+  r.nrnts := Length(r.notchtypes);
+  M := List([1..r.nrnts],x->ListWithIdenticalEntries(r.nrnts,-infinity));
+  r.C := [M];
+  for i in [1..Length(r.hetypes)] do
+      het1 := r.hetypes[i];
+      ntnr1 := r.ntnumber[het1.necklace]
+           [(het1.start+het1.len) mod r.necklaces[het1.necklace].primlen +1];
+      het2 := r.hetypes[het1.complement];
+      ntnr2 := r.ntnumber[het2.necklace][het2.start+1];
+      M[ntnr1][ntnr2] := Maximum(M[ntnr1][ntnr2],het1.depot);
+  od;
+end;
+
+TropicalMatMul := function(M1,M2)
+  local c,cols,d,i,r,res,row,rows,x;
+  rows := Length(M1);
+  cols := Length(M2[1]);
+  d := Length(M2);
+  res := EmptyPlist(rows);
+  for r in [1..rows] do
+      row := EmptyPlist(cols);
+      for c in [1..cols] do
+          x := -infinity;
+          for i in [1..d] do
+              x := Maximum(x,M1[r][i] + M2[i][c]);
+          od;
+          Add(row,x);
+      od;
+      Add(res,row);
+  od;
+  return res;
+end;
+
+ComputeSomeCs := function(r,some)
+  local i;
+  if IsOddInt(some) then some := some + 1; fi;
+  for i in [2..some] do
+      r.C[i] := TropicalMatMul(r.C[i-1],r.C[1]);
+  od;
+end;
+
+ComputeAmax := function(r)
+  local Amax,C,i,j,k;
+  Amax := -infinity;
+  for k in [Length(r.C)/2..Length(r.C)] do
+      C := r.C[k];
+      for i in [1..Length(C)] do
+          for j in [1..Length(C)] do
+              Amax := Maximum(C[i][j]/k,Amax);
+          od;
+      od;
+  od;
+  r.Amax := Amax;
+end;
+
+ComputeCorners := function(r)
+  local N,X,Y,curv,endpos,het1,het1c,het2,het2c,i,j,k,l,neck,neck2c,nt1,nt2;
+  r.corners := [];
+  N := Length(r.C);
+  for i in [1..Length(r.hetypes)] do
+      if i mod 1000 = 0 then 
+          Print("Have done ",i," out of ",Length(r.hetypes),"\n");
+      fi;
+      het1 := r.hetypes[i];
+      neck := r.necklaces[het1.necklace];
+      endpos := (het1.start + het1.len) mod neck.primlen;
+      l := [];
+      for j in r.index[neck.id][endpos+1] do
+          het2 := r.hetypes[j];
+          # Now compute the maximal vertex contribution from this corner:
+          X := het1.depot;
+          Y := het2.depot;
+          curv := -infinity;
+          for k in [1..N] do
+              het1c := r.hetypes[het1.complement];
+              nt1 := r.ntnumber[het1c.necklace][het1c.start+1];
+              het2c := r.hetypes[het2.complement];
+              neck2c := r.necklaces[het2c.necklace];
+              nt2 := r.ntnumber[het2c.necklace]
+                      [(het2c.start+het2c.len) mod neck2c.primlen + 1];
+              curv := Maximum(curv,(X+Y+r.circle+r.C[k][nt1][nt2])/(k+2));
+          od;
+          if X+Y+r.circle < 2 * r.Amax then
+              curv := Maximum(curv,r.Amax);
+          else
+              curv := Maximum(curv,(X+Y+r.circle+(N+1)*r.Amax)/(N+3));
+          fi;
+          Add(l,[curv,j]);
+      od;
+      Sort(l,function(a,b) return b[1] < a[1]; end);
+      r.corners[i] := l;
+  od;
+end;
+
+SunFlower := function(r)
+  local Y,c,corn,d,e,ee,f,het1,i,j,k,len,n,neck,nn,t;
+  r.sunflowers := [];
+  for i in [1..Length(r.hetypes)] do
+      # This investigates whether there is a goes up and stays up sunflower
+      # starting with this directed edge.
+      het1 := r.hetypes[i];
+      neck := r.necklaces[het1.necklace];
+      len := neck.primlen * neck.power;
+      Y := [[ [i,0,fail] ]];
+      for n in [0..len-1] do
+          if IsBound(Y[n+1]) then
+              for j in [1..Length(Y[n+1])] do
+                  t := Y[n+1][j];
+                  # Now try to follows this with one more edge:
+                  e := t[1];
+                  c := t[2];
+                  for k in [1..Length(r.corners[e])] do
+                      corn := r.corners[e][k];
+                      d := c + corn[1];
+                      if d < 0 then break; fi;
+                      ee := corn[2];
+                      nn := n + r.hetypes[e].len;
+                      if nn >= len then
+                          if nn > len then continue; fi;
+                          if ee <> i then continue; fi;
+                          # Hurray! We found a sunflower
+                          Add(r.sunflowers,[t,corn,d]);
+                          Error("Found sunflower!");
+                      fi;
+                      # Now need to add [ee,d] in Y[nn+1]:
+                      if not(IsBound(Y[nn+1])) then
+                          Y[nn+1] := [];
+                      fi;
+                      f := First([1..Length(Y[nn+1])],l->Y[nn+1][l][1]=ee);
+                      if f = fail then
+                          Add(Y[nn+1],[ee,d,t]);
+                      else
+                          if d > Y[nn+1][f][2] then
+                              Y[nn+1][f][2] := d;
+                              Y[nn+1][f][3] := t;
+                          fi;
+                      fi;
+                  od;
+              od;
+          fi;
+      od;
+  od;
+end;
+
