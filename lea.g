@@ -14,6 +14,7 @@ DeclareOperation("PongoElements",[IsPongo]);
 DeclareOperation("CayleyPongo",[IsList, IsPosInt]);
   # --> takes a list of lists containing the Cayley-Table without 0
   #     and the number of accepting elements, these are [1..nr]
+DeclareAttribute("Size",IsPongo);
 
 # Necklaces:
 Necklace := function(id, primlen, power, name)
@@ -77,7 +78,11 @@ InstallMethod( IsAccepting, "for a cayley pongo and an integer",
 
 InstallMethod( PongoElements, "for a cayley pongo",
   [ IsCayleyPongo ],
-  function( p ) return [1..p![2]]; end );
+  function( p ) return [1..Length(p![1])]; end );
+
+InstallMethod( Size, "for a cayley pongo",
+  [ IsCayleyPongo ],
+  function( p ) return Length(p![1]); end );
 
 CreateHalfEdgeTypeIndex := function(s)
   local endpos,het,i,index,indexr,n;
@@ -286,6 +291,7 @@ ComputeC1 := function(r)
   od;
 end;
 
+
 TropicalMatMul := function(M1,M2)
   local c,cols,d,i,r,res,row,rows,x;
   rows := Length(M1);
@@ -298,6 +304,68 @@ TropicalMatMul := function(M1,M2)
           x := -infinity;
           for i in [1..d] do
               x := Maximum(x,M1[r][i] + M2[i][c]);
+          od;
+          Add(row,x);
+      od;
+      Add(res,row);
+  od;
+  return res;
+end;
+
+TropicalZero := function(p)
+  # Returns the zero element of the tropical pongo algebra of p
+  return ListWithIdenticalEntries(Size(p),-infinity);
+end;
+
+TropicalPongoAdd := function(p,x,y)
+  # p a finite pongo, x and y vectors of tropical integers representing
+  # elements of the tropical pongo algebra of p over the integers
+  # This computes the sum of x and y.
+  local i,res,s;
+  s := Size(p);
+  res := EmptyPlist(s);
+  for i in [1..s] do
+      Add(res,Maximum(x[i],y[i]));
+  od;
+  return res;
+end;
+
+TropicalPongoMul := function(p,x,y)
+  # p a finite pongo, x and y vectors of tropical integers representing
+  # elements of the tropical pongo algebra of p over the integers
+  # This computes the product of x and y.
+  local i,j,k,res,s;
+  s := Size(p);
+  res := ListWithIdenticalEntries(s,-infinity);
+  for i in [1..s] do
+    if x[i] <> -infinity then
+      for j in [1..s] do
+        if y[j] <> -infinity then
+          k := PongoMult(p,i,j);
+          if not(IsZero(p,k)) then
+            res[k] := Maximum(res[k],x[i]+y[j]);
+          fi;
+        fi;
+      od;
+    fi;
+  od;
+  return res;
+end;
+
+  
+TropicalPongoMatMul := function(p,M1,M2)
+  local c,cols,d,i,r,res,row,rows,x;
+  rows := Length(M1);
+  cols := Length(M2[1]);
+  d := Length(M2);
+  res := EmptyPlist(rows);
+  for r in [1..rows] do
+      row := EmptyPlist(cols);
+      for c in [1..cols] do
+          x := TropicalZero(p);
+          for i in [1..d] do
+              x := TropicalPongoAdd(p,x,
+                            TropicalPongoMul(p,M1[r][i],M2[i][c]));
           od;
           Add(row,x);
       od;
