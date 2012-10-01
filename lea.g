@@ -85,7 +85,7 @@ InstallMethod( Size, "for a cayley pongo",
   function( p ) return Length(p![1]); end );
 
 PongoInverses := function(p,e)
-  return Filtered(PongoElements(p), x->IsAccepting(PongoMult(p,x,e)) );
+  return Filtered(PongoElements(p), x->IsAccepting(p,PongoMult(p,x,e)) );
 end;
 
 
@@ -119,7 +119,7 @@ InstallMethod(LEASearch, "default method",
   end);
 
 ReadLEAInput := function(filename)
-  local Get,M,acc,arr,circle,het,hets,i,j,n,neckl,nrnodes,pos,r,res,s,st;
+  local Get,M,acc,arr,circle,het,hets,i,j,n,neckl,nrnodes,pongo,pos,r,res,s,st;
   s := SplitString(StringFile(filename),""," \n\r\t");
   for i in [1..Length(s)] do
     st := s[i];
@@ -148,7 +148,7 @@ ReadLEAInput := function(filename)
     od;
     Add(M,r);
   od;
-  r.pongo := CayleyPongo(M,acc);
+  pongo := CayleyPongo(M,acc);
 
   # Now read the necklace types:
   n := Get();
@@ -164,7 +164,7 @@ ReadLEAInput := function(filename)
     Add(hets,HalfEdgeType(Get(),Get(),Get(),Get(),Get(),Get()));
   od;
 
-  res := LEASearch(r.pongo,circle,neckl,hets);
+  res := LEASearch(pongo,circle,neckl,hets);
   res.filename := filename;
 
   # The following encodes which edges can precede a given edge round
@@ -289,8 +289,7 @@ ComputeC1 := function(r)
       od;
   od;
   r.nrnts := Length(r.notchtypes);
-  M := List([1..r.nrnts],
-         x->ListWithIdenticalEntries(r.nrnts, TropicalPongoZero(r.pongo)));
+  M := List([1..r.nrnts],x->List([1..r.nrnts], y->TropicalPongoZero(r.pongo)));
   r.C := [M];
   for i in [1..Length(r.hetypes)] do
       het1 := r.hetypes[i];
@@ -298,7 +297,7 @@ ComputeC1 := function(r)
            [(het1.start+het1.len) mod r.necklaces[het1.necklace].primlen +1];
       het2 := r.hetypes[het1.complement];
       ntnr2 := r.ntnumber[het2.necklace][het2.start+1];
-      p := het1.pongoelm;
+      p := het2.pongoelm;
       M[ntnr1][ntnr2][p] := Maximum(M[ntnr1][ntnr2][p],het1.depot);
   od;
 end;
@@ -385,7 +384,7 @@ ComputeSomeCs := function(r,some)
   local i;
   if IsOddInt(some) then some := some + 1; fi;
   for i in [2..some] do
-      r.C[i] := TropicalPongoMatMul(r.C[i-1],r.C[1]);
+      r.C[i] := TropicalPongoMatMul(r.pongo,r.C[i-1],r.C[1]);
   od;
 end;
 
@@ -431,7 +430,8 @@ ComputeCorners := function(r)
               neck2c := r.necklaces[het2c.necklace];
               nt2 := r.ntnumber[het2c.necklace]
                       [(het2c.start+het2c.len) mod neck2c.primlen + 1];
-              for p in PongoInverses(p,het1.pongoelm) do
+              for p in PongoInverses(r.pongo,
+                          PongoMult(r.pongo,het2.pongoelm,het1c.pongoelm)) do
                   curv := Maximum(curv,(X+Y+r.circle+r.C[k][nt1][nt2][p])/(k+2));
               od;
           od;
