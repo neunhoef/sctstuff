@@ -113,7 +113,7 @@ InstallMethod(LEASearch, "default method",
   function( pongo, circle, necklaces, hetypes )
     local s;
     s := rec( pongo := pongo, circle := circle, necklaces := necklaces,
-              hetypes := hetypes );
+              hetypes := hetypes, isLEAsearch := true );
     CreateHalfEdgeTypeIndex(s);
     return s;
   end);
@@ -525,7 +525,7 @@ DoAll := function(name,flowerlimit,timeout)
   r := ReadLEAInput(name);
   Info(InfoLEA,1,"Computing C1...");
   ComputeC1(r);
-  Info(InfoLEA,1,"Computing 6 powers...");
+  Info(InfoLEA,1,"Computing up to 6th power of C1...");
   ComputeSomeCs(r,6);
   Info(InfoLEA,1,"Computing Amax...");
   ComputeAmax(r);
@@ -537,3 +537,20 @@ DoAll := function(name,flowerlimit,timeout)
   SunFlower(r,flowerlimit,timeout);
   return r;
 end;
+
+InstallMethod( ViewObj, "for a LEAsearch object",
+  [ IsRecord ],
+  function(r)
+    if IsBound(r.isLEAsearch) and r.isLEAsearch = true then
+      Print("<a LEA search object");
+      if IsBound(r.C) then Print(", C"); fi;
+      if IsBound(r.Amax) then Print(", Amax"); fi;
+      if IsBound(r.corners) then Print(", corners"); fi;
+      if IsBound(r.sunflowers) then 
+        Print(", ",Length(r.sunflowers)," sunflowers found");
+      fi;
+      Print(">");
+    else
+      TryNextMethod();
+    fi;
+  end );
