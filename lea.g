@@ -515,6 +515,6 @@ DoAll := function(name)
   t := Runtime();
   ComputeCorners(r);
   Print("Computed corners in ",Runtime()-t," milliseconds.\n");
-  Sunflower(r);
+  SunFlower(r);
   return r;
 end;
