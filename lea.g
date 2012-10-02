@@ -562,3 +562,16 @@ InstallMethod( ViewObj, "for a LEAsearch object",
       TryNextMethod();
     fi;
   end );
+
+TrySeveral := function(n,len,flowerlimit,timeout)
+  local r,i,sunflowers;
+  sunflowers := [];
+  for i in [1..n] do
+    MakeModGrpExample(len,"_try_");
+    r := DoAll("_try_.nck",flowerlimit,timeout);
+    Add(sunflowers,r.sunflowers);
+  od;
+  Print("Sunflowers Lengths = ", List(sunflowers,Length));
+end;
+
+ 
