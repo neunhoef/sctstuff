@@ -497,3 +497,24 @@ SunFlower := function(r)
   od;
 end;
 
+MakeModGrpExample := function(len,name)
+  local f;
+  f := IO_File(Concatenation(name,".prs"),"w");
+  MakeRandomPresentation(len,1,f);
+  IO_Close(f);
+  Exec(Concatenation("haskell/park/presneck ",name,".prs ",name,".nck"));
+  Print("Made ",name,".prs\n");
+end;
+
+DoAll := function(name)
+  local r,t;
+  r := ReadLEAInput(name);
+  ComputeC1(r);
+  ComputeSomeCs(r,6);
+  ComputeAmax(r);
+  t := Runtime();
+  ComputeCorners(r);
+  Print("Computed corners in ",Runtime()-t," milliseconds.\n");
+  Sunflower(r);
+  return r;
+end;
