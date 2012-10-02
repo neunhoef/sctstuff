@@ -447,8 +447,9 @@ ComputeCorners := function(r)
   od;
 end;
 
-SunFlower := function(r)
-  local Y,c,corn,d,e,ee,f,het1,i,j,k,len,n,neck,nn,t;
+SunFlower := function(r,flowerlimit,timeout)
+  local Y,c,corn,d,e,ee,f,het1,i,j,k,len,n,neck,nn,starttime,t;
+  starttime := Runtime();
   r.sunflowers := [];
   for i in [1..Length(r.hetypes)] do
       # This investigates whether there is a goes up and stays up sunflower
@@ -475,7 +476,13 @@ SunFlower := function(r)
                           if ee <> i then continue; fi;
                           # Hurray! We found a sunflower
                           Add(r.sunflowers,[t,corn,d]);
-                          Error("Found sunflower!");
+                          Info(InfoLEA,1,"Found sunflower, curvature ",d);
+                          if Runtime()-t > timeout or 
+                             Length(r.sunflowers) > flowerlimit then
+                              Info(InfoLEA,1,"Giving up, have ",
+                                   Length(r.sunflowers)," sunflowers.");
+                              return;
+                          fi;
                       fi;
                       # Now need to add [ee,d] in Y[nn+1]:
                       if not(IsBound(Y[nn+1])) then
@@ -495,6 +502,12 @@ SunFlower := function(r)
           fi;
       od;
   od;
+  if Length(r.sunflowers) = 0 then
+      Info(InfoLEA,1,"Completed sunflower successfully, none found.");
+  else
+      Info(InfoLEA,1,"Completed sunflower, found ",Length(r.sunflowers),
+           " sunflowers.");
+  fi;
 end;
 
 MakeModGrpExample := function(len,name)
@@ -506,15 +519,21 @@ MakeModGrpExample := function(len,name)
   Print("Made ",name,".prs\n");
 end;
 
-DoAll := function(name)
+DoAll := function(name,flowerlimit,timeout)
   local r,t;
+  Info(InfoLEA,1,"Reading input...");
   r := ReadLEAInput(name);
+  Info(InfoLEA,1,"Computing C1...");
   ComputeC1(r);
+  Info(InfoLEA,1,"Computing 6 powers...");
   ComputeSomeCs(r,6);
+  Info(InfoLEA,1,"Computing Amax...");
   ComputeAmax(r);
+  Info(InfoLEA,1,"Computing corners...");
   t := Runtime();
   ComputeCorners(r);
-  Print("Computed corners in ",Runtime()-t," milliseconds.\n");
-  Sunflower(r);
+  Info(InfoLEA,1,"Computed corners in ",Runtime()-t," milliseconds.");
+  Info(InfoLEA,1,"Running sunflower...");
+  SunFlower(r,flowerlimit,timeout);
   return r;
 end;
