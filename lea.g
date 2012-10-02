@@ -572,6 +572,7 @@ TrySeveral := function(n,len,flowerlimit,timeout)
     Add(sunflowers,r.sunflowers);
   od;
   Print("Sunflowers Lengths = ", List(sunflowers,Length));
+  return sunflowers;
 end;
 
  
