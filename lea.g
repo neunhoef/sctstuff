@@ -189,13 +189,16 @@ MakeRandomPresentation := function(len, nrrels,out)
   # and relators will be STRTSTRT... where each S or R can be either S or R.
   # The inverse relators are given explicitly.
   # The result is written to the file out (IO_File) as presneck input.
-  local b,bb,f,i,r,rels,st;
-  Print("Using /dev/random, if this is stuck, type something!\n");
-  f := IO_open("/dev/random",IO.O_RDONLY,0);
+  local b,bb,f,i,r,rels,st,bytes;
+  #Print("Using /dev/random, if this is stuck, type something!\n");
+  f := IO_open("/dev/urandom",IO.O_RDONLY,0);
   rels := [];
   for i in [1..nrrels] do
       st := "";
-      IO_read(f,st,0,len);
+      bytes := 0;
+      while bytes < len do
+          bytes := bytes + IO_read(f,st,bytes,len-bytes);
+      od;
       b := List(st,x->IntChar(x) >= 128);
       AddSet(rels,b);
       bb := List(Reversed(b),x->not x);
@@ -475,7 +478,8 @@ SunFlower := function(r,flowerlimit,timeout)
                           if nn > len then continue; fi;
                           if ee <> i then continue; fi;
                           # Hurray! We found a sunflower
-                          flow := rec( curv := d, edges := []);
+                          flow := rec( circle := r.circle, curv := d, 
+                                       edges := []);
                           s := t;
                           while s <> fail do
                               Add(flow.edges,s[1],1);
@@ -521,7 +525,7 @@ MakeModGrpExample := function(len,name)
   f := IO_File(Concatenation(name,".prs"),"w");
   MakeRandomPresentation(len,1,f);
   IO_Close(f);
-  Exec(Concatenation("haskell/park/presneck ",name,".prs ",name,".nck"));
+  Exec(Concatenation("presneck ",name,".prs ",name,".nck"));
   Print("Made ",name,".prs\n");
 end;
 
