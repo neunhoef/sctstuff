@@ -448,7 +448,7 @@ ComputeCorners := function(r)
 end;
 
 SunFlower := function(r,flowerlimit,timeout)
-  local Y,c,corn,d,e,ee,f,het1,i,j,k,len,n,neck,nn,starttime,t;
+  local Y,c,corn,d,e,ee,f,flow,het1,i,j,k,len,n,neck,nn,s,starttime,t;
   starttime := Runtime();
   r.sunflowers := [];
   for i in [1..Length(r.hetypes)] do
@@ -475,7 +475,13 @@ SunFlower := function(r,flowerlimit,timeout)
                           if nn > len then continue; fi;
                           if ee <> i then continue; fi;
                           # Hurray! We found a sunflower
-                          Add(r.sunflowers,[t,corn,d]);
+                          flow := rec( curv := d, edges := []);
+                          s := t;
+                          while s <> fail do
+                              Add(flow.edges,s[1],1);
+                              s := s[3];
+                          od;
+                          Add(r.sunflowers,flow);
                           Info(InfoLEA,1,"Found sunflower, curvature ",d);
                           if Runtime()-starttime > timeout or 
                              Length(r.sunflowers) > flowerlimit then
