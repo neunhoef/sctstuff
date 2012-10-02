@@ -534,7 +534,9 @@ DoAll := function(name,flowerlimit,timeout)
   ComputeCorners(r);
   Info(InfoLEA,1,"Computed corners in ",Runtime()-t," milliseconds.");
   Info(InfoLEA,1,"Running sunflower...");
+  t := Runtime();
   SunFlower(r,flowerlimit,timeout);
+  Info(InfoLEA,1,"Needed ",Runtime()-t," milliseconds for sunflower.");
   return r;
 end;
 
