@@ -477,7 +477,7 @@ SunFlower := function(r,flowerlimit,timeout)
                           # Hurray! We found a sunflower
                           Add(r.sunflowers,[t,corn,d]);
                           Info(InfoLEA,1,"Found sunflower, curvature ",d);
-                          if Runtime()-t > timeout or 
+                          if Runtime()-starttime > timeout or 
                              Length(r.sunflowers) > flowerlimit then
                               Info(InfoLEA,1,"Giving up, have ",
                                    Length(r.sunflowers)," sunflowers.");
