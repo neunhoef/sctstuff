@@ -543,6 +543,12 @@ DoAll := function(name,flowerlimit,timeout)
   t := Runtime();
   SunFlower(r,flowerlimit,timeout);
   Info(InfoLEA,1,"Needed ",Runtime()-t," milliseconds for sunflower.");
+  PrintTo(Concatenation(name,".result"),
+          "# Flowerlimit was: ",flowerlimit,"\n",
+          "# Timeout was: ",timeout,"\n",
+          "# Found ",Length(r.sunflowers),
+          " sunflowers, here they are:\n",
+          "sunflowers := ",r.sunflowers,";\n");
   return r;
 end;
 
