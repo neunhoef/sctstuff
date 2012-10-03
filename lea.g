@@ -584,10 +584,13 @@ TrySeveral := function(lens,n,flowerlimit,timeout)
       Add(sunflowers[l],r.sunflowers);
     od;
   od;
+  RemoveFile("_try_.prs");
+  RemoveFile("_try_.nck");
   for l in lens do
     Print("Length ",l,"sunflowers = ", List(sunflowers[l],Length));
   od;
   return sunflowers;
 end;
 
- 
+# TrySeveral([25..50],20,20,60000);
+
