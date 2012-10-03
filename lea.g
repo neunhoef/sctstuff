@@ -577,7 +577,7 @@ TrySeveral := function(lens,n,flowerlimit,timeout)
   local r,l,i,sunflowers;
   sunflowers := [];
   for l in lens do
-    sunflowers[i] := [];
+    sunflowers[l] := [];
     for i in [1..n] do
       MakeModGrpExample(l,"_try_");
       r := DoAll("_try_.nck",flowerlimit,timeout);
@@ -585,7 +585,7 @@ TrySeveral := function(lens,n,flowerlimit,timeout)
     od;
   od;
   for l in lens do
-    Print("Length ",l,"sunflowers = ", List(sunflowers[i],Length));
+    Print("Length ",l,"sunflowers = ", List(sunflowers[l],Length));
   od;
   return sunflowers;
 end;
