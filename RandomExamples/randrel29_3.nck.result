@@ -1,0 +1,46 @@
+# Flowerlimit was: 20
+# Timeout was: 60000
+# Found 21 sunflowers, here they are:
+sunflowers := [ rec(
+      curv := 50/3,
+      edges := [ 3, 1102, 2098, 1081, 4052 ] ), rec(
+      curv := 120,
+      edges := [ 3, 1102, 2098, 3567, 894, 309 ] ), rec(
+      curv := 5,
+      edges := [ 3, 1102, 2098, 3565, 315 ] ), rec(
+      curv := 5,
+      edges := [ 3, 1102, 2098, 3562, 319 ] ), rec(
+      curv := 220/3,
+      edges := [ 36, 1597, 3950, 4419, 3871, 329 ] ), rec(
+      curv := 0,
+      edges := [ 36, 1597, 3860, 11 ] ), rec(
+      curv := 90,
+      edges := [ 36, 1597, 3854, 434 ] ), rec(
+      curv := 20,
+      edges := [ 36, 1597, 3854, 368 ] ), rec(
+      curv := 40/3,
+      edges := [ 36, 1597, 3854, 223 ] ), rec(
+      curv := 40,
+      edges := [ 36, 1597, 3854, 308 ] ), rec(
+      curv := 20,
+      edges := [ 36, 1597, 3854, 260 ] ), rec(
+      curv := 155/3,
+      edges := [ 36, 1597, 3848, 457 ] ), rec(
+      curv := 90,
+      edges := [ 36, 1597, 3848, 639 ] ), rec(
+      curv := 80/3,
+      edges := [ 36, 1597, 3848, 623 ] ), rec(
+      curv := 80/3,
+      edges := [ 36, 1597, 3848, 581 ] ), rec(
+      curv := 80/3,
+      edges := [ 36, 1597, 3848, 443 ] ), rec(
+      curv := 80/3,
+      edges := [ 36, 1597, 3848, 483 ] ), rec(
+      curv := 40,
+      edges := [ 36, 1597, 3848, 521 ] ), rec(
+      curv := 80/3,
+      edges := [ 36, 1597, 3848, 229 ] ), rec(
+      curv := 140,
+      edges := [ 36, 1597, 3843, 809 ] ), rec(
+      curv := 120,
+      edges := [ 36, 1597, 3843, 743 ] ) ];

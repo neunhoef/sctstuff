@@ -1,0 +1,8 @@
+# Flowerlimit was: 20
+# Timeout was: 60000
+# Found 2 sunflowers, here they are:
+sunflowers := [ rec(
+      curv := 10/3,
+      edges := [ 2976, 4049, 5630, 6223, 1180 ] ), rec(
+      curv := 10/3,
+      edges := [ 3721, 6858, 2544, 924, 5847 ] ) ];
