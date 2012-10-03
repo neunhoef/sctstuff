@@ -525,7 +525,7 @@ MakeModGrpExample := function(len,name)
   f := IO_File(Concatenation(name,".prs"),"w");
   MakeRandomPresentation(len,1,f);
   IO_Close(f);
-  Exec(Concatenation("presneck ",name,".prs ",name,".nck"));
+  Exec(Concatenation("./presneck ",name,".prs ",name,".nck"));
   Print("Made ",name,".prs\n");
 end;
 
