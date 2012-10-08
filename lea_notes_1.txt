@@ -1,0 +1,14 @@
+
+
+We ran LEA on a series of examples of random one relator quotients of the
+modular group, twenty different relators of each size 25-45.  We found huge
+numbers of subflowers for 25-29, a few relators with few or no sunflowers
+for 30-37, roughly half without sunflowers at 38, and progressively more
+without sunflowers through 45.  We never reached 100% without any sunflowers.
+
+We should rerun this data with many more than twenty per length over the
+lengths 30-50.  It would be surprising if this threshold at 38 survived
+in a larger data set, but nevertheless the density of sunflowers does not
+appear to follow a naieve logistic curve.
+
+
