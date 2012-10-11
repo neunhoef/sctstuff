@@ -574,20 +574,31 @@ InstallMethod( ViewObj, "for a LEAsearch object",
   end );
 
 TrySeveral := function(lens,n,flowerlimit,timeout)
-  local r,l,i,sunflowers;
+  local r,l,i,j,k,sunflowers,zerocorners;
   sunflowers := [];
+  zerocorners := [];
   for l in lens do
     sunflowers[l] := [];
+    positivecorners[l] := 0;
     for i in [1..n] do
       MakeModGrpExample(l,"_try_");
       r := DoAll("_try_.nck",flowerlimit,timeout);
       Add(sunflowers[l],r.sunflowers);
-    od;
+      if (Filtered(r.corners, x -> x[1] <= 0 ) > 0) then
+        zerocorners[l] := zerocorners[l] + 1;
+      fi;
+    od; 
   od;
   RemoveFile("_try_.prs");
   RemoveFile("_try_.nck");
   for l in lens do
-    Print("Length ",l,"sunflowers = ", List(sunflowers[l],Length));
+    i := sunflowers[l];
+    Sort(i,Length);
+    j := List(i,Length);
+    k := Filtered(, x->not(IsZero(x)) );
+    Print("Length ",l," has ",Length(j)-Length(k)," successes in ",Length(j)," groups,");
+    Print("  the failures yielded the sunflowers = ", k);
+    Print("  ",zerocorners[l]," successes had no positive corners.");
   od;
   return sunflowers;
 end;
