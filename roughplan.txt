@@ -1,0 +1,73 @@
+INPUT:
+  Pongo (possibly only S^3 for the time being!)
+  Letter (possibly only T for the time being!)
+  Relators (fully cancelled, inverse closed)
+    as primword and power
+  Rewrites?
+
+(1) Compute notch types -> trivial
+(2) Compute all edges, throw away inverse registration
+    --> Distinguish cases 33 34 43 44
+(2.5) Weed out valency 3 ends if pongo elements the same (S^3)
+(3) Weed out forbidden edges (minimality test involving rewrites)
+(4) Run through edges, and for each halfedge H:
+      Keep maximal value the edge could contribute to face
+
+==> We have list of segments (with valency 3/4 on both ends) of rels
+    together with a curvature value c.
+
+(5) Sunflower: Goes up and stays up with segments on
+       c + l/L
+    ==> Gives some failures
+
+(6) Run minimality test on all positive sunflowers, ignore non-minimal ones.
+
+(7) Classify new set of rewrites by looking at segments which could be
+    on the boundary.
+
+
+Data structures:
+
+Pongo -> done
+letter -> inverse table
+Have a list of relators:
+    Relator: record
+      .primword: primitive word as list of pairs [PONGO, LETTER],
+      .power   : power
+      .area    : 1 initially
+
+Have a list of rewrites:
+    Rewrites: record
+      .relator:   number
+      .notchtype: number based 0 up to primlen-1 of relator
+      .length:    number
+      .curv:      positive value
+    The elements of the relator determine the word-rewrite
+
+Have a list of half edges to describe edges:
+
+    Halfedge: record
+      .complent: number of complementary half edge
+      .relator:  number
+      .start:    number based 0 up to primlen-1
+      .length:   number of letters
+      .valency:  3 or 4  (lower bound of valency at start)
+      .contrib:  negative rational giving the contribution to the face
+
+Have a list of segments:
+
+    Segments: record
+      .relator
+      .start
+      .length
+      .valbegin
+      .valend
+      .maxcontrib    this is max contrib + l/L
+      .halfedges     where this could be coming from
+
+Sunflower: record
+  curv:   number
+  segs:   list of segments fitting to each other going up and staying up
+
+
+
