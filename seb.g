@@ -116,20 +116,21 @@ ComputeEdges := function(s)
           m := Min(RelatorLengthr(r1),RelatorLength(r2));
           for l in [1..m] do
             j1 := IndexPrimWord(r1,p1+l);
-            j2 := IndexPrimWord(r1,p2+l)
-            if (r1.primword[j1][2] = r2.primword[j2][2] and ) then break; fi;
+            j2 := IndexPrimWord(r1,p2+l);
+            if (r1.primword[j1][2] = r2.primword[j2][2]) then break; fi;
             i := Length(s.halfedges) + Length(hel);
             he1 := rec( relator := r1, start := p1, length := l, ); 
             he2 := rec( relator := r2, start := p2, length := l, ); 
-            Add(hel, he1);
-            if () then
+            if (i1=i2 and p1=p2) then
+               he1.complement := i; 
+            else 
                he1.complement := i+1;
                he2.complement := i;
                Add(hel, he2);
-            else 
-               he1.complement := i; 
             fi;
-            if (p1=p2 and l=m) then hel := []; fi
+            Add(hel, he1);
+            if (r1.primword[j1+1][1] = r2.primword[j2+1][1]) then break; fi;
+            if (l=m) then hel := []; fi
           od;
           Append(s.halfedges, hel);
         od;
