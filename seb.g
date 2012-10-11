@@ -158,12 +158,46 @@ ReduceMod := function(rel,pos)
   return ((pos-1) mod primlen)+1;
 end;
 
-CanYouDoThisWithThisArea := function(s,cycword,areabound)
+CanYouDoThisWithThisArea := function(s,cw,areabound)
   # Use rewrites to check whether or not there is a diagram with this
-  # cycword as beach boundary word and area less than areabound. Uses the
+  # cw as beach boundary word and area less than areabound. Uses the
   # rewrites and recursion to either answer fail if it cannot do it
   # better or an area value < areabound if it could do it better.
 
+  # This is a rather crude first hack at it, we simply try all rewrites
+  # in all possible places, provided curvature - 1/2 relative area - 1/2 
+  # relative length >= 0 (using goes up and stays up on the Greendlinger
+  # subsets.
+  for r in [1..s.rewrites] do
+      # Try all rewrites
+      rewr := s.rewrites[r];
+      rel := s.relators[rewr.relator];
+      if rel.area < areabound and
+         2*rewr.curv >= rel.area/areabound + rewr.length/Length(cw) then
+          for p in [1..Length(cw)] do
+              # Try all positions to apply rewrite
+              poscw := (p-2) mod Length(cw) + 1;
+              posrel := rewr.notchtype;
+              match := 0;
+              while match < rewr.length do
+                  if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
+                      break;
+                  fi;
+                  posrel := ReduceMod(rel,posrel+1);
+                  if not(IsAccepting(s.pongo,
+                             PongoMult(s.pongo,cw[poscw][1],
+                                               rel.primword[posrel][1]))) then
+                      break;
+                  fi;
+                  poscw := (poscw-2) mod Length(cw) + 1;
+                  match := match + 1;
+              od;
+              if match = rewr.length then
+                  # We do have a match
+                  ...
+              fi;
+          od;
+  od;
 end;
 
 RemoveForbiddenEdges := function(s)
