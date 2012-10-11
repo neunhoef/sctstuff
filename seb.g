@@ -97,39 +97,45 @@ RelatorLength := function(r)
 end;
 
 IndexPrimWord := function(r,i)
-  return RemInd(i,Length(r.primword));
+  return ((i-1) mod Length(r.primword))+1;
 end;
 
 ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
   # Stores a component ".halfedges" with the result
-  local i1,i2,r1,r2,p1,p2,,j1,j2,he1,he2,l,m,i,hel;
+  local i1,i2,r1,r2,p1,p2,,j1,j2,he1,he2,l,m,i,hel,cppa,nppa;
   s.halfedges := [];
   for i1 in [1..Length(s.relators) do
     r1 := s.relators[i1];
-    for i2 in [1..Length(s.relators) do
+    for i2 in [i1..Length(s.relators) do
       r2 := s.relators[i2];
       for p1 in [1..Length(r1.primword)] do
         for p2 in [1..Length(r2.primword)] do
           hel := [];
-          m := Min(RelatorLengthr(r1),RelatorLength(r2));
-          for l in [1..m] do
+          m := Minimum(RelatorLengthr(r1),RelatorLength(r2));
+          for l in [1..m] do 
             j1 := IndexPrimWord(r1,p1+l);
             j2 := IndexPrimWord(r1,p2+l);
-            if (r1.primword[j1][2] = r2.primword[j2][2]) then break; fi;
-            i := Length(s.halfedges) + Length(hel);
-            he1 := rec( relator := r1, start := p1, length := l, ); 
-            he2 := rec( relator := r2, start := p2, length := l, ); 
-            if (i1=i2 and p1=p2) then
-               he1.complement := i; 
-            else 
-               he1.complement := i+1;
-               he2.complement := i;
-               Add(hel, he2);
-            fi;
-            Add(hel, he1);
-            if (r1.primword[j1+1][1] = r2.primword[j2+1][1]) then break; fi;
+            if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then break; fi;
+            cppa := IsAccepting(PongoMult(r1.primword[j1][1],r2.primword[j2][1]));
+            nppa := IsAccepting(PongoMult(r1.primword[j1+1][1],r2.primword[j2+1][1]));
+            for v in [[3,3],[3,4],[4,3],[4,4]] do
+              if (nppa and v[2]=3) then continue; fi;
+              if (cppa and v[1]=3) then continue; fi;
+              he1 := rec( relator := r1, start := p1, length := l, valency := v[1] ); 
+              he2 := rec( relator := r2, start := p2, length := l, valency := v[2] ); 
+              Add(hel, he1); 
+              i := Length(s.halfedges) + Length(hel);
+              if (i1=i2 and p1=p2) then
+                 he1.complement := i; 
+              else 
+                 he1.complement := i+1;
+                 he2.complement := i;
+                 Add(hel, he2);
+              fi;
+            od;
+            if nppa then break; fi;
             if (l=m) then hel := []; fi
           od;
           Append(s.halfedges, hel);
