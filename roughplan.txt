@@ -1,9 +1,15 @@
 INPUT:
   Pongo (possibly only S^3 for the time being!)
+    Must be cancellative.
   Letter (possibly only T for the time being!)
   Relators (fully cancelled, inverse closed)
     as primword and power
+    these words are beach words, read clockwise around the face
   Rewrites?
+
+The fundamental problem considers the question if, given a cyclic word,
+there is a legal diagram with that word as surf word (read clockwise
+around the point infinity, that is anti-clockwise around the diagram).
 
 (1) Compute notch types -> trivial
 (2) Compute all edges, throw away inverse registration
@@ -39,7 +45,7 @@ Have a list of relators:
 Have a list of rewrites:
     Rewrites: record
       .relator:   number
-      .notchtype: number based 0 up to primlen-1 of relator
+      .notchtype: number based 1 up to primlen of relator
       .length:    number
       .curv:      positive value
     The elements of the relator determine the word-rewrite
@@ -49,7 +55,7 @@ Have a list of half edges to describe edges:
     Halfedge: record
       .complent: number of complementary half edge
       .relator:  number
-      .start:    number based 0 up to primlen-1
+      .start:    number based 1 up to primlen
       .length:   number of letters
       .valency:  3 or 4  (lower bound of valency at start)
       .contrib:  negative rational giving the contribution to the face
@@ -58,10 +64,10 @@ Have a list of segments:
 
     Segments: record
       .relator
-      .start
-      .length
-      .valbegin
-      .valend
+      .start         number based 1 up to primlen
+      .length        number in letters
+      .valbegin      3 or 4
+      .valend        3 or 4
       .maxcontrib    this is max contrib + l/L
       .halfedges     where this could be coming from
 
