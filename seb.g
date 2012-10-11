@@ -105,19 +105,19 @@ WeedoutValency3 := function(s)
 
 end;
 
+ReduceMod := function(rel,pos)
+  # reduce to [1..Length(rel.primword)] mod Length(rel.primword)
+  local primlen;
+  primlen := Length(rel.primword);
+  return ((pos-1) mod primlen)+1;
+end;
+
 CanYouDoThisWithThisArea := function(s,cycword,areabound)
   # Use rewrites to check whether or not there is a diagram with this
   # cycword as beach boundary word and area less than areabound. Uses the
   # rewrites and recursion to either answer fail if it cannot do it
   # better or an area value < areabound if it could do it better.
 
-end;
-
-ReduceMod := function(rel,pos)
-  # reduce to [1..Length(rel.primword)] mod Length(rel.primword)
-  local primlen;
-  primlen := Length(rel.primword);
-  return ((pos-1) mod primlen)+1;
 end;
 
 RemoveForbiddenEdges := function(s)
