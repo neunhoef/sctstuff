@@ -113,8 +113,17 @@ CanYouDoThisWithThisArea := function(s,cycword,areabound)
 
 end;
 
+ReduceMod := function(rel,pos)
+  # reduce to [1..Length(rel.primword)] mod Length(rel.primword)
+  local primlen;
+  primlen := Length(rel.primword);
+  return ((pos-1) mod primlen)+1;
+end;
+
 RemoveForbiddenEdges := function(s)
   # Removes (half-)edges which are forbidden by the rewrites given.
+  local area,e,he1,he2,i,pair,pos1,pos2,rel1,rel2,surf,toremove;
+  Info(InfoSeb,1,"Removing forbidden (half-)edges...");
   toremove := [];
   for e in [1..Length(s.halfedges)] do
       he1 := s.halfedges[e];
@@ -123,15 +132,43 @@ RemoveForbiddenEdges := function(s)
       rel2 := s.relators[he2.relator];
 
       # First make the surf word of the hamburger:
+      pos1 := he1.start;
+      pos2 := ReduceMod(rel2,he2.start + he2.length);
       surf := [];
-      p :=
-
+      pair := [Complement(s.pongo,
+                          PongoMult(s.pongo,rel2.primword[pos2][1],
+                                            rel1.primword[pos1][1])),0];
+      pos1 := ReduceMod(rel1,pos1-1);
+      pair[2] := s.invtab[rel1.primword[pos1][2]];
+      Add(surf,pair);
+      for i in [1..Length(rel1.primword)*rel1.power-he1.length-1] do
+          pair := [Complement(s.pongo,rel1.primword[pos1][1]),0];
+          pos1 := ReduceMod(rel1,pos1-1);
+          pair[2] := s.invtab[rel1.primword[pos1][2]];
+          Add(surf,pair);
+      od;
+      pos2 := he2.start;
+      pair := [Complement(s.pongo,
+                          PongoMult(s.pongo,rel1.primword[pos1][1],
+                                            rel2.primword[pos2][1])),0];
+      pos2 := ReduceMod(rel2,pos2-1);
+      pair[2] := s.invtab[rel2.primword[pos2][2]];
+      Add(surf,pair);
+      for i in [1..Length(rel2.primword)*rel2.power-he2.length-1] do
+          pair := [Complement(s.pongo,rel2.primword[pos2][1]),0];
+          pos2 := ReduceMod(rel2,pos2-1);
+          pair[2] := s.invtab[rel2.primword[pos2][2]];
+          Add(surf,pair);
+      od;
       area := CanYouDoThisWithThisArea(s,surf,rel1.area+rel2.area);
       if area <> fail then
           AddSet(toremove,e);
           AddSet(toremove,he1.complement);
       fi;
   od;
+  s.halfedgesremoved := s.halfedges{toremove};
+  s.halfedges := s.halfedges{Difference([1..Length(s.halfedges)],toremove)};
+  Info(InfoSeb,1,"Have removed ",Length(toremove)," halfedges.");
 end;
 
 FindInternalSegments := function(s)
