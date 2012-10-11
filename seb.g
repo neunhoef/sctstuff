@@ -10,7 +10,8 @@ SetAssertionLevel(1);
 
 MakeSebProblem := function(pongo, invtab, relators, rewrites)
   # Essentially just puts together a record, which it returns
-
+  return rec( pongo := pongo, invtab := invtab, relators := relators,
+              rewrites := rewrites, issebproblem := true );
 end;
 
 InstallMethod( ViewObj, "for a seb problem",
