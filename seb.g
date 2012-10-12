@@ -233,7 +233,7 @@ ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
   # Stores a component ".halfedges" with the result
-  local c,cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r1l,r2,r2l,v;
+  local c,cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r,r1,r1l,r2,r2l,v;
   Info(InfoSeb,1,"Computing edges...");
 
   s.relatorspongoelements := [];
@@ -250,7 +250,9 @@ ComputeEdges := function(s)
     for i2 in [i1..Length(s.relators)] do
       r2 := s.relators[i2];
       for p1 in [1..Length(r1.primword)] do
-        for p2 in [1..Length(r2.primword)] do
+        if i1=i2 then r := [p1..Length(r2.primword)];
+                 else r := [1..Length(r2.primword)]; fi;
+        for p2 in r do
           hel := [];
           r1l := RelatorLength(r1);
           r2l := RelatorLength(r2);
@@ -269,6 +271,7 @@ ComputeEdges := function(s)
             for v in [[3,3],[3,4],[4,3],[4,4]] do
               if (not(nppa) and v[2]=3) then continue; fi;
               if (not(cppa) and v[1]=3) then continue; fi;
+              if v = [4,3] and i1=i2 and p1=p2 then continue; fi;
               c := -1 + 1/v[1] + 1/v[2];
               he1 := rec( relator := i1, start := p1, 
                           length := l, valency := v[1], 
@@ -278,7 +281,7 @@ ComputeEdges := function(s)
                           contrib := c * r1l / (r1l+r2l) ); 
               Add(hel, he1); 
               i := Length(s.halfedges) + Length(hel);
-              if (i1=i2 and p1=p2) then
+              if (i1=i2 and p1=p2 and v[1]=v[2]) then
                  he1.complement := i; 
               else 
                  he1.complement := i+1;
