@@ -270,10 +270,10 @@ ComputeEdges := function(s)
               if (nppa and v[2]=3) then continue; fi;
               if (cppa and v[1]=3) then continue; fi;
               c := -1 + 1/v[1] + 1/v[2];
-              he1 := rec( relator := r1, start := p1, 
+              he1 := rec( relator := i1, start := p1, 
                           length := l, valency := v[1], 
                           contrib := c * r2l / (r1l+r2l) ); 
-              he2 := rec( relator := r2, start := p2, 
+              he2 := rec( relator := i2, start := p2, 
                           length := l, valency := v[2],
                           contrib := c * r1l / (r1l+r2l) ); 
               Add(hel, he1); 
