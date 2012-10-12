@@ -213,6 +213,10 @@ IndexPrimWord := function(r,i)
   return ((i-1) mod Length(r.primword))+1;
 end;
 
+ReduceModBase1 := function(x,m)
+  return (x-1) mod m + 1;
+end;
+
 ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
@@ -274,7 +278,7 @@ WeedoutValency3 := function(s)
   Info(InfoSeb,1,"Number of halfedges: ",Length(s.halfedges),".");
 end;
 
-CanYouDoThisWithThisArea := function(s,cw,areabound)
+CanYouDoThisWithSmallerArea := function(s,cw,areabound)
   # Use rewrites to check whether or not there is a diagram with this
   # cw as beach boundary word and area less than areabound. Uses the
   # rewrites and recursion to either answer fail if it cannot do it
@@ -284,34 +288,69 @@ CanYouDoThisWithThisArea := function(s,cw,areabound)
   # in all possible places, provided curvature - 1/2 relative area - 1/2 
   # relative length >= 0 (using goes up and stays up on the Greendlinger
   # subsets.
-  local match,p,poscw,posrel,r,rel,rewr;
+
+  local area,i,match,newcw,newcw2,p,poscw,posrel,r,rel,rewr;
+
+  if areabound <= 0 then return fail; fi;
+  Cancel(s.pongo,s.invtab,cw);
+  if Length(cw) = 0 then return 0; fi;
   for r in [1..s.rewrites] do
       # Try all rewrites
       rewr := s.rewrites[r];
       rel := s.relators[rewr.relator];
       if rel.area < areabound and
+         rewr.length <= Length(cw) and
          2*rewr.curv >= rel.area/areabound + rewr.length/Length(cw) then
           for p in [1..Length(cw)] do
               # Try all positions to apply rewrite
-              poscw := (p-2) mod Length(cw) + 1;
+              poscw := ReduceModBase1(p-1,Length(cw));
               posrel := rewr.notchtype;
               match := 0;
-              while match < rewr.length do
+              while true do   # will be left by break
                   if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
-                      break;
+                      match := false; break;
                   fi;
+                  match := match+1;   # number of matched letters
                   posrel := IndexPrimWord(rel,posrel+1);
+                  if match >= rewr.length then
+                      match := true; break;
+                  fi;
                   if not(IsAccepting(s.pongo,
                              PongoMult(s.pongo,cw[poscw][1],
                                                rel.primword[posrel][1]))) then
+                      match := false;
                       break;
                   fi;
-                  poscw := (poscw-2) mod Length(cw) + 1;
-                  match := match + 1;
+                  poscw := ReduceModBase1(poscw-1,Length(cw));
               od;
-              if match = rewr.length then
-                  # We do have a match
-                  #
+              if match then
+                  # Now rewrite and recurse:
+                  # First the unchanged part:
+                  if p > poscw then
+                    newcw := cw{Concatenation([p+1..Length(cw)],[1..poscw-1])};
+                  else    # p <= poscw, equality possible!
+                    newcw := cw{[p+1..poscw-1]};
+                  fi;
+                  # Now the replacement:
+                  newcw2 := EmptyPlist(rel.length-rewr.length+1);
+                  Add(newcw2,[PongoMult(s.pongo,rel.primword[posrel][1],
+                                                cw[poscw][1]),
+                             s.invtab[rel.primword[posrel][2]]]);
+                  for i in [1..rel.length-rewr.length-1] do
+                      posrel := IndexPrimWord(rel,posrel+1);
+                      Add(newcw2,ShallowCopy(rel.primword[posrel]));
+                  od;
+                  posrel := IndexPrimWord(rel,posrel+1);
+                  Assert(1,posrel = rewr.notchtype);
+                  Add(newcw2,[PongoMult(s.pongo,cw[p][1],
+                                                rel.primword[posrel][1]),
+                              cw[p][2]]);
+                  Append(newcw,newcw2);
+                  area := CanYouDoThisWithSmallerArea(s,newcw,
+                                      areabound-rel.area);
+                  if area <> fail then
+                      return area+rel.area;
+                  fi;
               fi;
           od;
       fi;
@@ -358,7 +397,7 @@ RemoveForbiddenEdges := function(s)
           pair[2] := s.invtab[rel2.primword[pos2][2]];
           Add(surf,pair);
       od;
-      area := CanYouDoThisWithThisArea(s,surf,rel1.area+rel2.area);
+      area := CanYouDoThisWithSmallerArea(s,surf,rel1.area+rel2.area);
       if area <> fail then
           AddSet(toremove,e);
           AddSet(toremove,he1.complement);
