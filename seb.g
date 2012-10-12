@@ -221,8 +221,22 @@ ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
   # Stores a component ".halfedges" with the result
-  local cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r2,v;
+  local c,cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r1l,r2,r2l,v,IsCompletable;
   Info(InfoSeb,1,"Computing edges...");
+
+  s.relatorspongoelements := [];
+  for i1 in [1..Length(s.relators)] do
+    r1 := s.relators[i1];
+    for p1 in [1..Length(r1.primword)] do
+      AddSet(s.relatorspongoelements,r1.primword[p1][1]);
+    od;
+  od;
+  IsCompletable := function(x)
+     return false;
+     return Length( IntersectSet(s.relatorspongoelements,PongoInverses(s.pongo,x)) ) > 0;
+     # return Complement(s.pongo,x) in s.relatorspongoelements;
+  end;
+
   s.halfedges := [];
   for i1 in [1..Length(s.relators)] do
     r1 := s.relators[i1];
@@ -231,24 +245,30 @@ ComputeEdges := function(s)
       for p1 in [1..Length(r1.primword)] do
         for p2 in [1..Length(r2.primword)] do
           hel := [];
-          m := Minimum(RelatorLength(r1),RelatorLength(r2));
+          r1l := RelatorLength(r1);
+          r2l := RelatorLength(r2);
+          m := Minimum(r1l,r2l);
           for l in [1..m] do 
             j1 := IndexPrimWord(r1,p1+l);
             j2 := IndexPrimWord(r1,p2+l);
             if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then 
               break; 
             fi;
-            cppa := IsAccepting(s.pongo,
-                  PongoMult(s.pongo,r1.primword[j1][1],r2.primword[j2][1]));
-            nppa := IsAccepting(s.pongo,
-                  PongoMult(s.pongo,r1.primword[j1+1][1],r2.primword[j2+1][1]));
+            cppa := IsCompletable( PongoMult(s.pongo,
+                      r1.primword[j1][1], r2.primword[j2][1]) );
+            nppa := IsCompletable( PongoMult(s.pongo,
+                      r1.primword[IndexPrimWord(r1,j1+1)][1],
+                      r2.primword[IndexPrimWord(r2,j2+1)][1]) );
             for v in [[3,3],[3,4],[4,3],[4,4]] do
               if (nppa and v[2]=3) then continue; fi;
               if (cppa and v[1]=3) then continue; fi;
+              c := -1 + 1/v[1] + 1/v[2];
               he1 := rec( relator := r1, start := p1, 
-                          length := l, valency := v[1] ); 
+                          length := l, valency := v[1], 
+                          contrib := c * r2l / (r1l+r2l) ); 
               he2 := rec( relator := r2, start := p2, 
-                          length := l, valency := v[2] ); 
+                          length := l, valency := v[2],
+                          contrib := c * r1l / (r1l+r2l) ); 
               Add(hel, he1); 
               i := Length(s.halfedges) + Length(hel);
               if (i1=i2 and p1=p2) then
