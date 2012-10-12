@@ -17,6 +17,7 @@ DeclareOperation("CayleyPongo",[IsList, IsPosInt]);
   # --> takes a list of lists containing the Cayley-Table without 0
   #     and the number of accepting elements, these are [1..nr]
 DeclareAttribute("Size",IsPongo);
+DeclareProperty("IsRegistrationPongo",IsPongo);
 DeclareProperty("IsCancellative",IsPongo);
 DeclareOperation("Complement",[IsPongo and IsCancellative,IsObject]);
 DeclareOperation("Cancel",[IsPongo and IsCancellative, IsList, IsList]);
@@ -72,8 +73,116 @@ PongoInverses := function(p,e)
   return Filtered(PongoElements(p), x->IsAccepting(p,PongoMult(p,x,e)) );
 end;
 
-# TODO: Test for cancellativity (makes complement table), computation
-# of complements, and cancellation routine for cyclic words.
+InstallMethod( IsRegistrationPongo, "for a cayley pongo",
+  [ IsCayleyPongo ],
+  function( p )
+    local a,acc,b,c,d,e,els,f;
+    els := PongoElements(p);
+    for a in els do
+      for b in els do
+        d := PongoMult(p,a,b);
+        if not(IsZero(p,d)) then
+          for c in els do
+            e := PongoMult(p,b,c);
+            if not(IsZero(p,e)) then
+              f := PongoMult(p,d,c);
+              if IsZero(p,f) then
+                return false;
+              fi;
+            fi;
+          od;
+        fi;
+      od;
+    od;
+    acc := Filtered(els,x->IsAccepting(p,x));
+    for a in acc do
+      for b in els do
+        c := PongoMult(p,a,b);
+        if not(IsZero(p,c)) then
+          if c <> b then return false; fi;
+        fi;
+        c := PongoMult(p,b,a);
+        if not(IsZero(p,c)) then
+          if c <> b then return false; fi;
+        fi;
+      od;
+    od;
+    return true;
+  end );
+
+InstallMethod( IsCancellative, "for a cayley pongo",
+  [ IsCayleyPongo ],
+  function( p )
+    local a,b,c,complements,els;
+    if not(IsRegistrationPongo(p)) then return false; fi;
+    els := PongoElements(p);
+    complements := [];
+    for a in els do
+      for b in els do
+        c := PongoMult(p,a,b);
+        if IsAccepting(p,c) then
+          Assert(1,(not(IsBound(complements[a])) or complements[a]=b) and
+                   (not(IsBound(complements[b])) or complements[b]=a));
+          complements[a] := b;
+          complements[b] := a;
+        fi;
+      od;
+      if not(IsBound(complements[a])) then
+        return false;
+      fi;
+    od;
+    p![3] := complements;  # for future lookup
+    return true;
+  end );
+
+InstallMethod( Complement, "for a cancellative cayley pongo, and an integer",
+  [ IsCayleyPongo and HasIsCancellative and IsCancellative, IsInt ],
+  function(p,x)
+    if x = 0 then return fail; fi;
+    return p![3][x];
+  end );
+
+InstallMethod( Cancel, 
+  "for a canc. cayley pongo, an invtab and a cyclic word of pongo/letter pairs",
+  [ IsCayleyPongo and IsCancellative, IsList, IsList ],
+  function( p, invtab, cw)
+    local CancelOnce,i;
+    CancelOnce := function(pos)
+        local a,b,c,ca,pos2,pos3;
+        if Length(cw) < 3 then return false; fi;
+        pos2 := pos mod Length(cw) + 1;
+        pos3 := pos2 mod Length(cw) + 1;
+        # Now pos, pos2 and pos3 are three adjacent positions
+        a := cw[pos];
+        b := cw[pos2];
+        c := cw[pos3];
+        # First the letters:
+        if a[2] <> invtab[b[2]] then return false; fi;
+        # Now the middle pongo element:
+        if not(IsAccepting(p,b[1])) then return false; fi;
+        # Now the two outer pongo elements:
+        ca := PongoMult(p,c[1],a[1]);
+        if IsZero(p,ca) then return false; fi;
+        cw[pos] := [ca,c[2]];
+        Remove(cw,pos2);
+        if pos3 > pos2 then
+            Remove(cw,pos3-1);
+        else
+            Remove(cw,pos3);
+        fi;
+        return true;
+    end;
+    i := 1;
+    while i <= Length(cw) do
+        if CancelOnce(i) then
+            i := i - 2;
+            if i < 1 then i := 1; fi;
+        else
+            i := i + 1;
+        fi;
+    od;
+    return cw;
+  end );
 
 # Possibly rip code to find primitive word and power from somewhere
 
@@ -89,7 +198,11 @@ InstallMethod( ViewObj, "for a seb problem",
     if not IsBound(s.issebproblem) then
         TryNextMethod();
     fi;
-    Print("<seb problem>");
+    Print("<seb problem ",Length(s.relators)," rels");
+    if IsBound(s.halfedges) then
+        Print(", ",Length(s.halfedges)," halfedges");
+    fi;
+    Print(">");
   end );
 
 RelatorLength := function(r)
@@ -104,27 +217,34 @@ ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
   # Stores a component ".halfedges" with the result
-  local i1,i2,r1,r2,p1,p2,,j1,j2,he1,he2,l,m,i,hel,cppa,nppa;
+  local cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r2,v;
+  Info(InfoSeb,1,"Computing edges...");
   s.halfedges := [];
-  for i1 in [1..Length(s.relators) do
+  for i1 in [1..Length(s.relators)] do
     r1 := s.relators[i1];
-    for i2 in [i1..Length(s.relators) do
+    for i2 in [i1..Length(s.relators)] do
       r2 := s.relators[i2];
       for p1 in [1..Length(r1.primword)] do
         for p2 in [1..Length(r2.primword)] do
           hel := [];
-          m := Minimum(RelatorLengthr(r1),RelatorLength(r2));
+          m := Minimum(RelatorLength(r1),RelatorLength(r2));
           for l in [1..m] do 
             j1 := IndexPrimWord(r1,p1+l);
             j2 := IndexPrimWord(r1,p2+l);
-            if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then break; fi;
-            cppa := IsAccepting(PongoMult(r1.primword[j1][1],r2.primword[j2][1]));
-            nppa := IsAccepting(PongoMult(r1.primword[j1+1][1],r2.primword[j2+1][1]));
+            if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then 
+              break; 
+            fi;
+            cppa := IsAccepting(s.pongo,
+                  PongoMult(s.pongo,r1.primword[j1][1],r2.primword[j2][1]));
+            nppa := IsAccepting(s.pongo,
+                  PongoMult(s.pongo,r1.primword[j1+1][1],r2.primword[j2+1][1]));
             for v in [[3,3],[3,4],[4,3],[4,4]] do
               if (nppa and v[2]=3) then continue; fi;
               if (cppa and v[1]=3) then continue; fi;
-              he1 := rec( relator := r1, start := p1, length := l, valency := v[1] ); 
-              he2 := rec( relator := r2, start := p2, length := l, valency := v[2] ); 
+              he1 := rec( relator := r1, start := p1, 
+                          length := l, valency := v[1] ); 
+              he2 := rec( relator := r2, start := p2, 
+                          length := l, valency := v[2] ); 
               Add(hel, he1); 
               i := Length(s.halfedges) + Length(hel);
               if (i1=i2 and p1=p2) then
@@ -136,26 +256,22 @@ ComputeEdges := function(s)
               fi;
             od;
             if nppa then break; fi;
-            if (l=m) then hel := []; fi
+            if (l=m) then hel := []; fi;
           od;
           Append(s.halfedges, hel);
         od;
       od;
     od;
   od;
+  Info(InfoSeb,1,"Number of halfedges: ",Length(s.halfedges),".");
 end;
 
 WeedoutValency3 := function(s)
   # Removes halfedges with a valency 3 end which cannot be.
   # This is only using the pongo.
+  Info(InfoSeb,1,"Weeding out edges with impossible valency 3...");
 
-end;
-
-ReduceMod := function(rel,pos)
-  # reduce to [1..Length(rel.primword)] mod Length(rel.primword)
-  local primlen;
-  primlen := Length(rel.primword);
-  return ((pos-1) mod primlen)+1;
+  Info(InfoSeb,1,"Number of halfedges: ",Length(s.halfedges),".");
 end;
 
 CanYouDoThisWithThisArea := function(s,cw,areabound)
@@ -168,6 +284,7 @@ CanYouDoThisWithThisArea := function(s,cw,areabound)
   # in all possible places, provided curvature - 1/2 relative area - 1/2 
   # relative length >= 0 (using goes up and stays up on the Greendlinger
   # subsets.
+  local match,p,poscw,posrel,r,rel,rewr;
   for r in [1..s.rewrites] do
       # Try all rewrites
       rewr := s.rewrites[r];
@@ -183,7 +300,7 @@ CanYouDoThisWithThisArea := function(s,cw,areabound)
                   if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
                       break;
                   fi;
-                  posrel := ReduceMod(rel,posrel+1);
+                  posrel := IndexPrimWord(rel,posrel+1);
                   if not(IsAccepting(s.pongo,
                              PongoMult(s.pongo,cw[poscw][1],
                                                rel.primword[posrel][1]))) then
@@ -194,9 +311,10 @@ CanYouDoThisWithThisArea := function(s,cw,areabound)
               od;
               if match = rewr.length then
                   # We do have a match
-                  ...
+                  #
               fi;
           od;
+      fi;
   od;
 end;
 
@@ -213,17 +331,17 @@ RemoveForbiddenEdges := function(s)
 
       # First make the surf word of the hamburger:
       pos1 := he1.start;
-      pos2 := ReduceMod(rel2,he2.start + he2.length);
+      pos2 := IndexPrimWord(rel2,he2.start + he2.length);
       surf := [];
       pair := [Complement(s.pongo,
                           PongoMult(s.pongo,rel2.primword[pos2][1],
                                             rel1.primword[pos1][1])),0];
-      pos1 := ReduceMod(rel1,pos1-1);
+      pos1 := IndexPrimWord(rel1,pos1-1);
       pair[2] := s.invtab[rel1.primword[pos1][2]];
       Add(surf,pair);
       for i in [1..Length(rel1.primword)*rel1.power-he1.length-1] do
           pair := [Complement(s.pongo,rel1.primword[pos1][1]),0];
-          pos1 := ReduceMod(rel1,pos1-1);
+          pos1 := IndexPrimWord(rel1,pos1-1);
           pair[2] := s.invtab[rel1.primword[pos1][2]];
           Add(surf,pair);
       od;
@@ -231,12 +349,12 @@ RemoveForbiddenEdges := function(s)
       pair := [Complement(s.pongo,
                           PongoMult(s.pongo,rel1.primword[pos1][1],
                                             rel2.primword[pos2][1])),0];
-      pos2 := ReduceMod(rel2,pos2-1);
+      pos2 := IndexPrimWord(rel2,pos2-1);
       pair[2] := s.invtab[rel2.primword[pos2][2]];
       Add(surf,pair);
       for i in [1..Length(rel2.primword)*rel2.power-he2.length-1] do
           pair := [Complement(s.pongo,rel2.primword[pos2][1]),0];
-          pos2 := ReduceMod(rel2,pos2-1);
+          pos2 := IndexPrimWord(rel2,pos2-1);
           pair[2] := s.invtab[rel2.primword[pos2][2]];
           Add(surf,pair);
       od;
@@ -254,29 +372,66 @@ end;
 FindInternalSegments := function(s)
   # Runs through halfedges and produces the segments which are the
   # input to sunflower.
+  Info(InfoSeb,1,"Finding internal segments...");
 
 end;
 
 IndexInternalSegments := function(s)
   # Does some sensible indexing and sorting for sunflower.
+  Info(InfoSeb,1,"Indexing internal segments...");
 
 end;
 
 Sunflower := function(s)
   # Find all curved sunflowers based on internal segments.
+  Info(InfoSeb,1,"Running sunflower...");
 
+  Info(InfoSeb,1,"Sunflower done, found, ",Length(s.sunflowers), 
+       " sunflowers.");
 end;
 
 RemoveForbiddenSunflowers := function(s)
   # Does what it says.
+  Info(InfoSeb,1,"Removing forbidden sunflowers...");
 
+  Info(InfoSeb,1,"Sunflowers left: ",Length(s.sunflowers),".");
 end;
 
 FindNewRewrites := function(s)
   # Classify for each segment of a relator the largest curvature this
   # face could have if this segment is exposed on the boundary.
   # Only report positive such bounds.
+  Info(InfoSeb,1,"Finding rewrites...");
 
+  Info(InfoSeb,1,"Found ",Length(s.rewrites)," rewrites.");
 end;
 
+DoAll := function(s)
+    ComputeEdges(s);
+    WeedoutValency3(s);
+    RemoveForbiddenEdges(s);
+    FindInternalSegments(s);
+    IndexInternalSegments(s);
+    Sunflower(s);
+    RemoveForbiddenSunflowers(s);
+    FindNewRewrites(s);
+end;
 
+# Sample input:
+
+Rep := function(w,pow)
+  local i,res;
+  res := [];
+  for i in [1..pow] do
+      Append(res,w);
+  od;
+  return res;
+end;
+
+pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
+invtab := [1];
+rels := [rec( primword := [[2,1]], power := 7, area := 1 ),
+         rec( primword := [[2,1],[3,1]], power := 13, area := 1)];
+rewrites := [];
+
+s := MakeSebProblem(pongo,invtab,rels,rewrites);
