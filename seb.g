@@ -217,11 +217,23 @@ ReduceModBase1 := function(x,m)
   return (x-1) mod m + 1;
 end;
 
+IsCompletable := function(s,x)
+  # Do not call IsCompletable until after calling ComputeEdges
+  local p;
+  if IsCancellative(s.pongo) then
+     return Complement(s.pongo,x) in s.relatorspongoelements; 
+  fi;
+  for p in PongoInverses(s.pongo,x) do
+    if p in s.relatorspongoelements then return true; fi;
+  od;
+  return false;
+end;
+
 ComputeEdges := function(s)
   # Takes a Seb-Problem and computes all (half-)edges avoiding inverse
   # registration.
   # Stores a component ".halfedges" with the result
-  local c,cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r1l,r2,r2l,v,IsCompletable;
+  local c,cppa,he1,he2,hel,i,i1,i2,j1,j2,l,m,nppa,p1,p2,r1,r1l,r2,r2l,v;
   Info(InfoSeb,1,"Computing edges...");
 
   s.relatorspongoelements := [];
@@ -231,10 +243,6 @@ ComputeEdges := function(s)
       AddSet(s.relatorspongoelements,r1.primword[p1][1]);
     od;
   od;
-  IsCompletable := function(x)
-     return Length( IntersectSet(s.relatorspongoelements,PongoInverses(s.pongo,x)) ) > 0;
-     # return Complement(s.pongo,x) in s.relatorspongoelements;
-  end;
 
   s.halfedges := [];
   for i1 in [1..Length(s.relators)] do
@@ -253,9 +261,9 @@ ComputeEdges := function(s)
             if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then 
               break; 
             fi;
-            cppa := IsCompletable( PongoMult(s.pongo,
+            cppa := IsCompletable(s, PongoMult(s.pongo,
                       r1.primword[j1][1], r2.primword[j2][1]) );
-            nppa := IsCompletable( PongoMult(s.pongo,
+            nppa := IsCompletable(s, PongoMult(s.pongo,
                       r1.primword[IndexPrimWord(r1,j1+1)][1],
                       r2.primword[IndexPrimWord(r2,j2+1)][1]) );
             for v in [[3,3],[3,4],[4,3],[4,4]] do
