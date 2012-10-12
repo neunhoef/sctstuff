@@ -232,7 +232,6 @@ ComputeEdges := function(s)
     od;
   od;
   IsCompletable := function(x)
-     return false;
      return Length( IntersectSet(s.relatorspongoelements,PongoInverses(s.pongo,x)) ) > 0;
      # return Complement(s.pongo,x) in s.relatorspongoelements;
   end;
