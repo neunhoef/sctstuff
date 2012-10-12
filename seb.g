@@ -497,6 +497,7 @@ end;
 pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
 invtab := [1];
 rels := [rec( primword := [[2,1]], power := 7, area := 1 ),
+         rec( primword := [[3,1]], power := 7, area := 1 ),
          rec( primword := [[2,1],[3,1]], power := 13, area := 1)];
 rewrites := [];
 
