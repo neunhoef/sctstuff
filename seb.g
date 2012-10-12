@@ -257,18 +257,18 @@ ComputeEdges := function(s)
           m := Minimum(r1l,r2l);
           for l in [1..m] do 
             j1 := IndexPrimWord(r1,p1+l);
-            j2 := IndexPrimWord(r1,p2+l);
-            if (r1.primword[j1][2] <> s.invtab[r2.primword[j2][2]]) then 
+            j2 := IndexPrimWord(r2,p2-l);
+            if (r1.primword[IndexPrimWord(r1,j1-1)][2] <> 
+                s.invtab[r2.primword[j2][2]]) then 
               break; 
             fi;
             cppa := IsCompletable(s, PongoMult(s.pongo,
-                      r1.primword[j1][1], r2.primword[j2][1]) );
-            nppa := IsCompletable(s, PongoMult(s.pongo,
-                      r1.primword[IndexPrimWord(r1,j1+1)][1],
-                      r2.primword[IndexPrimWord(r2,j2+1)][1]) );
+                      r2.primword[p2][1], r1.primword[p1][1]) );
+            nppa := IsCompletable(s, PongoMult(s.pongo,r1.primword[j1][1],
+                                                       r2.primword[j2][1]) );
             for v in [[3,3],[3,4],[4,3],[4,4]] do
-              if (nppa and v[2]=3) then continue; fi;
-              if (cppa and v[1]=3) then continue; fi;
+              if (not(nppa) and v[2]=3) then continue; fi;
+              if (not(cppa) and v[1]=3) then continue; fi;
               c := -1 + 1/v[1] + 1/v[2];
               he1 := rec( relator := i1, start := p1, 
                           length := l, valency := v[1], 
