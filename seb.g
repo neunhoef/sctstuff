@@ -300,14 +300,6 @@ ComputeEdges := function(s)
   Info(InfoSeb,1,"Number of halfedges: ",Length(s.halfedges),".");
 end;
 
-WeedoutValency3 := function(s)
-  # Removes halfedges with a valency 3 end which cannot be.
-  # This is only using the pongo.
-  Info(InfoSeb,1,"Weeding out edges with impossible valency 3...");
-
-  Info(InfoSeb,1,"Number of halfedges: ",Length(s.halfedges),".");
-end;
-
 CanYouDoThisWithSmallerArea := function(s,cw,areabound)
   # Use rewrites to check whether or not there is a diagram with this
   # cw as beach boundary word and area less than areabound. Uses the
@@ -324,7 +316,7 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
   if areabound <= 0 then return fail; fi;
   Cancel(s.pongo,s.invtab,cw);
   if Length(cw) = 0 then return 0; fi;
-  for r in [1..s.rewrites] do
+  for r in [1..Length(s.rewrites)] do
       # Try all rewrites
       rewr := s.rewrites[r];
       rel := s.relators[rewr.relator];
@@ -385,6 +377,7 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
           od;
       fi;
   od;
+  return fail;
 end;
 
 RemoveForbiddenEdges := function(s)
@@ -441,21 +434,63 @@ end;
 FindInternalSegments := function(s)
   # Runs through halfedges and produces the segments which are the
   # input to sunflower.
+  local e,he,he2,seg,segs;
   Info(InfoSeb,1,"Finding internal segments...");
-
+  # Segment database is indexed by relator and then notchtype.
+  # Each entry is a list of segment records, at first indexed by the
+  # length of the segment, in the end, we compactify this list and
+  # sort it by the maximal contribution in non-ascending order.
+  s.segs := List([1..Length(s.relators)],
+                 r->List([1..Length(s.relators[r].primword)],j->[]));
+  segs := s.segs;
+  for e in [1..Length(s.halfedges)] do
+      he := s.halfedges[e];
+      he2 := s.halfedges[he.complement];
+      if not(IsBound(segs[he.relator][he.start][he.length])) then
+          seg := rec( relator := he.relator, start := he.start, 
+                      length := he.length, valbegin := he.valency,
+                      valend := he2.valency, maxcontrib := he.contrib,
+                      halfedges := [e] );
+          segs[he.relator][he.start][he.length] := seg;
+      else
+          seg := segs[he.relator][he.start][he.length];
+          if he.contrib > seg.maxcontrib then
+              seg.valbegin := he.valency;
+              seg.valend := he2.valency;
+              seg.maxcontrib := he.contrib;
+          fi;
+          Add(seg.halfedges,e);
+      fi;
+      # Now the edge as it is has taken part in the maximisation.
+      # However, this edge could be Steve-distance one from the boundary.
+      if IsBound(he.altcontrib) and
+         he.altcontrib > seg.maxcontrib then
+          seg.valbegin := he.valency;
+          seg.valend := he2.valency;
+          seg.maxcontrib := he.altcontrib;
+      fi;
+  od;
 end;
 
 IndexInternalSegments := function(s)
   # Does some sensible indexing and sorting for sunflower.
+  local l,p,r;
   Info(InfoSeb,1,"Indexing internal segments...");
-
+  for r in [1..Length(s.relators)] do
+      for p in [1..Length(s.relators[r].primword)] do
+          l := Compacted(s.segs[r][p]);
+          Sort(l,function(a,b) return a.maxcontrib > b.maxcontrib; end);
+          s.segs[r][p] := l;
+      od;
+  od;
 end;
 
 Sunflower := function(s)
   # Find all curved sunflowers based on internal segments.
   Info(InfoSeb,1,"Running sunflower...");
-
-  Info(InfoSeb,1,"Sunflower done, found, ",Length(s.sunflowers), 
+  s.sunflowers := [];
+  #...
+  Info(InfoSeb,1,"Sunflower done, found ",Length(s.sunflowers), 
        " sunflowers.");
 end;
 
@@ -477,7 +512,6 @@ end;
 
 DoAll := function(s)
     ComputeEdges(s);
-    WeedoutValency3(s);
     RemoveForbiddenEdges(s);
     FindInternalSegments(s);
     IndexInternalSegments(s);
