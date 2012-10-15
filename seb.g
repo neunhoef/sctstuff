@@ -431,6 +431,7 @@ RemoveForbiddenEdges := function(s)
   Info(InfoSeb,1,"Have removed ",Length(toremove)," halfedges.");
 end;
 
+# This is now old:
 FindInternalSegments := function(s)
   # Runs through halfedges and produces the segments which are the
   # input to sunflower.
@@ -472,6 +473,7 @@ FindInternalSegments := function(s)
   od;
 end;
 
+# This is now old:
 IndexInternalSegments := function(s)
   # Does some sensible indexing and sorting for sunflower.
   local l,p,r;
@@ -485,6 +487,7 @@ IndexInternalSegments := function(s)
   od;
 end;
 
+# This is now old:
 Sunflower := function(s)
   # Find all curved sunflowers based on internal segments.
   Info(InfoSeb,1,"Running sunflower...");
@@ -513,9 +516,8 @@ end;
 DoAll := function(s)
     ComputeEdges(s);
     RemoveForbiddenEdges(s);
-    FindInternalSegments(s);
-    IndexInternalSegments(s);
-    Sunflower(s);
+    InitialiseSegmentMatrices(s);
+    FinaliseSegmentMatrices(s);
     RemoveForbiddenSunflowers(s);
     FindNewRewrites(s);
 end;

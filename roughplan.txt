@@ -60,7 +60,7 @@ Have a list of half edges to describe edges:
       .valency:  3 or 4  (lower bound of valency at start)
       .contrib:  negative rational giving the contribution to the face
 
-Have a list of segments:
+Have a list of segments: This is now old, ignore.
 
     Segments: record
       .relator
@@ -71,9 +71,15 @@ Have a list of segments:
       .maxcontrib    this is max contrib + l/L
       .halfedges     where this could be coming from
 
-Sunflower: record
+Sunflower: record     this is now old, ignore
   curv:   number
   segs:   list of segments fitting to each other going up and staying up
 
 
+Segment matrices:   .segmats
+  for each relator, we have a matrix, indexed by:
+    notch type (rows) and length (cols)
+      in the end, entry [NT][LEN] will be an upper bound on the curvature
+      contribution of a segment starting at NT with length LEN towards the 
+      face. Entry can be -infinity
 
