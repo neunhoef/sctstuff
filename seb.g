@@ -416,7 +416,7 @@ end;
 
 RemoveForbiddenEdges := function(s)
   # Removes (half-)edges which are forbidden by the rewrites given.
-  local area,e,he1,he2,i,pair,pos1,pos2,rel1,rel2,surf,toremove;
+  local area,e,he1,he2,i,newnumbers,pair,pos1,pos2,rel1,rel2,surf,tokeep,toremove;
   Info(InfoSeb,1,"Removing forbidden (half-)edges...");
   toremove := [];
   for e in [1..Length(s.halfedges)] do
@@ -460,8 +460,23 @@ RemoveForbiddenEdges := function(s)
           AddSet(toremove,he1.complement);
       fi;
   od;
+  tokeep := Difference([1..Length(s.halfedges)],toremove);
+  newnumbers := 0*[1..Length(s.halfedges)];
+  for i in [1..Length(s.halfedges)] do
+      newnumbers[i] := Position(tokeep,i);
+      if newnumbers[i] = fail then
+          newnumbers[i] := Position(toremove,i);
+      fi;
+  od;
   s.halfedgesremoved := s.halfedges{toremove};
-  s.halfedges := s.halfedges{Difference([1..Length(s.halfedges)],toremove)};
+  s.halfedges := s.halfedges{tokeep};
+  for i in [1..Length(s.halfedges)] do
+      s.halfedges[i].complement := newnumbers[s.halfedges[i].complement];
+  od;
+  for i in [1..Length(s.halfedgesremoved)] do
+      s.halfedgesremoved[i].complement := 
+         newnumbers[s.halfedgesremoved[i].complement];
+  od;
   Info(InfoSeb,1,"Have removed ",Length(toremove)," halfedges.");
 end;
 
@@ -663,3 +678,6 @@ rels2 := [rec( primword := [[2,1]], power := 7, area := 10 ),
                              Rep([[3,1],[2,1]],11),
                              [[2,1],[2,1]]), power := 1, area := 29),
                              ];
+
+
+s2 := MakeSebProblem(pongo,invtab,rels2,rewrites);
