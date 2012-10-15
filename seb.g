@@ -497,6 +497,18 @@ Sunflower := function(s)
        " sunflowers.");
 end;
 
+InitialiseSegmentMatrices := function(s)
+  local i,r,;
+  s.segmats := [];
+  for i in [1..Length(s.relators)] do
+    r := s.relators[i];
+    s.segmats[i] := [];
+    for j in [1..Length(r.primword)] do
+       s.segmats[i][j] := ListWithIdenticalEntry(RelatorLength(r), -infinity);
+    od;
+  od;
+end;
+
 RemoveForbiddenSunflowers := function(s)
   # Does what it says.
   Info(InfoSeb,1,"Removing forbidden sunflowers...");
