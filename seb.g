@@ -104,8 +104,8 @@ InstallMethod( ViewObj, "for a cayley pongo",
   function( p )
     Print("<cayley pongo with ",Length(p![1])," elements and ",
           p![2]," acceptors");
-    if IsBound(p![3]) then
-        Print(" with element names \"",p![3],"\"");
+    if IsBound(p![4]) then
+        Print(" with element names \"",p![4],"\"");
     fi;
     Print(">");
   end );
@@ -256,24 +256,24 @@ InstallMethod(SetElementNames, "for a cayley pongo and a string",
   [ IsCayleyPongo, IsStringRep ],
   function(p,st)
     local i;
-    p![3] := st;
-    p![4] := [];
+    p![4] := st;
+    p![5] := [];
     for i in [1..Length(st)] do
-        p![4][IntChar(st[i])] := i;
+        p![5][IntChar(st[i])] := i;
     od;
   end );
 
 InstallMethod(ElementNames, "for a cayley pongo",
   [ IsCayleyPongo ],
   function( p )
-    if IsBound(p![3]) then return p![3];
+    if IsBound(p![4]) then return p![4];
     else return fail; fi;
   end );
 
 InstallMethod(ElementNameTable, "for a cayley pongo",
   [ IsCayleyPongo ],
   function( p )
-    if IsBound(p![4]) then return p![4];
+    if IsBound(p![5]) then return p![5];
     else return fail; fi;
   end );
 
@@ -730,7 +730,8 @@ InitialiseSegmentMatrices := function(s)
     r := s.relators[i];
     s.segmats[i] := [];
     for j in [1..Length(r.primword)] do
-       s.segmats[i][j] := ListWithIdenticalEntries(RelatorLength(r), -infinity);
+       s.segmats[i][j] := ListWithIdenticalEntries(RelatorLength(r), 
+                                                   [-infinity,fail]);
     od;
   od;
 end;
@@ -744,7 +745,7 @@ end;
 # end;
 
 PutEdgesIntoSegmentMatrices := function(s)
-  local e,he,hes,l,n,r,segmats;
+  local c,e,he,hes,l,n,r,segmats;
   Info(InfoSeb,1,"Putting edges into segment matrices...");
   segmats := s.segmats;
   hes := s.halfedges;
@@ -753,13 +754,16 @@ PutEdgesIntoSegmentMatrices := function(s)
       r := he.relator;
       n := he.start;
       l := he.length;
-      segmats[r][n][l] := Maximum(segmats[r][n][l],he.contrib,-1/3);
+      c := Maximum(he.contrib,-1/3);
+      if c > segmats[r][n][l][1] then
+          segmats[r][n][l] := [c,-e];
+      fi;
   od;
   Info(InfoSeb,1,"Done.");
 end;
 
 FinaliseSegmentMatrices := function(s)
-  local L,c,l,ll,m,max,n,nts,r,rel,segmats;
+  local L,c,l,ll,m,max,maxll,n,nts,r,rel,segmats;
   Info(InfoSeb,1,"Finalising segment matrices...");
   segmats := s.segmats;
   for r in [1..Length(s.relators)] do
@@ -770,14 +774,20 @@ FinaliseSegmentMatrices := function(s)
       for l in [2..L] do
           Info(InfoSeb,3,"Doing length ",l);
           for n in [1..nts] do
-              max := segmats[r][n][l];
+              max := segmats[r][n][l][1];
+              maxll := 0;
               for ll in [1..l-1] do
                   # ll is the length of the first step
                   m := IndexPrimWord(rel,n+ll);
-                  c := segmats[r][n][ll] + segmats[r][m][l-ll]; 
-                  if c > max then max := c; fi;
+                  c := segmats[r][n][ll][1] + segmats[r][m][l-ll][1]; 
+                  if c > max then 
+                      max := c; 
+                      maxll := ll;
+                  fi;
               od;
-              segmats[r][n][l] := max;
+              if maxll > 0 then
+                  segmats[r][n][l] := [max,maxll];
+              fi;
           od;
       od;
   od;
