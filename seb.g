@@ -184,6 +184,12 @@ InstallMethod( Cancel,
     return cw;
   end );
 
+InstallMethod(\+,[IsInt,IsNegInfinity],function(a,b) return -infinity; end);
+InstallMethod(\+,[IsNegInfinity,IsInt],function(a,b) return -infinity; end);
+InstallMethod(\+,[IsNegInfinity,IsNegInfinity],
+              function(a,b) return -infinity; end);
+InstallMethod(\/,[IsNegInfinity,IsInt],function(a,b) return -infinity; end);
+
 # Possibly rip code to find primitive word and power from somewhere
 
 MakeSebProblem := function(pongo, invtab, relators, rewrites)
@@ -495,6 +501,47 @@ Sunflower := function(s)
   #...
   Info(InfoSeb,1,"Sunflower done, found ",Length(s.sunflowers), 
        " sunflowers.");
+end;
+
+PutEdgesIntoSegmentMatrices := function(s)
+  local e,he,hes,l,n,r,sebmats;
+  Info(InfoSeb,1,"Putting edges into segment matrices...");
+  sebmats := s.segmats;
+  hes := s.halfedges;
+  for e in [1..Length(hes)] do
+      he := hes[e];
+      r := he.relator;
+      n := he.start;
+      l := he.length;
+      segmats[r][n][l] := Maximum(segmats[r][n][l],he.contrib,-1/3);
+  od;
+  Info(InfoSeb,1,"Done.");
+end;
+
+FinaliseSegmentMatrices := function(s)
+  local L,c,l,ll,m,max,n,nts,r,rel,segmats;
+  Info(InfoSeb,1,"Finalising segment matrices...");
+  segmats := s.segmats;
+  for r in [1..Length(s.relators)] do
+      Info(InfoSeb,2,"Doing relator ",r);
+      rel := s.relators[r];
+      L := Length(rel.primword)*rel.power;
+      nts := Length(rel.primword);
+      for l in [2..L] do
+          Info(InfoSeb,3,"Doing length ",l);
+          for n in [1..nts] do
+              max := segmats[r][n][l];
+              for ll in [1..l-1] do
+                  # ll is the length of the first step
+                  m := IndexPrimWord(rel,n+ll);
+                  c := segmats[r][n][ll] + segmats[r][m][l-ll]; 
+                  if c > max then max := c; fi;
+              od;
+              segmats[r][n][l] := max;
+          od;
+      od;
+  od;
+  Info(InfoSeb,1,"Done.");
 end;
 
 RemoveForbiddenSunflowers := function(s)
