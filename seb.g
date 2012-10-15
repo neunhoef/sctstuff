@@ -211,6 +211,18 @@ InstallMethod( ViewObj, "for a seb problem",
     Print(">");
   end );
 
+InverseRelator := function(s,r)
+  local pw,x,y;
+  if not(IsCancellative(s.pongo)) then Error(); fi;
+  pw := [];
+  y := r.primword[1];
+  for x in Reversed(r.primword) do
+    Add(pw, [ Complement(s.pongo,y[1]), s.invtab[x[2]] ] );
+    y := x;
+  od;
+  return rec( power := r.power, area := r.area, primword := pw );
+end;
+
 RelatorLength := function(r)
   return Length(r.primword) * r.power;
 end;
