@@ -517,6 +517,7 @@ DoAll := function(s)
     ComputeEdges(s);
     RemoveForbiddenEdges(s);
     InitialiseSegmentMatrices(s);
+    PutEdgesIntoSegmentMatrices(s);
     FinaliseSegmentMatrices(s);
     RemoveForbiddenSunflowers(s);
     FindNewRewrites(s);
