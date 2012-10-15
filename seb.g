@@ -67,10 +67,27 @@ DeclareAttribute("Size",IsPongo);
 DeclareProperty("IsRegistrationPongo",IsPongo);
 DeclareProperty("IsCancellative",IsPongo);
 DeclareOperation("Complement",[IsPongo and IsCancellative,IsObject]);
-DeclareOperation("Cancel",[IsPongo and IsCancellative, IsList, IsList]);
+DeclareOperation("SetElementNames",[IsPongo,IsStringRep]);
+DeclareOperation("ElementNames",[IsPongo]);
+DeclareOperation("ElementNameTable",[IsPongo]);
+
+
+# Inverse tables:
+
+BindGlobal("InvTabsFamily",NewFamily("InvTabsFamily"));
+DeclareCategory("IsInvTab", IsObject);
+DeclareRepresentation("IsPlainInvTabRep",IsInvTab and IsPositionalObjectRep,[]);
+BindGlobal("InvTabType",NewType(InvTabsFamily, IsPlainInvTabRep));
+
+DeclareOperation("PlainInvTab", [IsList]);
+DeclareOperation("Complement",[IsInvTab, IsObject]);
+DeclareOperation("SetElementNames",[IsInvTab,IsStringRep]);
+DeclareOperation("ElementNames",[IsInvTab]);
+DeclareOperation("ElementNameTable",[IsInvTab]);
+
+DeclareOperation("Cancel",[IsPongo and IsCancellative, IsInvTab, IsList]);
   # Deals with a cyclic word of [PONGO,LETTER] pairs (third argument)
   # Second argument is invtab for letters, letters are [1..n]
-
 
 #######################################################################
 # The implementation starts
@@ -86,7 +103,11 @@ InstallMethod( ViewObj, "for a cayley pongo",
   [ IsCayleyPongo ],
   function( p )
     Print("<cayley pongo with ",Length(p![1])," elements and ",
-          p![2]," acceptors>");
+          p![2]," acceptors");
+    if IsBound(p![3]) then
+        Print(" with element names \"",p![3],"\"");
+    fi;
+    Print(">");
   end );
 
 InstallMethod( PongoMult, "for a cayley pongo and two integers",
@@ -191,7 +212,7 @@ InstallMethod( Complement, "for a cancellative cayley pongo, and an integer",
 
 InstallMethod( Cancel, 
   "for a canc. cayley pongo, an invtab and a cyclic word of pongo/letter pairs",
-  [ IsCayleyPongo and IsCancellative, IsList, IsList ],
+  [ IsCayleyPongo and IsCancellative, IsPlainInvTabRep, IsList ],
   function( p, invtab, cw)
     local CancelOnce,i;
     CancelOnce := function(pos)
@@ -204,7 +225,7 @@ InstallMethod( Cancel,
         b := cw[pos2];
         c := cw[pos3];
         # First the letters:
-        if a[2] <> invtab[b[2]] then return false; fi;
+        if a[2] <> Complement(invtab,b[2]) then return false; fi;
         # Now the middle pongo element:
         if not(IsAccepting(p,b[1])) then return false; fi;
         # Now the two outer pongo elements:
@@ -229,6 +250,84 @@ InstallMethod( Cancel,
         fi;
     od;
     return cw;
+  end );
+
+InstallMethod(SetElementNames, "for a cayley pongo and a string",
+  [ IsCayleyPongo, IsStringRep ],
+  function(p,st)
+    local i;
+    p![3] := st;
+    p![4] := [];
+    for i in [1..Length(st)] do
+        p![4][IntChar(st[i])] := i;
+    od;
+  end );
+
+InstallMethod(ElementNames, "for a cayley pongo",
+  [ IsCayleyPongo ],
+  function( p )
+    if IsBound(p![3]) then return p![3];
+    else return fail; fi;
+  end );
+
+InstallMethod(ElementNameTable, "for a cayley pongo",
+  [ IsCayleyPongo ],
+  function( p )
+    if IsBound(p![4]) then return p![4];
+    else return fail; fi;
+  end );
+
+InstallMethod(PlainInvTab, "for a plain list of integers",
+  [ IsList ],
+  function( t )
+    local res;
+    if not(ForAll(t,IsPosInt)) then
+        Error("InvTabs must only contain positive integers");
+        return fail;
+    fi;
+    res := [t];
+    return Objectify(InvTabType, res);
+  end );
+
+InstallMethod(ViewObj, "for a plain invtab",
+  [ IsPlainInvTabRep ],
+  function( t )
+    Print("<invtab ",t![1]);
+    if IsBound(t![2]) then
+        Print(" with letter names \"",t![2],"\"");
+    fi;
+    Print(">");
+  end );
+
+InstallMethod(Complement, "for a plain invtab, and a positive int",
+  [ IsPlainInvTabRep, IsPosInt ],
+  function( t, i )
+    return t![1][i];
+  end );
+
+InstallMethod(SetElementNames, "for a plain invtab and a string",
+  [ IsPlainInvTabRep, IsStringRep ],
+  function(t,st)
+    local i;
+    t![2] := st;
+    t![3] := [];
+    for i in [1..Length(st)] do
+        t![3][IntChar(st[i])] := i;
+    od;
+  end );
+
+InstallMethod(ElementNames, "for a plain invtab",
+  [ IsPlainInvTabRep ],
+  function( t )
+    if IsBound(t![2]) then return t![2];
+    else return fail; fi;
+  end );
+
+InstallMethod(ElementNameTable, "for a plain invtab",
+  [ IsPlainInvTabRep ],
+  function( t )
+    if IsBound(t![3]) then return t![3];
+    else return fail; fi;
   end );
 
 InstallMethod(\+,[IsInt,IsNegInfinity],function(a,b) return -infinity; end);
@@ -264,7 +363,7 @@ InverseRelator := function(s,r)
   pw := [];
   y := r.primword[1];
   for x in Reversed(r.primword) do
-    Add(pw, [ Complement(s.pongo,y[1]), s.invtab[x[2]] ] );
+    Add(pw, [ Complement(s.pongo,y[1]), Complement(s.invtab,x[2]) ] );
     y := x;
   od;
   return rec( power := r.power, area := r.area, primword := pw );
@@ -318,6 +417,8 @@ ComputeEdges := function(s)
         if i1=i2 then r := [p1..Length(r2.primword)];
                  else r := [1..Length(r2.primword)]; fi;
         for p2 in r do
+          cppa := IsCompletable(s, PongoMult(s.pongo,
+                                r2.primword[p2][1], r1.primword[p1][1]) );
           hel := [];
           r1l := RelatorLength(r1);
           r2l := RelatorLength(r2);
@@ -325,12 +426,10 @@ ComputeEdges := function(s)
           for l in [1..m] do 
             j1 := IndexPrimWord(r1,p1+(l-1));
             j2 := IndexPrimWord(r2,p2-(l-1));
-            if (r1.primword[j1][2] <> 
-                s.invtab[r2.primword[IndexPrimWord(r2,j2-1)][2]]) then 
+            if r1.primword[j1][2] <> 
+               Complement(s.invtab,r2.primword[IndexPrimWord(r2,j2-1)][2]) then 
               break; 
             fi;
-            cppa := IsCompletable(s, PongoMult(s.pongo,
-                      r2.primword[p2][1], r1.primword[p1][1]) );
             nppa := IsCompletable(s, 
                        PongoMult(s.pongo,
                                  r1.primword[IndexPrimWord(r1,j1+1)][1],
@@ -343,7 +442,7 @@ ComputeEdges := function(s)
               he1 := rec( relator := i1, start := p1, 
                           length := l, valency := v[1], 
                           contrib := c * r2l / (r1l+r2l) ); 
-              he2 := rec( relator := i2, start := p2, 
+              he2 := rec( relator := i2, start := IndexPrimWord(r2,p2-l), 
                           length := l, valency := v[2],
                           contrib := c * r1l / (r1l+r2l) ); 
               Add(hel, he1); 
@@ -402,7 +501,8 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
                       break;
                   fi;
                   poscw := ReduceModBase1(poscw-1,len);
-                  if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
+                  if cw[poscw][2] <> 
+                     Complement(s.invtab,rel.primword[posrel][2]) then
                       break;
                   fi;
                   count := count + 1;
@@ -428,7 +528,8 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
               posrel := rewr.notchtype;
               match := 0;
               while true do   # will be left by break
-                  if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
+                  if cw[poscw][2] <> 
+                     Complement(s.invtab,rel.primword[posrel][2]) then
                       match := false; break;
                   fi;
                   match := match+1;   # number of matched letters
@@ -456,7 +557,7 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
                   newcw2 := EmptyPlist(rel.length-rewr.length+1);
                   Add(newcw2,[PongoMult(s.pongo,rel.primword[posrel][1],
                                                 cw[poscw][1]),
-                             s.invtab[rel.primword[posrel][2]]]);
+                              Complement(s.invtab,rel.primword[posrel][2])]);
                   for i in [1..rel.length-rewr.length-1] do
                       posrel := IndexPrimWord(rel,posrel+1);
                       Add(newcw2,ShallowCopy(rel.primword[posrel]));
@@ -479,6 +580,46 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
   return fail;
 end;
 
+HamburgerSurf := function(s,halfedge)
+  # Makes the surf of the hamburger of the edge consisting of halfedge
+  # and its complement.
+  local he1,he2,i,pair,pos1,pos2,rel1,rel2,surf;
+  he1 := s.halfedges[halfedge];
+  rel1 := s.relators[he1.relator];
+  he2 := s.halfedges[he1.complement];
+  rel2 := s.relators[he2.relator];
+
+  pos1 := he1.start;
+  pos2 := IndexPrimWord(rel2,he2.start + he2.length);
+  surf := [];
+  pair := [Complement(s.pongo,
+                      PongoMult(s.pongo,rel2.primword[pos2][1],
+                                        rel1.primword[pos1][1])),0];
+  pos1 := IndexPrimWord(rel1,pos1-1);
+  pair[2] := Complement(s.invtab,rel1.primword[pos1][2]);
+  Add(surf,pair);
+  for i in [1..Length(rel1.primword)*rel1.power-he1.length-1] do
+      pair := [Complement(s.pongo,rel1.primword[pos1][1]),0];
+      pos1 := IndexPrimWord(rel1,pos1-1);
+      pair[2] := Complement(s.invtab,rel1.primword[pos1][2]);
+      Add(surf,pair);
+  od;
+  pos2 := he2.start;
+  pair := [Complement(s.pongo,
+                      PongoMult(s.pongo,rel1.primword[pos1][1],
+                                        rel2.primword[pos2][1])),0];
+  pos2 := IndexPrimWord(rel2,pos2-1);
+  pair[2] := Complement(s.invtab,rel2.primword[pos2][2]);
+  Add(surf,pair);
+  for i in [1..Length(rel2.primword)*rel2.power-he2.length-1] do
+      pair := [Complement(s.pongo,rel2.primword[pos2][1]),0];
+      pos2 := IndexPrimWord(rel2,pos2-1);
+      pair[2] := Complement(s.invtab,rel2.primword[pos2][2]);
+      Add(surf,pair);
+  od;
+  return surf;
+end;
+
 RemoveForbiddenEdges := function(s)
   # Removes (half-)edges which are forbidden by the rewrites given.
   local area,e,he1,he2,i,newnumbers,pair,pos1,pos2,rel1,rel2,surf,tokeep,toremove;
@@ -489,52 +630,20 @@ RemoveForbiddenEdges := function(s)
       rel1 := s.relators[he1.relator];
       he2 := s.halfedges[he1.complement];
       rel2 := s.relators[he2.relator];
-
-      # First make the surf word of the hamburger:
-      pos1 := he1.start;
-      pos2 := IndexPrimWord(rel2,he2.start + he2.length);
-      surf := [];
-      pair := [Complement(s.pongo,
-                          PongoMult(s.pongo,rel2.primword[pos2][1],
-                                            rel1.primword[pos1][1])),0];
-      pos1 := IndexPrimWord(rel1,pos1-1);
-      pair[2] := s.invtab[rel1.primword[pos1][2]];
-      Add(surf,pair);
-      for i in [1..Length(rel1.primword)*rel1.power-he1.length-1] do
-          pair := [Complement(s.pongo,rel1.primword[pos1][1]),0];
-          pos1 := IndexPrimWord(rel1,pos1-1);
-          pair[2] := s.invtab[rel1.primword[pos1][2]];
-          Add(surf,pair);
-      od;
-      pos2 := he2.start;
-      pair := [Complement(s.pongo,
-                          PongoMult(s.pongo,rel1.primword[pos1][1],
-                                            rel2.primword[pos2][1])),0];
-      pos2 := IndexPrimWord(rel2,pos2-1);
-      pair[2] := s.invtab[rel2.primword[pos2][2]];
-      Add(surf,pair);
-      for i in [1..Length(rel2.primword)*rel2.power-he2.length-1] do
-          pair := [Complement(s.pongo,rel2.primword[pos2][1]),0];
-          pos2 := IndexPrimWord(rel2,pos2-1);
-          pair[2] := s.invtab[rel2.primword[pos2][2]];
-          Add(surf,pair);
-      od;
-      if e = 1933 then Error(1); fi;
+      surf := HamburgerSurf(s,e);
       area := CanYouDoThisWithSmallerArea(s,surf,rel1.area+rel2.area);
-      if e = 1933 then Error(); fi;
       if area <> fail then
           AddSet(toremove,e);
           AddSet(toremove,he1.complement);
       fi;
   od;
-  Error();
   tokeep := Difference([1..Length(s.halfedges)],toremove);
   newnumbers := 0*[1..Length(s.halfedges)];
-  for i in [1..Length(s.halfedges)] do
-      newnumbers[i] := Position(tokeep,i);
-      if newnumbers[i] = fail then
-          newnumbers[i] := Position(toremove,i);
-      fi;
+  for i in [1..Length(tokeep)] do
+      newnumbers[tokeep[i]] := i;
+  od;
+  for i in [1..Length(toremove)] do
+      newnumbers[toremove[i]] := i;
   od;
   s.halfedgesremoved := s.halfedges{toremove};
   s.halfedges := s.halfedges{tokeep};
@@ -712,29 +821,116 @@ Rep := function(w,pow)
   return res;
 end;
 
+ParsePongoLetter := function(pongo,invtab,st)
+    # st a string, must be even length and pongo,letter,pongo,letter
+    # letter names for pongo and letter are allowed
+    # (...)^int is allowed for repetition
+    local area,i,inamtab,nextpongo,pair,pnamtab,pow,ran,res,stack,stack2;
+    pnamtab := ElementNameTable(pongo);
+    inamtab := ElementNameTable(invtab);
+    if pnamtab = fail or inamtab = fail then
+        Error("need element name tables in pongo and invtab");
+        return fail;
+    fi;
+    if not(IsStringRep(st)) and IsList(st) and Length(st) >= 1 and
+       IsStringRep(st[1]) then
+        return List(st,x->ParsePongoLetter(pongo,invtab,x));
+    fi;
+    res := [];
+    i := 1;
+    stack := [];
+    stack2 := [];
+    nextpongo := true;
+    area := 10;
+    while i <= Length(st) do
+        if st[i] = '(' then
+            if not nextpongo then
+                Error("opening bracket only between letter and pongo possible");
+                return fail;
+            fi;
+            Add(stack,Length(res)+1);
+        elif st[i] = ')' then
+            if Length(stack) = 0 then
+                Error("too many closing brackets");
+                return fail;
+            fi;
+            Add(stack2,[Remove(stack)..Length(res)]);
+        elif st[i] = '^' then
+            if Length(stack2) = 0 then
+                Error("no bracket expression before ^");
+                return fail;
+            fi;
+            ran := Remove(stack2);
+            # Now read an int:
+            i := i + 1;
+            pow := 0;
+            while i <= Length(st) and st[i] >= '0' and st[i] <= '9' do
+                pow := pow * 10 + IntChar(st[i]) - IntChar('0');
+                i := i + 1;
+            od;
+            if pow = 0 then
+                Error("power 0 not allowed");
+                return fail;
+            fi;
+            while true do
+                pow := pow - 1;
+                if pow <= 0 then break; fi;
+                Append(res,res{ran});
+            od;
+            i := i - 1;
+        elif st[i] = ':' then
+            # Now read an int:
+            i := i + 1;
+            area := 0;
+            while i <= Length(st) and st[i] >= '0' and st[i] <= '9' do
+                area := area * 10 + IntChar(st[i]) - IntChar('0');
+                i := i + 1;
+            od;
+            i := i - 1;
+        elif nextpongo then
+            if not(IsBound(pnamtab[IntChar(st[i])])) then
+                Error("not a pongo element: ",st[i]);
+            fi;
+            pair := [pnamtab[IntChar(st[i])],0];
+            nextpongo := false;
+        else 
+            if not(IsBound(inamtab[IntChar(st[i])])) then
+                Error("not an invtab element: ",st[i]);
+            fi;
+            pair[2] := inamtab[IntChar(st[i])];
+            Add(res,pair);
+            nextpongo := true;
+        fi;
+        i := i + 1;
+    od;
+    res := LexLeastRotation(res);
+    return rec( primword := res[1], power := res[2], area := area );
+end;
+
+PrettyPrint := function(pongo,invtab,word)
+
+end;
+
 pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
-invtab := [1];
-rels := [rec( primword := [[2,1]], power := 7, area := 1 ),
-         rec( primword := [[3,1]], power := 7, area := 1 ),
-         rec( primword := [[2,1],[3,1]], power := 13, area := 1)];
+SetElementNames(pongo,"1SR");
+invtab := PlainInvTab([1]);
+SetElementNames(invtab,"T");
+
+rels := ParsePongoLetter(pongo,invtab,
+         ["(ST)^7:10",
+          "(RT)^7:10",
+          "(STRT)^13:10"]);
 rewrites := [];
 
 s := MakeSebProblem(pongo,invtab,rels,rewrites);
 
 
-rels2 := [rec( primword := [[2,1]], power := 7, area := 10 ),
-          rec( primword := [[3,1]], power := 7, area := 10 ),
-          rec( primword := [[2,1],[3,1]], power := 13, area := 20),
-          rec( primword := 
-               Concatenation(Rep([[2,1],[3,1]],11),[[3,1]],
-                             Rep([[2,1]],4),[[3,1],[3,1]]),
-                             power := 1, area := 29),
-          rec( primword := 
-               Concatenation(Rep([[2,1],[3,1]],11),[[2,1],[2,1]],
-                             Rep([[3,1]],4),[[2,1]]),
-                             power := 1, area := 29),
-                             ];
-#Add(rels2,InverseRelator(s,rels2[4]));
-#Add(rels2,InverseRelator(s,rels2[5]));
+rels2 := ParsePongoLetter(pongo,invtab,
+         ["(ST)^7:10",
+          "(RT)^7:10",
+          "(STRT)^13:10",
+          "(STRT)^11RT(ST)^4(RT)^2:29",
+          "(STRT)^11(ST)^2(RT)^4ST:29"
+         ]);
 
 s2 := MakeSebProblem(pongo,invtab,rels2,rewrites);
