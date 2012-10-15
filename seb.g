@@ -503,6 +503,26 @@ Sunflower := function(s)
        " sunflowers.");
 end;
 
+InitialiseSegmentMatrices := function(s)
+  local i,j,r;
+  s.segmats := [];
+  for i in [1..Length(s.relators)] do
+    r := s.relators[i];
+    s.segmats[i] := [];
+    for j in [1..Length(r.primword)] do
+       s.segmats[i][j] := ListWithIdenticalEntry(RelatorLength(r), -infinity);
+    od;
+  od;
+end;
+
+# GammaContribution := functions(s,hen)
+#   local x,y;
+#   x := s.halfedges[hen]
+#   y := s.halfedges[x.complement];
+#   c := -1 + 1/x + 1/y;
+#   return ;
+# end;
+
 PutEdgesIntoSegmentMatrices := function(s)
   local e,he,hes,l,n,r,sebmats;
   Info(InfoSeb,1,"Putting edges into segment matrices...");
