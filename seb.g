@@ -317,11 +317,39 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
   # relative length >= 0 (using goes up and stays up on the Greendlinger
   # subsets.
 
-  local area,i,match,newcw,newcw2,p,poscw,posrel,r,rel,rewr;
+  local area,count,i,len,match,n,newcw,newcw2,p,poscw,posrel,r,rel,rewr;
 
   if areabound <= 0 then return fail; fi;
   Cancel(s.pongo,s.invtab,cw);
   if Length(cw) = 0 then return 0; fi;
+  # Now see if it is equal to one of the relators with less area:
+  for r in [1..Length(s.relators)] do
+      rel := s.relators[r];
+      len := Length(rel.primword)*rel.power;
+      if rel.area < areabound and len = Length(cw) then
+          for n in [1..Length(rel.primword)] do
+              posrel := n;
+              poscw := 1;
+              count := 0;
+              while count < len do
+                  if not IsAccepting(s.pongo,PongoMult(s.pongo,cw[poscw][1],
+                                     rel.primword[posrel][1])) then
+                      break;
+                  fi;
+                  poscw := ReduceModBase1(poscw-1,len);
+                  if cw[poscw][2] <> s.invtab[rel.primword[posrel][2]] then
+                      break;
+                  fi;
+                  count := count + 1;
+                  posrel := IndexPrimWord(rel,posrel+1);
+              od;
+              if count >= len then
+                  return rel.area;
+              fi;
+          od;
+      fi;
+  od;
+
   for r in [1..Length(s.rewrites)] do
       # Try all rewrites
       rewr := s.rewrites[r];
@@ -510,7 +538,7 @@ InitialiseSegmentMatrices := function(s)
     r := s.relators[i];
     s.segmats[i] := [];
     for j in [1..Length(r.primword)] do
-       s.segmats[i][j] := ListWithIdenticalEntry(RelatorLength(r), -infinity);
+       s.segmats[i][j] := ListWithIdenticalEntries(RelatorLength(r), -infinity);
     od;
   od;
 end;
@@ -524,9 +552,9 @@ end;
 # end;
 
 PutEdgesIntoSegmentMatrices := function(s)
-  local e,he,hes,l,n,r,sebmats;
+  local e,he,hes,l,n,r,segmats;
   Info(InfoSeb,1,"Putting edges into segment matrices...");
-  sebmats := s.segmats;
+  segmats := s.segmats;
   hes := s.halfedges;
   for e in [1..Length(hes)] do
       he := hes[e];
@@ -586,8 +614,8 @@ DoAll := function(s)
     InitialiseSegmentMatrices(s);
     PutEdgesIntoSegmentMatrices(s);
     FinaliseSegmentMatrices(s);
-    RemoveForbiddenSunflowers(s);
-    FindNewRewrites(s);
+    #RemoveForbiddenSunflowers(s);
+    #FindNewRewrites(s);
 end;
 
 # Sample input:
@@ -609,3 +637,29 @@ rels := [rec( primword := [[2,1]], power := 7, area := 1 ),
 rewrites := [];
 
 s := MakeSebProblem(pongo,invtab,rels,rewrites);
+
+
+rels2 := [rec( primword := [[2,1]], power := 7, area := 10 ),
+          rec( primword := [[3,1]], power := 7, area := 10 ),
+          rec( primword := [[2,1],[3,1]], power := 13, area := 20),
+          rec( primword := 
+               Concatenation([[3,1],[3,1]],
+                             Rep([[2,1],[3,1]],11),
+                             [[3,1]],
+                             Rep([[2,1]],4)), power := 1, area := 29),
+          rec( primword := 
+               Concatenation(Rep([[2,1]],4),
+                             [[3,1]],
+                             Rep([[2,1],[3,1]],11),
+                             [[3,1],[3,1]]), power := 1, area := 29),
+          rec( primword := 
+               Concatenation([[2,1],[2,1]],
+                             Rep([[3,1],[2,1]],11),
+                             [[2,1]],
+                             Rep([[3,1]],4)), power := 1, area := 29),
+          rec( primword := 
+               Concatenation(Rep([[3,1]],4),
+                             [[2,1]],
+                             Rep([[3,1],[2,1]],11),
+                             [[2,1],[2,1]]), power := 1, area := 29),
+                             ];
