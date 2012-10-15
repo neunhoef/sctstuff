@@ -907,8 +907,20 @@ ParsePongoLetter := function(pongo,invtab,st)
     return rec( primword := res[1], power := res[2], area := area );
 end;
 
-PrettyPrint := function(pongo,invtab,word)
-
+Pretty := function(pongo,invtab,word)
+  local i,inams,pnams,res;
+  pnams := ElementNames(pongo);
+  inams := ElementNames(invtab);
+  if pnams = fail or inams = fail then
+      Error("need element name tables in pongo and invtab");
+      return fail;
+  fi;
+  res := "";
+  for i in [1..Length(word)] do
+      Add(res,pnams[word[i][1]]);
+      Add(res,inams[word[i][2]]);
+  od;
+  return res;
 end;
 
 pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
