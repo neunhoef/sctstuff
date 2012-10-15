@@ -4,6 +4,53 @@ DeclareInfoClass("InfoSeb");
 SetInfoLevel(InfoSeb,1);
 SetAssertionLevel(1);
 
+# Some utilities:
+
+DeclareOperation("EmptyList", [IsInt, IsList]);
+DeclareOperation("LexLeastRotation", [IsList]);
+
+InstallMethod(EmptyList, "for an integer and a string",
+  [ IsInt, IsString and IsStringRep ],
+  function(len, l) return EmptyString(len); end );
+
+InstallMethod(EmptyList, "for an integer and a plist",
+  [ IsInt, IsList and IsPlistRep ],
+  function(len, l) return EmptyPlist(len); end );
+
+InstallMethod( LexLeastRotation, "for a list",
+  [ IsList ],
+  function( l )
+    local a,i,j,k,n,nn;
+    if IsEmpty(l) then return [ShallowCopy(l),1]; fi;
+    n := Length(l);
+    a := EmptyList(2*n,l);
+    Append(a,l);
+    Append(a,l);
+    k := 0;
+    nn := 2*n;
+    while k < nn do
+        i := k+1;
+        j := k+2;
+        while true do
+            if j-1-k = n and n mod (j-i) = 0 then
+                return [a{[k+1..k+j-i]},n/(j-i)];
+            fi;
+            if j <= nn then
+                if a[i] < a[j] then
+                    i := k+1; j := j+1; continue;
+                elif a[i] = a[j] then
+                    i := i+1; j := j+1; continue;
+                fi;
+            fi;
+            repeat
+                k := k + (j-i);
+            until k >= i;
+            break;
+        od;
+    od;
+    return fail;
+  end );
+
 BindGlobal("PongosFamily",NewFamily("PongosFamily"));
 DeclareCategory("IsPongo", IsObject);
 DeclareRepresentation("IsCayleyPongo", IsPongo and IsPositionalObjectRep,[]);
@@ -276,16 +323,18 @@ ComputeEdges := function(s)
           r2l := RelatorLength(r2);
           m := Minimum(r1l,r2l);
           for l in [1..m] do 
-            j1 := IndexPrimWord(r1,p1+l);
-            j2 := IndexPrimWord(r2,p2-l);
-            if (r1.primword[IndexPrimWord(r1,j1-1)][2] <> 
-                s.invtab[r2.primword[j2][2]]) then 
+            j1 := IndexPrimWord(r1,p1+(l-1));
+            j2 := IndexPrimWord(r2,p2-(l-1));
+            if (r1.primword[j1][2] <> 
+                s.invtab[r2.primword[IndexPrimWord(r2,j2-1)][2]]) then 
               break; 
             fi;
             cppa := IsCompletable(s, PongoMult(s.pongo,
                       r2.primword[p2][1], r1.primword[p1][1]) );
-            nppa := IsCompletable(s, PongoMult(s.pongo,r1.primword[j1][1],
-                                                       r2.primword[j2][1]) );
+            nppa := IsCompletable(s, 
+                       PongoMult(s.pongo,
+                                 r1.primword[IndexPrimWord(r1,j1+1)][1],
+                                 r2.primword[IndexPrimWord(r2,j2-1)][1]) );
             for v in [[3,3],[3,4],[4,3],[4,4]] do
               if (not(nppa) and v[2]=3) then continue; fi;
               if (not(cppa) and v[1]=3) then continue; fi;
@@ -307,7 +356,11 @@ ComputeEdges := function(s)
                  Add(hel, he2);
               fi;
             od;
-            if nppa then break; fi;
+            if not(IsAccepting(s.pongo,
+                     PongoMult(s.pongo,r1.primword[IndexPrimWord(r1,j1+1)][1],
+                               r2.primword[IndexPrimWord(r2,j2-1)][1]))) then
+                break;
+            fi;
             if (l=m) then hel := []; fi;
           od;
           Append(s.halfedges, hel);
@@ -466,12 +519,15 @@ RemoveForbiddenEdges := function(s)
           pair[2] := s.invtab[rel2.primword[pos2][2]];
           Add(surf,pair);
       od;
+      if e = 1933 then Error(1); fi;
       area := CanYouDoThisWithSmallerArea(s,surf,rel1.area+rel2.area);
+      if e = 1933 then Error(); fi;
       if area <> fail then
           AddSet(toremove,e);
           AddSet(toremove,he1.complement);
       fi;
   od;
+  Error();
   tokeep := Difference([1..Length(s.halfedges)],toremove);
   newnumbers := 0*[1..Length(s.halfedges)];
   for i in [1..Length(s.halfedges)] do
@@ -670,26 +726,15 @@ rels2 := [rec( primword := [[2,1]], power := 7, area := 10 ),
           rec( primword := [[3,1]], power := 7, area := 10 ),
           rec( primword := [[2,1],[3,1]], power := 13, area := 20),
           rec( primword := 
-               Concatenation([[3,1],[3,1]],
-                             Rep([[2,1],[3,1]],11),
-                             [[3,1]],
-                             Rep([[2,1]],4)), power := 1, area := 29),
+               Concatenation(Rep([[2,1],[3,1]],11),[[3,1]],
+                             Rep([[2,1]],4),[[3,1],[3,1]]),
+                             power := 1, area := 29),
           rec( primword := 
-               Concatenation(Rep([[2,1]],4),
-                             [[3,1]],
-                             Rep([[2,1],[3,1]],11),
-                             [[3,1],[3,1]]), power := 1, area := 29),
-          rec( primword := 
-               Concatenation([[2,1],[2,1]],
-                             Rep([[3,1],[2,1]],11),
-                             [[2,1]],
-                             Rep([[3,1]],4)), power := 1, area := 29),
-          rec( primword := 
-               Concatenation(Rep([[3,1]],4),
-                             [[2,1]],
-                             Rep([[3,1],[2,1]],11),
-                             [[2,1],[2,1]]), power := 1, area := 29),
+               Concatenation(Rep([[2,1],[3,1]],11),[[2,1],[2,1]],
+                             Rep([[3,1]],4),[[2,1]]),
+                             power := 1, area := 29),
                              ];
-
+#Add(rels2,InverseRelator(s,rels2[4]));
+#Add(rels2,InverseRelator(s,rels2[5]));
 
 s2 := MakeSebProblem(pongo,invtab,rels2,rewrites);
