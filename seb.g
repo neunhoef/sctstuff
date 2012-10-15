@@ -498,7 +498,7 @@ Sunflower := function(s)
 end;
 
 InitialiseSegmentMatrices := function(s)
-  local i,r,;
+  local i,j,r;
   s.segmats := [];
   for i in [1..Length(s.relators)] do
     r := s.relators[i];
@@ -508,6 +508,14 @@ InitialiseSegmentMatrices := function(s)
     od;
   od;
 end;
+
+# GammaContribution := functions(s,hen)
+#   local x,y;
+#   x := s.halfedges[hen]
+#   y := s.halfedges[x.complement];
+#   c := -1 + 1/x + 1/y;
+#   return ;
+# end;
 
 RemoveForbiddenSunflowers := function(s)
   # Does what it says.
