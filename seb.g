@@ -363,7 +363,7 @@ InverseRelator := function(pongo,invtab,r)
   pw := [];
   y := r.primword[1];
   for x in Reversed(r.primword) do
-    Add(pw, [ Complement(s.pongo,y[1]), Complement(invtab,x[2]) ] );
+    Add(pw, [ Complement(pongo,y[1]), Complement(invtab,x[2]) ] );
     y := x;
   od;
   return rec( power := r.power, area := r.area, primword := pw );
@@ -989,6 +989,14 @@ TrySeveral := function(lens,n)
   od;
   # return sunflowers;
 end;
+
+
+# rels := MakeRandomPresentation(l,1);
+# Append(rels, List(rels, x->InverseRelator(pongo,invtab,x) ) );
+# s := MakeSebProblem(pongo,invtab,rels,[]);
+# DoAll(s);
+# rp := Filtered(s.halfedges, x -> x.valency=3 and s.halfedges[x.complement].valency=3);
+# List([1..15],y->Length(Filtered(rp, x->x.length=y)));
 
 
 
