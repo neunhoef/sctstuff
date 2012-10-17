@@ -357,13 +357,13 @@ InstallMethod( ViewObj, "for a seb problem",
     Print(">");
   end );
 
-InverseRelator := function(s,r)
+InverseRelator := function(pongo,invtab,r)
   local pw,x,y;
-  if not(IsCancellative(s.pongo)) then Error(); fi;
+  if not(IsCancellative(pongo)) then Error(); fi;
   pw := [];
   y := r.primword[1];
   for x in Reversed(r.primword) do
-    Add(pw, [ Complement(s.pongo,y[1]), Complement(s.invtab,x[2]) ] );
+    Add(pw, [ Complement(s.pongo,y[1]), Complement(invtab,x[2]) ] );
     y := x;
   od;
   return rec( power := r.power, area := r.area, primword := pw );
@@ -975,6 +975,7 @@ TrySeveral := function(lens,n)
     sunflowers[l] := [];
     for i in [1..n] do
       rels := MakeRandomPresentation(l,1);
+      Append(rels, List(rels, x->InverseRelator(pongo,invtab,x) ) );
       rewrites := [];
       s := MakeSebProblem(pongo,invtab,rels,rewrites);
       DoAll(s);
