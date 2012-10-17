@@ -357,13 +357,13 @@ InstallMethod( ViewObj, "for a seb problem",
     Print(">");
   end );
 
-InverseRelator := function(s,r)
+InverseRelator := function(pongo,invtab,r)
   local pw,x,y;
-  if not(IsCancellative(s.pongo)) then Error(); fi;
+  if not(IsCancellative(pongo)) then Error(); fi;
   pw := [];
   y := r.primword[1];
   for x in Reversed(r.primword) do
-    Add(pw, [ Complement(s.pongo,y[1]), Complement(s.invtab,x[2]) ] );
+    Add(pw, [ Complement(pongo,y[1]), Complement(invtab,x[2]) ] );
     y := x;
   od;
   return rec( power := r.power, area := r.area, primword := pw );
@@ -765,6 +765,7 @@ end;
 FinaliseSegmentMatrices := function(s)
   local L,c,l,ll,m,max,maxll,n,nts,r,rel,segmats;
   Info(InfoSeb,1,"Finalising segment matrices...");
+  s.sunflowers := 0;
   segmats := s.segmats;
   for r in [1..Length(s.relators)] do
       Info(InfoSeb,2,"Doing relator ",r);
@@ -790,8 +791,13 @@ FinaliseSegmentMatrices := function(s)
               fi;
           od;
       od;
+      for n in [1..nts] do
+        if (segmats[r][n][L][1] > -1) then s.sunflowers := s.sunflowers + 1; fi;
+      od;
   od;
-  Info(InfoSeb,1,"Done.");
+  s.segmats := segmats;
+  Info(InfoSeb,1,"Done.  ",s.sunflowers," sunflowers.");
+  return segmats;
 end;
 
 RemoveForbiddenSunflowers := function(s)
@@ -933,26 +939,86 @@ Pretty := function(pongo,invtab,word)
   return res;
 end;
 
+MakeRandomPresentation := function(len, nrrels)
+  # This function makes a truly random presentation of nrrels relators
+  # of length len (syllables). This will be a modular group quotient:
+  # <S,R,T|T^2=1=S^3=SR>
+  # and relators will be STRTSTRT... where each S or R can be either S or R.
+  # The inverse relators are given explicitly.
+  local b,bb,f,i,r,rels,st,bytes,conv;
+  #Print("Using /dev/random, if this is stuck, type something!\n");
+  conv := function(x)
+    if IntChar(x) >= 128 then return 2; else return 3; fi;
+  end;
+  f := IO_open("/dev/urandom",IO.O_RDONLY,0);
+  rels := [];
+  for i in [1..nrrels] do
+      st := "";
+      bytes := 0;
+      while bytes < len do
+          bytes := bytes + IO_read(f,st,bytes,len-bytes);
+      od;
+      b := List(st,x->[conv(x),1]);
+      AddSet(rels, rec( primword := b, power := 1, area := 1 ) );
+  od;
+  IO_close(f);
+  return rels;
+end;
+
 pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
 SetElementNames(pongo,"1SR");
 invtab := PlainInvTab([1]);
 SetElementNames(invtab,"T");
 
-rels := ParsePongoLetter(pongo,invtab,
-         ["(ST)^7:10",
-          "(RT)^7:10",
-          "(STRT)^13:10"]);
-rewrites := [];
+TrySeveral := function(lens,n)
+  local l,i,j,k,rels,rewrites,s,sunflowers;
+  sunflowers := [];
+  for l in lens do
+    sunflowers[l] := [];
+    for i in [1..n] do
+      rels := MakeRandomPresentation(l,1);
+      Append(rels, List(rels, x->InverseRelator(pongo,invtab,x) ) );
+      rewrites := [];
+      s := MakeSebProblem(pongo,invtab,rels,rewrites);
+      DoAll(s);
+      Add(sunflowers[l], s.sunflowers);
+    od; 
+  od;
+  for l in lens do
+    i := sunflowers[l];
+    k := Filtered(i, x->not(IsZero(x)) );
+    Print("Length ",l," has ",Length(k),"/",Length(i)," sunflowers : ",sunflowers[l],"\n");
+  od;
+  # return sunflowers;
+end;
 
-s := MakeSebProblem(pongo,invtab,rels,rewrites);
+
+# rels := MakeRandomPresentation(l,1);
+# Append(rels, List(rels, x->InverseRelator(pongo,invtab,x) ) );
+# s := MakeSebProblem(pongo,invtab,rels,[]);
+# DoAll(s);
+# rp := Filtered(s.halfedges, x -> x.valency=3 and s.halfedges[x.complement].valency=3);
+# List([1..15],y->Length(Filtered(rp, x->x.length=y)));
 
 
-rels2 := ParsePongoLetter(pongo,invtab,
-         ["(ST)^7:10",
-          "(RT)^7:10",
-          "(STRT)^13:10",
-          "(STRT)^11RT(ST)^4(RT)^2:29",
-          "(STRT)^11(ST)^2(RT)^4ST:29"
-         ]);
 
-s2 := MakeSebProblem(pongo,invtab,rels2,rewrites);
+
+
+# rels := ParsePongoLetter(pongo,invtab,
+#          ["(ST)^7:10",
+#           "(RT)^7:10",
+#           "(STRT)^13:10"]);
+# rewrites := [];
+#
+# s := MakeSebProblem(pongo,invtab,rels,rewrites);
+
+# rels2 := ParsePongoLetter(pongo,invtab,
+#          ["(ST)^7:10",
+#           "(RT)^7:10",
+#           "(STRT)^13:10",
+#           "(STRT)^11RT(ST)^4(RT)^2:29",
+#           "(STRT)^11(ST)^2(RT)^4ST:29"
+#          ]);
+# s2 := MakeSebProblem(pongo,invtab,rels2,rewrites);
+
+
