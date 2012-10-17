@@ -791,7 +791,9 @@ FinaliseSegmentMatrices := function(s)
               fi;
           od;
       od;
-      if (segmats[r][nts][L][1] > -1) then s.sunflowers := s.sunflowers + 1; fi;
+      for n in [1..nts] do
+        if (segmats[r][n][L][1] > -1) then s.sunflowers := s.sunflowers + 1; fi;
+      od;
   od;
   s.segmats := segmats;
   Info(InfoSeb,1,"Done.  ",s.sunflowers," sunflowers.");
