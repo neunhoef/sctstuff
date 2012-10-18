@@ -1001,6 +1001,9 @@ TrySeveral := function(lens,n)
   return biggies;
 end;
 
+
+## WARNING : AntiEdgeWord and Hamburger don't handle pongo endpoints yet
+
 AntiEdgeWord := function(p,e)
   local r,s,l;
   r := p.relators[e.relator];
@@ -1013,6 +1016,12 @@ Hamburger := function(p,e)
   return rec( power := 1, area := 1,
       primword := Concatenation( AntiEdgeWord(p,e),
           AntiEdgeWord(p,p.halfedges[e.complement]) )
+  );
+end;
+
+HamburgerGuts := function(s,e)
+  return List(HamburgerSurf(s,e), 
+      x->[ Complement(s.pongo,x[1]), s.invtab[x[2]] ] 
   );
 end;
 
@@ -1029,7 +1038,7 @@ TrySeveralTwice := function(lens,n)
       DoAll(s1); 
       b := Maximum(List(s1.halfedges, x->x.length));
       m := Filtered(s1.halfedges, x->x.length=b);
-      for k in List(m, x->Hamburger(s1,x)) do
+      for k in List(m, x->HamburgerGuts(s1,x)) do
         AddSet(rels, k);
         AddSet(rels, InverseRelator(pongo,invtab,k) );
       od; 
