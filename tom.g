@@ -542,11 +542,11 @@ CanYouDoThisWithSmallerArea := function(s,cw,areabound)
                     newcw := cw{[p+1..poscw-1]};
                   fi;
                   # Now the replacement:
-                  newcw2 := EmptyPlist(rel.length-rewr.length+1);
+                  newcw2 := EmptyPlist(RelatorLength(rel)-rewr.length+1);
                   Add(newcw2,[PongoMult(s.pongo,rel.primword[posrel][1],
                                                 cw[poscw][1]),
                               Complement(s.invtab,rel.primword[posrel][2])]);
-                  for i in [1..rel.length-rewr.length-1] do
+                  for i in [1..RelatorLength(rel)-rewr.length-1] do
                       posrel := IndexPrimWord(rel,posrel+1);
                       Add(newcw2,ShallowCopy(rel.primword[posrel]));
                   od;
@@ -670,6 +670,41 @@ IndexEdges := function(s)
   s.heindex := index;
 end;
 
+AddCornerException := function(s,e1,e2,c)
+  local he2,rellen2;
+  AddSet(s.except[e1],[c,e2]);
+end;
+
+ChangeCornerException := function(s,e1,e2,c)
+  # This is slow, but could be replaced by something faster
+  local i,l;
+  l := s.except[e1];
+  for i in [1..Length(l)] do
+      if l[i][2] = e2 then l[i][1] := c; Sort(l); return; fi;
+  od;
+  AddCornerException(s,e1,e2,c);
+end;
+
+LookupCornerValue := function(s,e1,e2)
+  # This is slow, but could be replaced by something faster
+  local i,l;
+  l := s.except[e1];
+  for i in [1..Length(l)] do
+      if l[i][2] = e2 then return l[i][1]; fi;
+  od;
+  return 1/6;
+end;
+
+IsExceptionalCorner := function(s,e1,e2)
+  # This is slow, but could be replaced by something faster
+  local i,l;
+  l := s.except[e1];
+  for i in [1..Length(l)] do
+      if l[i][2] = e2 then return true; fi;
+  od;
+  return false;
+end;
+
 InitCornerData := function(s)
   # Initialise the data structures for corner exception lists
   local e1,endpos,he1,i,ind,len1,r,rel;
@@ -687,32 +722,141 @@ InitCornerData := function(s)
   for e1 in [1..Length(s.halfedges)] do
       he1 := s.halfedges[e1];
       rel := s.relators[he1.relator];
-      len1 := he1.length/(rel.length*2);
+      len1 := he1.length/(RelatorLength(rel)*2);
       i := 1;
       endpos := IndexPrimWord(rel,he1.start+he1.length);
-      ind := s.heindex[endpos];
+      ind := s.heindex[he1.relator][endpos];
       for i in [1..Length(ind)] do
-          r := len1 + s.halfedges[ind[i]]/(rel.length*2);
+          r := len1 + s.halfedges[ind[i]].length/(RelatorLength(rel)*2);
           if r <= 1/6 then break; fi;
-          AddSet(s.except[e1],[r,ind[i]]);
+          AddCornerException(s,e1,ind[i],r);
       od;
   od;
-
 end;
 
-GetCornerValue := function(s,e1,e2)
-  # This is slow, but should not be used normally.
-  local i,l;
-  l := s.except[e1];
-  for i in [1..Length(l)] do
-      if l[i][2] = e2 then return l[i][1]; fi;
-  od;
-  return 1/6;
-end;
-
-Sunflower := function(s)
+Sunflower := function(r,flowerlimit,timeout)
   # Find all positively curved sunflowers.
-  Info(InfoTom,1,"Running sunflower...");
+  local DoStep,Y,c,ce1e2,d,e,e1,e2,ee,he,he1,he2,hee,j,k,kk,len,n,pos,
+        re1e2,rel,rellene,sometodo,start,starttime,t;
+  Info(InfoTom,1,"Running sunflower with timeout ",timeout,"...");
+  starttime := Runtime();
+  r.sunflowers := [];
+  # This investigates whether there is a goes up and stays up sunflower
+  # starting with this directed edge.
+  # The value we do goes up and stays up with is r(e1,e2) - c(e1,e2)
+  # where r(e1,e2) is the average relative length of the two halfedges
+  # (i.e. (l(e1)+l(e2))/(2*len) where len is the full relator length)
+  # and c(e1,e2) is the corner value.
+  # Every corner value c(e1,e2) not on the exception list is 1/6.
+  # We know: if r(e1,e2) > 1/6 then c(e1,e2) is on the exception list.
+  # Thus: We only have to start with corners on the exception list.
+  DoStep := function(ee,d)
+    # This uses variables n, he, len, e1, r, Y from the outer function!
+    local f,flow,nn,s;
+    nn := n + he.length;
+    if nn >= len then
+        if nn > len then continue; fi;
+        if ee <> e1 then continue; fi;
+        # Hurray! We found a sunflower!
+        flow := rec( curv := d, edges := []);
+        s := t;
+        while s <> fail do
+            Add(flow.edges,s[1],1);
+            s := s[3];
+        od;
+        Add(r.sunflowers,flow);
+        Info(InfoTom,2,"Found sunflower, curvature ",d);
+    else
+        # Now need to add [ee,d] in Y[nn]:
+        if not(IsBound(Y[nn])) then Y[nn] := []; fi;
+        f := First([1..Length(Y[nn])],l->Y[nn][l][1]=ee);
+        if f = fail then
+            Add(Y[nn],[ee,d,t]);
+        else
+            if d > Y[nn][f][2] then
+                Y[nn][f][2] := d;
+                Y[nn][f][3] := t;
+            fi;
+        fi;
+    fi;
+  end;
+
+  # First run through all possible first halfedges:
+  for e1 in [1..Length(r.halfedges)] do
+      # Y[n] contains segments of length n, each element is a triple
+      # [e2,curvsum,previous]
+      start := [e1,0,fail];
+      Y := [];
+      sometodo := false;
+      for j in [1..Length(r.except[e1])] do
+          e2 := r.except[e1][j][2];
+          ce1e2 := r.except[e1][j][1];
+          he1 := r.halfedges[e1];
+          rel := r.relators[he1.relator];
+          he2 := r.halfedges[e2];
+          len := RelatorLength(rel);
+          re1e2 := (he1.length+he2.length)/(2*len);
+          c := re1e2 - ce1e2;
+          if c > 0 then
+              if not(IsBound(Y[he1.length])) then Y[he1.length] := []; fi;
+              Add(Y[he1.length],[e2,c,start]);
+              sometodo := true;
+          fi;
+      od;
+      if sometodo then
+          for n in [1..len-1] do
+              if IsBound(Y[n]) then
+                  for j in [1..Length(Y[n])] do
+                      t := Y[n][j];
+                      # Now try to follow this with one more edge:
+                      e := t[1];
+                      c := t[2];
+                      he := r.halfedges[e];
+                      rel := r.relators[he.relator];
+                      len := RelatorLength(rel);
+                      # We need another corner for which r(e,ee)-c(e,ee) >= c.
+                      # There are two cases: Either it is on the exception
+                      # list or c(e,ee)=1/6 and thus r(e,ee) >= c+1/6
+                      rellene := he.length/(2*len);
+                      kk := Length(r.except[e]);
+                      for k in [1..kk] do
+                          ee := r.except[e][k][2];
+                          hee := r.halfedges[ee];
+                          d := c + rellene + hee.length/(2*len)
+                                 - r.except[e][k][1];
+                          if d < 0 then break; fi;
+                          DoStep(ee,d);
+                      od;
+                      # Now handle the generic case:
+                      pos := IndexPrimWord(rel,he.start+he.length);
+                      kk := Length(r.heindex[he.relator][pos]);
+                      for k in [1..kk] do   # this gives descending values
+                                            # of rellen2-1/6!
+                          ee := r.heindex[he.relator][pos][k];
+                          if not IsExceptionalCorner(r,e,ee) then
+                              hee := r.halfedges[ee];
+                              d := c + rellene + hee.length/(2*len) - 1/6;
+                              if d < 0 then break; fi;
+                              DoStep(ee,d);
+                          fi;
+                      od;
+                  od;
+                  if Runtime()-starttime > timeout or 
+                     Length(r.sunflowers) > flowerlimit then
+                      Info(InfoTom,1,"Giving up, have ",
+                           Length(r.sunflowers)," sunflowers.");
+                      return;
+                  fi;
+              fi;
+          od;
+      fi;
+  od;
+  if Length(r.sunflowers) = 0 then
+      Info(InfoTom,1,"Completed sunflower successfully, none found.");
+  else
+      Info(InfoTom,1,"Completed sunflower, found ",Length(r.sunflowers),
+           " sunflowers.");
+  fi;
 
 end;
 
@@ -727,8 +871,116 @@ end;
 
 Poppy := function(s)
   # Find all positively curved poppies.
+  # Plan: first try valency v=3, if no failures, try 4 etc.
+  #   Going counterclockwise round a vertex, do
+  #   goes up and stays up on c(e1,e2)-(v-2)/2v
+  #   Note (v-2)/2v is 1/6 for v=3 and grows monotonically with v
+  # 0) Set v:=3 and a := (v-2)/2v := 1/6
+  # 1) Write down all corners with c(e1,e2)-a > 0
+  # 2) Check which of them are v-poppies (need coincidence)
+  # 3) if some, report
+  # 4) v := v + 1
+  # 5) a := (v-2)/2v, 
+  # 6) weed out non-going up and staying up ones
+  # 7) if empty, bail out
+  # 8) for each left, add one more step in all possible ways
+  # 9) go to 2
+  # Data: have a list of cases, have v and a
+  # A case is a list [curv,e1,e2,e3,...,e_{v-1}] of halfedges
+  local a,anew,c,ca,cases,d,e,e1,e2,ee,eee,f,found,good,he,he1,hee,heee,
+        i,j,newca,newcases,poppy,todelete,v;
   Info(InfoTom,1,"Running poppy...");
 
+  s.poppies := [];
+  v := 3;
+  a := (v-2)/(2*v);
+  # Initialise cases, note that since a=1/6 they are all on the exceptions
+  # lists:
+  cases := [];
+  for e1 in [1..Length(s.halfedges)] do
+      he1 := s.halfedges[e1];
+      for i in [1..Length(s.except[e1])] do
+          c := s.except[e1][i][1];
+          if c > a then   # Note a=1/6 at this stage
+              e2 := s.halfedges[s.except[e1][i][2]].complement;
+              Add(cases,[c-a,e1,e2]);
+          fi;
+      od;
+  od;
+  while true do
+      # Check whether or not our cases are v-poppies:
+      Info(InfoTom,2,"v=",v,", have ",Length(cases)," cases.");
+      found := false;
+      for i in [1..Length(cases)] do
+          ca := cases[i];
+          f := s.halfedges[ca[2]].complement;
+          e := ca[Length(ca)];
+          he := s.halfedges[e];
+          for ee in s.heindex[he.relator][he.start] do
+              c := ca[1] + LookupCornerValue(s,e,ee) - a;
+              if c >= 0 then
+                  hee := s.halfedges[ee];
+                  eee := hee.complement;
+                  heee := s.halfedges[eee];
+                  if f in s.heindex[heee.relator][heee.start] then
+                      c := c + LookupCornerValue(s,eee,f) - a;
+                      if c >= 0 then
+                          poppy := ShallowCopy(ca);
+                          poppy[1] := c;
+                          Add(poppy,ee);
+                          Add(s.poppies,poppy);
+                          found := true;
+                      fi;
+                  fi;
+              fi;
+          od;
+      od;
+      if found then break; fi;
+      # Now try one valency higher:
+      v := v + 1;
+      anew := (v-2)/(2*v);
+      todelete := [];
+      for i in [1..Length(cases)] do
+          ca := cases[i];
+          ca[1] := ca[1] + (Length(ca)-2)*(a-anew);
+          if ca[1] < 0 then 
+              Add(todelete,i);
+          #else
+              #d := 0;
+              #good := true;
+              #for j in [2..Length(ca)-1] do
+              #    d := d + LookupCornerValue(s,ca[j],ca[j+1]) - a;
+              #    if d < 0 then
+              #        Add(todelete,i);
+              #        break;
+              #    fi;
+              #od;
+          fi;
+      od;
+      cases := cases{Difference([1..Length(cases)],todelete)};
+      Info(InfoTom,2,"v=",v,", have weeded out ",Length(todelete)," cases.");
+      if Length(cases) = 0 then break; fi;
+
+      # Now extend by 1:
+      newcases := [];
+      for i in [1..Length(cases)] do
+          ca := cases[i];
+          e := ca[Length(ca)];
+          he := s.halfedges[e];
+          for ee in s.heindex[he.relator][he.start] do
+              c := ca[1] + LookupCornerValue(s,e,ee) - a;
+              if c >= 0 then
+                  hee := s.halfedges[ee];
+                  eee := hee.complement;
+                  newca := ShallowCopy(ca);
+                  newca[1] := c;
+                  Add(newca,eee);
+                  Add(newcases,newca);
+              fi;
+          od;
+      od;
+      cases := newcases;
+  od;
 end;
 
 RemoveForbiddenPoppies := function(s)
@@ -750,12 +1002,12 @@ FindNewRewrites := function(s)
   Info(InfoTom,1,"Found ",Length(s.rewrites)," rewrites.");
 end;
 
-DoAll := function(s)
+DoAll := function(s,flowerlimit,timeout)
     ComputeEdges(s);
     RemoveForbiddenEdges(s);
     IndexEdges(s);
     InitCornerData(s);
-    Sunflower(s);
+    Sunflower(s,flowerlimit,timeout);
     RemoveForbiddenSunflowers(s);
     Poppy(s);
     RemoveForbiddenPoppies(s);
