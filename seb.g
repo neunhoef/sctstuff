@@ -1010,12 +1010,14 @@ AntiEdgeWord := function(p,e)
 end;
 
 Hamburger := function(p,e)
-  return Concatenation( AntiEdgeWord(p,e),
-     AntiEdgeWord(p,p.halfedges[e.complement]) );
+  return rec( power := 1, area := 1,
+      primword := Concatenation( AntiEdgeWord(p,e),
+          AntiEdgeWord(p,p.halfedges[e.complement]) )
+  );
 end;
 
 TrySeveralTwice := function(lens,n)
-  local l,i,j,k,rels,rewrites,s1,s2,sunflowers,b,m,biggies;
+  local l,i,j,k,rels,rewrites,s1,s2,sunflowers,b,m;
   sunflowers := [];
   for l in lens do
     sunflowers[l] := [];
@@ -1028,21 +1030,20 @@ TrySeveralTwice := function(lens,n)
       b := Maximum(List(s1.halfedges, x->x.length));
       m := Filtered(s1.halfedges, x->x.length=b);
       for k in List(m, x->Hamburger(s1,x)) do
-        Append(rels, k, InverseRelator(pongo,invtab,k) );
-      od;
+        AddSet(rels, k);
+        AddSet(rels, InverseRelator(pongo,invtab,k) );
+      od; 
       s2 := MakeSebProblem(pongo,invtab,StructuralCopy(rels),rewrites);
       DoAll(s2); 
       Add(sunflowers[l], [s1.sunflowers, b, Length(m), s2.sunflowers]);
     od; 
   od; 
   for l in lens do
-    i := sunflowers[l];
-    k := Filtered(i, x->not(IsZero(x)) );
-    b := biggies[l];
-    Print("Length ",l," has ",Length(k),"/",Length(i)," sunflowers : ",sunflowers[l],"\n");
-    Print("  ",List(b,x->Length(x[2]))," halfedges of length ",List(b,x->x[1]),"/",l);
+    i := sunflowers[l]; 
+    k := Filtered(i, x->not(IsZero(x[1])) );
+    b := Filtered(i, x->not(IsZero(x[4])) );
+    Print("Length ",l," has ",Length(b)," : ",Length(k)," / ",Length(i)," sunflowers : ",sunflowers[l],"\n");
   od;
-  return biggies;
 end;
 
 
