@@ -1024,7 +1024,7 @@ EdgeNumber := function(s,e)
 end;
 
 HamburgerGuts := function(s,e)
-  return rec( power := 1, area := 1,
+  return rec( power := 1, area := 3/2,
       primword := List(HamburgerSurf(s,EdgeNumber(s,e)), 
           x->[ Complement(s.pongo,x[1]), Complement(invtab,x[2]) ] )
   );
@@ -1044,7 +1044,7 @@ TrySeveralTwice := function(lens,n)
       DoAll(s1); 
       b := Maximum(List(s1.halfedges, x->x.length));
       m := Filtered(s1.halfedges, x->x.length=b);
-      for k in List(m, x->HamburgerGuts(s1,x)) do
+      for k in List([m[1]], x->HamburgerGuts(s1,x)) do
         Add(rels, k);
         Add(rels, InverseRelator(pongo,invtab,k) );
       od; 
