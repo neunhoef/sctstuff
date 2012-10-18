@@ -1019,14 +1019,20 @@ Hamburger := function(p,e)
   );
 end;
 
+EdgeNumber := function(s,e)
+  return s.halfedges[e.complement].complement;
+end;
+
 HamburgerGuts := function(s,e)
-  return List(HamburgerSurf(s,e), 
-      x->[ Complement(s.pongo,x[1]), s.invtab[x[2]] ] 
+  return rec( power := 1, area := 1,
+      primword := List(HamburgerSurf(s,EdgeNumber(s,e)), 
+          x->[ Complement(s.pongo,x[1]), Complement(invtab,x[2]) ] )
   );
 end;
 
 TrySeveralTwice := function(lens,n)
   local l,i,j,k,rels,rewrites,s1,s2,sunflowers,b,m;
+  if not(IsCancellative(pongo)) then Error(); fi;
   sunflowers := [];
   for l in lens do
     sunflowers[l] := [];
@@ -1039,8 +1045,8 @@ TrySeveralTwice := function(lens,n)
       b := Maximum(List(s1.halfedges, x->x.length));
       m := Filtered(s1.halfedges, x->x.length=b);
       for k in List(m, x->HamburgerGuts(s1,x)) do
-        AddSet(rels, k);
-        AddSet(rels, InverseRelator(pongo,invtab,k) );
+        Add(rels, k);
+        Add(rels, InverseRelator(pongo,invtab,k) );
       od; 
       s2 := MakeSebProblem(pongo,invtab,StructuralCopy(rels),rewrites);
       DoAll(s2); 
