@@ -925,7 +925,7 @@ Poppy := function(s)
                   heee := s.halfedges[eee];
                   if f in s.heindex[heee.relator][heee.start] then
                       c := c + LookupCornerValue(s,eee,f) - a;
-                      if c >= 0 then
+                      if c > 0 then
                           poppy := rec(curv := c, hes := ShallowCopy(ca.hes));
                           Add(poppy.hes,eee);
                           Add(s.poppies,poppy);
@@ -949,7 +949,7 @@ Poppy := function(s)
               d := 0;
               good := true;
               for j in [1..Length(ca.hes)-1] do
-                  d := d + LookupCornerValue(s,ca.hes[j],ca.hes[j+1]) - a;
+                  d := d + LookupCornerValue(s,ca.hes[j],ca.hes[j+1]) - anew;
                   if d < 0 then
                       Add(todelete,i);
                       break;
@@ -958,6 +958,7 @@ Poppy := function(s)
           fi;
       od;
       cases := cases{Difference([1..Length(cases)],todelete)};
+      a := anew;
       Info(InfoTom,2,"v=",v,", have weeded out ",Length(todelete)," cases.");
       if Length(cases) = 0 then break; fi;
 
