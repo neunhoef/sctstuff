@@ -758,10 +758,10 @@ Sunflower := function(r,flowerlimit,timeout)
         if nn > len then continue; fi;
         if ee <> e1 then continue; fi;
         # Hurray! We found a sunflower!
-        flow := rec( curv := d, edges := []);
+        flow := rec( curv := d, hes := []);
         s := t;
         while s <> fail do
-            Add(flow.edges,s[1],1);
+            Add(flow.hes,s[1],1);
             s := s[3];
         od;
         Add(r.sunflowers,flow);
@@ -888,7 +888,7 @@ Poppy := function(s)
   # Data: have a list of cases, have v and a
   # A case is a list [curv,e1,e2,e3,...,e_{v-1}] of halfedges
   local a,anew,c,ca,cases,d,e,e1,e2,ee,eee,f,found,good,he,he1,hee,heee,
-        i,j,newca,newcases,poppy,todelete,v;
+        i,j,newca,newcases,newstart,poppy,todelete,v;
   Info(InfoTom,1,"Running poppy...");
 
   s.poppies := [];
@@ -903,7 +903,7 @@ Poppy := function(s)
           c := s.except[e1][i][1];
           if c > a then   # Note a=1/6 at this stage
               e2 := s.halfedges[s.except[e1][i][2]].complement;
-              Add(cases,[c-a,e1,e2]);
+              Add(cases,rec(curv := c-a, hes := [e1,e2]));
           fi;
       od;
   od;
@@ -913,11 +913,12 @@ Poppy := function(s)
       found := false;
       for i in [1..Length(cases)] do
           ca := cases[i];
-          f := s.halfedges[ca[2]].complement;
-          e := ca[Length(ca)];
+          f := s.halfedges[ca.hes[1]].complement;
+          e := ca.hes[Length(ca.hes)];
           he := s.halfedges[e];
-          for ee in s.heindex[he.relator][he.start] do
-              c := ca[1] + LookupCornerValue(s,e,ee) - a;
+          newstart := IndexPrimWord(s.relators[he.relator],he.start+he.length);
+          for ee in s.heindex[he.relator][newstart] do
+              c := ca.curv + LookupCornerValue(s,e,ee) - a;
               if c >= 0 then
                   hee := s.halfedges[ee];
                   eee := hee.complement;
@@ -925,9 +926,8 @@ Poppy := function(s)
                   if f in s.heindex[heee.relator][heee.start] then
                       c := c + LookupCornerValue(s,eee,f) - a;
                       if c >= 0 then
-                          poppy := ShallowCopy(ca);
-                          poppy[1] := c;
-                          Add(poppy,ee);
+                          poppy := rec(curv := c, hes := ShallowCopy(ca.hes));
+                          Add(poppy.hes,eee);
                           Add(s.poppies,poppy);
                           found := true;
                       fi;
@@ -942,19 +942,19 @@ Poppy := function(s)
       todelete := [];
       for i in [1..Length(cases)] do
           ca := cases[i];
-          ca[1] := ca[1] + (Length(ca)-2)*(a-anew);
-          if ca[1] < 0 then 
+          ca.curv := ca.curv + (Length(ca.hes)-1)*(a-anew);
+          if ca.curv < 0 then 
               Add(todelete,i);
-          #else
-              #d := 0;
-              #good := true;
-              #for j in [2..Length(ca)-1] do
-              #    d := d + LookupCornerValue(s,ca[j],ca[j+1]) - a;
-              #    if d < 0 then
-              #        Add(todelete,i);
-              #        break;
-              #    fi;
-              #od;
+          else
+              d := 0;
+              good := true;
+              for j in [1..Length(ca.hes)-1] do
+                  d := d + LookupCornerValue(s,ca.hes[j],ca.hes[j+1]) - a;
+                  if d < 0 then
+                      Add(todelete,i);
+                      break;
+                  fi;
+              od;
           fi;
       od;
       cases := cases{Difference([1..Length(cases)],todelete)};
@@ -965,22 +965,28 @@ Poppy := function(s)
       newcases := [];
       for i in [1..Length(cases)] do
           ca := cases[i];
-          e := ca[Length(ca)];
+          e := ca.hes[Length(ca.hes)];
           he := s.halfedges[e];
           for ee in s.heindex[he.relator][he.start] do
-              c := ca[1] + LookupCornerValue(s,e,ee) - a;
+              c := ca.curv + LookupCornerValue(s,e,ee) - a;
               if c >= 0 then
                   hee := s.halfedges[ee];
                   eee := hee.complement;
-                  newca := ShallowCopy(ca);
-                  newca[1] := c;
-                  Add(newca,eee);
+                  newca := rec(curv := c, hes := ShallowCopy(ca.hes));
+                  Add(newca.hes,eee);
                   Add(newcases,newca);
               fi;
           od;
       od;
       cases := newcases;
   od;
+  if Length(s.poppies) = 0 then
+      Info(InfoTom,1,"Completed poppy successfully, none found.");
+  else
+      Info(InfoTom,1,"Completed poppy, found ",Length(s.poppies),
+           " poppies.");
+  fi;
+
 end;
 
 RemoveForbiddenPoppies := function(s)
@@ -992,6 +998,32 @@ RemoveForbiddenPoppies := function(s)
   fi;
 end;
 
+PickPoppy := function(s,poppy)
+  # Decreases some corner values to make poppy happy (i.e. go away)
+  local c,cc,p,pairs,v;
+  v := Length(poppy.hes);
+  c := poppy.curv;
+  pairs := List([1..v-1],i->[poppy.hes[i],
+                             s.halfedges[poppy.hes[i+1]].complement]);
+  Add(pairs,[poppy.hes[v],s.halfedges[poppy.hes[1]].complement]);
+  for p in pairs do
+      cc := LookupCornerValue(s,p[1],p[2]);
+      ChangeCornerException(s,p[1],p[2],cc-c/v);
+  od;
+end;
+
+PickSunflower := function(s,sunflower)
+  # Increases some corner values to make sunflower happy (i.e. go away)
+  local c,cc,p,pairs,v;
+  v := Length(sunflower.hes);
+  c := sunflower.curv;
+  pairs := List([1..v-1],i->[sunflower.hes[i],sunflower.hes[i+1]]);
+  Add(pairs,[sunflower.hes[v],sunflower.hes[1]]);
+  for p in pairs do
+      cc := LookupCornerValue(s,p[1],p[2]);
+      ChangeCornerException(s,p[1],p[2],cc+c/v);
+  od;
+end;
 
 FindNewRewrites := function(s)
   # Classify for each segment of a relator the largest curvature this
