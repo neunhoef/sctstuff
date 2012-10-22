@@ -1024,11 +1024,12 @@ EdgeNumber := function(s,e)
 end;
 
 HamburgerGuts := function(s,e)
-  return rec( power := 1, area := 3/2,
-      primword := List(HamburgerSurf(s,EdgeNumber(s,e)), 
-          x->[ Complement(s.pongo,x[1]), Complement(invtab,x[2]) ] )
-  );
+  return InverseRelator(s.pongo,s.invtab,
+          rec( power := 1, area := 3/2,
+              primword := HamburgerSurf(s,EdgeNumber(s,e)) )
+      );
 end;
+
 
 TrySeveralTwice := function(lens,n)
   local l,i,j,k,rels,rewrites,s1,s2,sunflowers,b,m;
