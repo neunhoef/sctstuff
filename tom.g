@@ -529,9 +529,8 @@ ComputeEdges := function(s)
     for i2 in [i1..Length(s!.relators)] do
       r2 := s!.relators[i2];
       for p1 in [1..Length(r1.primword)] do
-        if i1=i2 then r := [p1..Length(r2.primword)];
-                 else r := [1..Length(r2.primword)]; fi;
-        for p2 in r do
+        for p2 in [1..Length(r2.primword)] do
+          # We avoid away double counting for i1=i2 later on!
           hel := [];
           r1l := RelatorLength(r1);
           r2l := RelatorLength(r2);
@@ -548,14 +547,16 @@ ComputeEdges := function(s)
             he2 := rec( relator := i2, start := IndexPrimWord(r2,p2-l), 
                         length := l );
             he2!.pongoel := r2.primword[he2.start][1];
-            Add(hel, he1); 
-            i := Length(s!.halfedges) + Length(hel);
-            if i1=i2 and p1=he2.start then
-               he1.complement := i; 
-            else 
-               he1.complement := i+1;
-               he2.complement := i;
-               Add(hel, he2);
+            if i1 <> i2 or he1.start <= he2.start then
+                Add(hel, he1); 
+                i := Length(s!.halfedges) + Length(hel);
+                if i1=i2 and he1.start = he2.start then
+                   he1.complement := i; 
+                else 
+                   he1.complement := i+1;
+                   he2.complement := i;
+                   Add(hel, he2);
+                fi;
             fi;
             if not(IsAccepting(s!.pongo,
                      PongoMult(s!.pongo,r1.primword[IndexPrimWord(r1,j1+1)][1],
@@ -1079,7 +1080,9 @@ Poppy := function(s)
                       hee := s!.halfedges[ee];
                       eee := hee.complement;
                       heee := s!.halfedges[eee];
-                      if f in s!.heindex[heee.relator][heee.start] then
+                      rel := s!.relators[heee.relator];
+                      pos := IndexPrimWord(rel,heee.start+heee.length);
+                      if f in s!.heindex[heee.relator][pos] then
                           c := c + LookupCornerValue(s,eee,f) - a;
                           if c > 0 then
                               poppy := rec(curv := c, hes:=ShallowCopy(ca.hes),
