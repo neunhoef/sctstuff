@@ -1193,6 +1193,52 @@ PickSunflower := function(s,sunflower)
   od;
 end;
 
+FindCorrection := function(s,poppies,sunflowers)
+  local corner,corners,corrections,force,forces,i,l,p,pos,v;
+  corners := [];
+  forces := [];
+  for p in poppies do
+      l := ShallowCopy(p.hes);
+      v := Length(l);
+      Add(l,p.hes[1]);
+      for i in [1..v] do
+          corner := [l[i],s!.halfedges[l[i+1]].complement];
+          force := -p.curv/v;
+          pos := PositionSorted(corners,corner);
+          if pos > Length(corners) or corners[pos] <> corner then
+              Add(corners,corner,pos);
+              Add(forces,[0,0],pos);
+          fi;
+          forces[pos][1] := Minimum(forces[pos][1],force);
+      od;
+  od;
+  for p in sunflowers do
+      l := ShallowCopy(p.hes);
+      v := Length(l);
+      Add(l,p.hes[1]);
+      for i in [1..v] do
+          corner := [l[i],l[i+1]];
+          force := p.curv/v;
+          pos := PositionSorted(corners,corner);
+          if pos > Length(corners) or corners[pos] <> corner then
+              Add(corners,corner,pos);
+              Add(forces,[0,0],pos);
+          fi;
+          forces[pos][1] := Maximum(forces[pos][2],force);
+      od;
+  od;
+  corrections := List([1..Length(forces)],i->(forces[i][1]+forces[i][2])*2);
+  return rec(corners := corners, forces := forces, corrections := corrections);
+end;
+
+ApplyCorrections := function(s,corr,factor)
+  local c,i;
+  for i in [1..Length(corr.corners)] do
+      c := LookupCornerValue(s,corr.corners[i][1],corr.corners[i][2]);
+      ChangeCornerException(s,corr.corners[i][1],corr.corners[i][2],
+                            c+corr.corrections[i]*factor);
+  od;
+end;
 FindNewRewrites := function(s)
   # Classify for each segment of a relator the largest curvature this
   # face could have if this segment is exposed on the boundary.
