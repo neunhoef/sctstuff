@@ -414,9 +414,8 @@ ComputeEdges := function(s)
     for i2 in [i1..Length(s.relators)] do
       r2 := s.relators[i2];
       for p1 in [1..Length(r1.primword)] do
-        if i1=i2 then r := [p1..Length(r2.primword)];
-                 else r := [1..Length(r2.primword)]; fi;
-        for p2 in r do
+        for p2 in [1..Length(r2.primword)] do
+          # We avoid double counting of edges for i1=i2 later.
           cppa := IsCompletable(s, PongoMult(s.pongo,
                                 r2.primword[p2][1], r1.primword[p1][1]) );
           hel := [];
@@ -437,7 +436,6 @@ ComputeEdges := function(s)
             for v in [[3,3],[3,4],[4,3],[4,4]] do
               if (not(nppa) and v[2]=3) then continue; fi;
               if (not(cppa) and v[1]=3) then continue; fi;
-              if v = [4,3] and i1=i2 and p1=p2 then continue; fi;
               c := -1 + 1/v[1] + 1/v[2];
               he1 := rec( relator := i1, start := p1, 
                           length := l, valency := v[1], 
@@ -445,14 +443,17 @@ ComputeEdges := function(s)
               he2 := rec( relator := i2, start := IndexPrimWord(r2,p2-l), 
                           length := l, valency := v[2],
                           contrib := c * r1l / (r1l+r2l) ); 
-              Add(hel, he1); 
-              i := Length(s.halfedges) + Length(hel);
-              if (i1=i2 and p1=p2 and v[1]=v[2]) then
-                 he1.complement := i; 
-              else 
-                 he1.complement := i+1;
-                 he2.complement := i;
-                 Add(hel, he2);
+              if v = [4,3] and i1=i2 and he1.start=he2.start then continue; fi;
+              if i1<>i2 or he1.start <= he2.start then
+                  Add(hel, he1); 
+                  i := Length(s.halfedges) + Length(hel);
+                  if i1=i2 and he1.start=he2.start and v[1]=v[2] then
+                     he1.complement := i; 
+                  else 
+                     he1.complement := i+1;
+                     he2.complement := i;
+                     Add(hel, he2);
+                  fi;
               fi;
             od;
             if not(IsAccepting(s.pongo,
