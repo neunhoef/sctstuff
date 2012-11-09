@@ -1198,6 +1198,7 @@ FindCorrection := function(s,poppies,sunflowers)
   corners := [];
   forces := [];
   for p in poppies do
+    if p.curv > 0 then    # happy poppies do not exert force!
       l := ShallowCopy(p.hes);
       v := Length(l);
       Add(l,p.hes[1]);
@@ -1211,8 +1212,10 @@ FindCorrection := function(s,poppies,sunflowers)
           fi;
           forces[pos][1] := Minimum(forces[pos][1],force);
       od;
+    fi;
   od;
   for p in sunflowers do
+    if p.curv > 0 then   # happy sunflowers do not exert force!
       l := ShallowCopy(p.hes);
       v := Length(l);
       Add(l,p.hes[1]);
@@ -1226,6 +1229,7 @@ FindCorrection := function(s,poppies,sunflowers)
           fi;
           forces[pos][1] := Maximum(forces[pos][2],force);
       od;
+    fi;
   od;
   corrections := List([1..Length(forces)],i->(forces[i][1]+forces[i][2])*2);
   return rec(corners := corners, forces := forces, corrections := corrections);
@@ -1239,6 +1243,7 @@ ApplyCorrections := function(s,corr,factor)
                             c+corr.corrections[i]*factor);
   od;
 end;
+
 FindNewRewrites := function(s)
   # Classify for each segment of a relator the largest curvature this
   # face could have if this segment is exposed on the boundary.
@@ -1258,6 +1263,181 @@ DoAll := function(s,flowerlimit,timeout)
     Poppy(s);
     RemoveForbiddenPoppies(s);
     FindNewRewrites(s);
+end;
+
+RationalApproximation := function(x,prec)
+  # x needs to be a number (rational, float, or real irrational)
+  # prec needs to be a positive integer
+  local a,i,l,lasta,minus,stop,xi;
+  l := [];
+  lasta := 0;
+  a := 0;
+  stop := false;
+  while DenominatorRat(a) <= prec do
+      xi := Int(x);
+      x := x-xi;
+      if not(IsZero(x)) then
+          x := x^-1;
+      else
+          stop := true;
+      fi;
+      Add(l,xi);
+      lasta := a;
+      a := xi;
+      for i in [Length(l)-1,Length(l)-2..1] do
+          a := l[i] + 1/a;
+      od;
+      if stop then return a; fi;
+  od;
+  return lasta;
+end;
+
+RecomputeFlowerCurvature := function(s,poppies,sunflowers)
+  # Changes lists poppies and sunflowers
+  local c,f,h,hes,i,j;
+  h := s!.halfedges;
+  for i in [1..Length(poppies)] do
+      f := poppies[i];
+      hes := ShallowCopy(f!.hes);
+      c := 1-Length(hes)/2;
+      Add(hes,hes[1]);
+      for j in [1..Length(hes)-1] do
+          c := c + LookupCornerValue(s,hes[j],h[hes[j+1]].complement);
+      od;
+      # for testing: if f.curv <> c then Error(1); fi;
+      f.curv := c;
+  od;
+  for i in [1..Length(sunflowers)] do
+      f := sunflowers[i];
+      hes := ShallowCopy(f!.hes);
+      Add(hes,hes[1]);
+      c := 1;
+      for j in [1..Length(hes)-1] do
+          c := c - LookupCornerValue(s,hes[j],hes[j+1]);
+      od;
+      # for testing: if f.curv <> c then Error(2); fi;
+      f.curv := c;
+  od;
+end;
+
+ApproximateExceptions := function(s,prec)
+  local i,j,p;
+  for i in [1..Length(s!.except)] do
+      if IsBound(s!.except[i]) then
+          for j in [1..Length(s!.except[i])] do
+              p := s!.except[i][j];
+              p[1] := RationalApproximation(p[1],prec);
+          od;
+      fi;
+  od;
+end;
+
+Badness := function(poppies,sunflowers)
+  local i,p,sum;
+  sum := 0;
+  for p in poppies do
+      if p.curv > 0 then
+          sum := sum + p.curv^2;
+      fi;
+  od;
+  for p in sunflowers do
+      if p.curv > 0 then
+          sum := sum + p.curv^2;
+      fi;
+  od;
+  return sum;
+end;
+
+ApproximateGoodOfficer := function(s,steps,timeout)
+  # Idea: Take the poppies and sunflowers, compute a correction and then
+  # apply that one with different factors, take the best and repeat.
+  # Also try a rational approximation with small denominators as an 
+  # alternative.
+  # We assume that poppy and sunflower have just run with the current
+  # exceptions.
+  local backup,badness,best,corr,factors,i,j,newbadness,poppies,starttime,
+        sunflowers,w;
+  factors := [1/100,1/10,1,6/5,"ratapprox"];
+             # note "ratapprox" must always be last!
+  starttime := Runtime();
+  poppies := Set(s!.poppies);
+  sunflowers := Set(s!.sunflowers);
+  for i in [1..steps] do
+      badness := Badness(poppies,sunflowers);
+      Info(InfoTom,1,"Badness: ",Float(badness)," before step ",i," of ",
+           steps,"...");
+      Info(InfoTom,1,"Have ",Length(s!.poppies),"/",Length(poppies),
+           " poppies and ",Length(s!.sunflowers),"/",Length(sunflowers),
+           " sunflowers.");
+      if Runtime()-starttime > timeout then 
+          Info(InfoTom,1,"Timeout reached, giving up...");
+          return;
+      fi;
+      backup := StructuralCopy(s!.except);
+      corr := FindCorrection(s,poppies,sunflowers);
+      best := 0;
+      for j in [1..Length(factors)] do
+          if j > 1 then
+              s!.except := StructuralCopy(backup);
+          fi;
+          if factors[j] = "ratapprox" then
+              ApproximateExceptions(s,3600);
+          else
+              ApplyCorrections(s,corr,factors[j]);
+          fi;
+          RecomputeFlowerCurvature(s,poppies,sunflowers);
+          newbadness := Badness(poppies,sunflowers);
+          if newbadness < badness then
+              Info(InfoTom,1,"Factor ",factors[j]," improves badness to ",
+                   Float(newbadness),".");
+              badness := newbadness;
+              best := j;
+          fi;
+      od;
+      if best = 0 then
+          Info(InfoTom,1,"No correction made it better, giving up.");
+          s!.except := backup;
+          RecomputeFlowerCurvature(s,poppies,sunflowers);
+          return;
+      fi;
+      if factors[best] <> "ratapprox" then
+          s!.except := backup;
+          ApplyCorrections(s,corr,factors[best]);
+      fi;
+      Sunflower(s,1000,timeout-(Runtime()-starttime));
+      RemoveForbiddenSunflowers(s);
+      Poppy(s);
+      RemoveForbiddenPoppies(s);
+
+      if Length(s!.poppies) = 0 and Length(s!.sunflowers) = 0 then
+          Info(InfoTom,1,"Success! All done.");
+          return;
+      fi;
+
+      Append(sunflowers,s!.sunflowers);
+      Sort(sunflowers);
+      w := 2;
+      for j in [2..Length(sunflowers)] do
+          if sunflowers[j-1] <> sunflowers[j] then
+              sunflowers[w] := sunflowers[j];
+              w := w + 1;
+          fi;
+      od;
+      sunflowers := sunflowers{[1..w-1]};
+
+      Append(poppies,s!.poppies);
+      Sort(poppies);
+      w := 2;
+      for j in [2..Length(poppies)] do
+          if poppies[j-1] <> poppies[j] then
+              poppies[w] := poppies[j];
+              w := w + 1;
+          fi;
+      od;
+      poppies := poppies{[1..w-1]};
+  od;
+  Error();
+  Info(InfoTom,1,"No success, giving up after ",steps," steps.");
 end;
 
 # Sample input:
