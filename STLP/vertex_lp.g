@@ -666,9 +666,14 @@ end;
 
 CompleteExtVertexILeft := function(v,i)
   # A final boundary edge going counter clockwise must be incoming.
-  return rec( in := Concatenation([i],v.in)), out := v.out,
-     name := v.out,
-     p := v.p, curvature := v.curvature ); 
+  return rec( in := Concatenation([i],v.in)), 
+              out := v.out,
+              name := v.out, 
+              p := v.p, 
+              curvature := v.curvature,
+              boundary := true, 
+              valency := v.valency + 1
+      ); 
 end;
 
 CompleteIntVertexLeft := function(v,i)
@@ -678,7 +683,11 @@ CompleteIntVertexLeft := function(v,i)
   return rec( in := Concatenation([i],v.in)),
               out := v.out,
               name := LexLeastRotation(v.out), 
-              p := v.p, curvature := v.curvature ); 
+              p := v.p, 
+              curvature := v.curvature,
+              boundary := false, 
+              valency := v.valency
+      ); 
 end;
 
 BuildVertices0 := function(s,curvature,vertex)
@@ -711,8 +720,21 @@ BuildVertices0 := function(s,curvature,vertex)
   return vertices;
 end;
 
+Uniqueish := function(old,f)
+  local a,b,new;
+  new := [ old[1] ];
+  b := old[1];
+  for a in old do
+    if f(a) <> f(b) then
+      Add(new,a);
+      b := a;
+    fi;
+  od;
+  return new;
+end;
+
 BuildVertices := function(s,curvature)
-  local v,vertices,comp;
+  local v,vertices;
   vertices := [ ];
   for v in [1..Length(s!.halfedges)] do
     if 1 + halfedges[v].contrib > curvature then
@@ -721,25 +743,50 @@ BuildVertices := function(s,curvature)
       );
     fi; 
   od;
-  comp := function(a,b) return a.name < b.name; end;
-  Sort(vertices, comp);
-  return Unique(vertices);
+  Sort(vertices, function(a,b) return a.name < b.name; end );
+  Uniqueish(vertices, x->x.name );
+  return vertices;
 end;
 
 ### STLP Linear Program ###
 
+### ADD EULER CHARACTERISTIC ###
+
+Simplex := function(meow,obj,A,op,b)
+  local i,o,p,r;
+  p := Concatenation(mode," (", PrintString(), ") ([ "):
+  for i in [1..Length(A)] do
+    Append(p, PrintString(A[i]) );
+    Append(p, " :" );
+    Append(p, eq[i] );
+    Append(p, ": " );
+    Append(p, PrintString(b[i]) );
+  od;
+  Append(p, " ]) []");
+  r := "";
+  o := OutputTextString(r);
+  Process(DirectoryCurrent(),"simplex",InputTextNone(),o,p);
+  
+
+  # Use DirectoriesPackageLibrary(..) in future.
+
+end;
+
 LinearSTLP := function(s,curvature)
-  local A,b,r,c,index,i,j,k,vertices,v1,v2;
+  local A,Afaces,Aeuler,op,b,r,c,index,i,j,k,vertices,v1,v2;
   vertices := BuildVertices(s,curvature);
   c := Length(vertices) + Length(s!.relators); 
   r := Length(s!.halfedges) + 1; 
-  index := [];
+  index := []; 
   for i in [1..Length(s!.relators)] do
     index[i] := r; 
     r := r + Length(s!.relators[i].primword);
   od; 
   A := NullMat(r,c);   # equations x variables
   for i in [1..Length(vertices)] do
+    if vertices[i].valency then
+      Aeuler[i] := -1 + 1/vertices[i].valency;
+    fi; 
     for v in vertices[i].out do
       A[v][i] := A[v][i] - 1; 
       he := s!.halfedges[v]; 
@@ -755,15 +802,20 @@ LinearSTLP := function(s,curvature)
     od;
   do;
   for i in [1..Length(s!.relators)] do
-    A[Length(s!.halfedges) + 1][Length(vertices)+i] = 1;
+    Afaces[Length(vertices)+i] = 1;
+    Aeuler[Length(vertices)+i] = 1;
     k := s!.relators[i];
     for j in [1..Length(k.primword) do
       A[index[i]+j][Length(vertices)+i] := -k.power;
     od;
   od;
   b := ListWithIdenticalEntries(r,0);
-  b[Length(s!.halfedges) + 1] = 1;
-  ;
+  op := ListWithIdenticalEntries("=",0);
+  Append(A, [Aeuler, Afaces]);
+  Append(b, [1, 1]);
+  Append(op, ["=", "<="]);
+  Simplex("Minimize",,A,op,b);
+
 end;
 
 
