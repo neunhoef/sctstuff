@@ -797,6 +797,8 @@ LinearSTLP := function(s,curvature)
     r := r + Length(s!.relators[i].primword);
   od; 
   A := NullMat(r,c);   # equations x variables
+  Aeuler := ListWithIdenticalEntries(c,0);
+  Afaces := ListWithIdenticalEntries(c,0);
   obj := ListWithIdenticalEntries(c,0);
   for i in [1..Length(vertices)] do
     if vertices[i].valency then
@@ -837,28 +839,34 @@ LinearSTLP := function(s,curvature)
   return Simplex("Minimize",obj,A,op,b);
 end;
 
+### Testing Utilities ###
 
-
-
-
-DistinctHalfEdgePairs := function(s)
-  local c,v,l;
-  l := [];
-  for v in [1..Length(s!.halfedges)] do
-    c := s!.halfedges[v].complement;
-    if c > v then Add(l, [v,c]); fi;
-  od;
-  return l;
+DoAll := function(s)
+    ComputeEdges(s);
+    RemoveForbiddenEdges(s);
+    IndexEdges(s);
+    InitCornerData(s);
+    Sunflower(s,flowerlimit,timeout);
+    RemoveForbiddenSunflowers(s);
+    Poppy(s);
+    RemoveForbiddenPoppies(s);
+    FindNewRewrites(s);
 end;
 
 
 
 
+pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
+SetElementNames(pongo,"1SR");
+invtab := PlainInvTab([1]);
+SetElementNames(invtab,"T");
 
+rels := ParsePongoLetter(pongo,invtab,
+         ["(ST)^7:10",
+          "(RT)^7:10",
+          "(STRT)^13:10"]);
+rewrites := [];
 
-
-
-
-
+MakeProblem := function(pongo, invtab, relators, rewrites);
 
 

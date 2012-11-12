@@ -1,0 +1,8 @@
+
+A Latice is a free \Z-mdule with positive definite quadratic form,
+  which will satisfy |a+b| = |a| + |b| + <a,b>.
+
+...
+
+
+

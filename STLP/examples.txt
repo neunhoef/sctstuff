@@ -1,0 +1,5 @@
+
+George group 441456 (length 18) should have a theorem of length 2.
+
+
+
