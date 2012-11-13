@@ -995,7 +995,7 @@ TrySeveral := function(lens,n)
     k := Filtered(i, x->not(IsZero(x)) );
     b := biggies[l];
     Print("Length ",l," has ",Length(k),"/",Length(i)," sunflowers : ",sunflowers[l],"\n");
-    Print("  ",List(b,x->Length(x[2]))," halfedges of length ",List(b,x->x[1]),"/",l);
+    Print("  ",List(b,x->Length(x[2]))," halfedges of length ",List(b,x->x[1]),"/",l,"\n");
     # m := Minimum(List(b, x->Length(x[2])));
     # biggies[l] := Filtered(b, x->Length(x[2])=m);
   od;

@@ -842,15 +842,12 @@ end;
 ### Testing Utilities ###
 
 DoAll := function(s)
-    ComputeEdges(s);
-    RemoveForbiddenEdges(s);
+    ComputeInternalEdges(s);
+    ComputeBoundaryEdges(s);
+    # RemoveForbiddenEdges(s);
     IndexEdges(s);
-    InitCornerData(s);
-    Sunflower(s,flowerlimit,timeout);
-    RemoveForbiddenSunflowers(s);
-    Poppy(s);
-    RemoveForbiddenPoppies(s);
-    FindNewRewrites(s);
+    BuildVertices(s);
+    LinearSTLP(s);
 end;
 
 
@@ -861,13 +858,12 @@ SetElementNames(pongo,"1SR");
 invtab := PlainInvTab([1]);
 SetElementNames(invtab,"T");
 
-rels := ParsePongoLetter(pongo,invtab,
+relators := ParsePongoLetter(pongo,invtab,
          ["STSTSTSTRTRTRTSTSTSTRTRTRTRTSTRTSTRT"]);
 
-rels0 := ParsePongoLetter(pongo,invtab,
-         ["(ST)^7:10",
-          "(RT)^7:10",
-          "(STRT)^13:10"]);
+relators0 := ParsePongoLetter(pongo,invtab,
+    ["(ST)^7:10", "(RT)^7:10", "(STRT)^13:10"]);
+
 rewrites := [];
 
 
