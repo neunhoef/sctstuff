@@ -1003,9 +1003,9 @@ TrySeveral := function(lens,n)
   j := "Times : ";
   for i in [2..Length(times)] do
      Print(j,times[i]-times[i-1]);
-     j := "+";
+     j := " + ";
   od;
-  Print("=",times[i]-times[1]);
+  Print(" = ",times[i]-times[1],"ms");
   # return biggies;
 end;
 
