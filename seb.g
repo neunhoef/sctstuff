@@ -973,7 +973,7 @@ SetElementNames(invtab,"T");
 
 TrySeveral := function(lens,n)
   local l,i,j,k,rels,rewrites,s,sunflowers,b,m,biggies,times;
-  sunflowers := [];  biggies := [];  times := [ RunTime() ]
+  sunflowers := [];  biggies := [];  times := [ Runtime() ];
   for l in lens do
     sunflowers[l] := [];   biggies[l] := [];
     for i in [1..n] do
@@ -989,7 +989,7 @@ TrySeveral := function(lens,n)
         Add(biggies[l], [b,m,s.sunflowers,s]);
       fi; 
     od;
-    Add(times, RunTime());
+    Add(times, Runtime());
   od; 
   for l in lens do
     i := sunflowers[l];
