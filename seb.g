@@ -972,8 +972,8 @@ invtab := PlainInvTab([1]);
 SetElementNames(invtab,"T");
 
 TrySeveral := function(lens,n)
-  local l,i,j,k,rels,rewrites,s,sunflowers,b,m,biggies;
-  sunflowers := [];  biggies := [];
+  local l,i,j,k,rels,rewrites,s,sunflowers,b,m,biggies,times;
+  sunflowers := [];  biggies := [];  times := [ RunTime() ]
   for l in lens do
     sunflowers[l] := [];   biggies[l] := [];
     for i in [1..n] do
@@ -988,7 +988,8 @@ TrySeveral := function(lens,n)
       if (b > l/4) then 
         Add(biggies[l], [b,m,s.sunflowers,s]);
       fi; 
-    od; 
+    od;
+    Add(times, RunTime());
   od; 
   for l in lens do
     i := sunflowers[l];
@@ -999,6 +1000,12 @@ TrySeveral := function(lens,n)
     # m := Minimum(List(b, x->Length(x[2])));
     # biggies[l] := Filtered(b, x->Length(x[2])=m);
   od;
+  j := "Times : ";
+  for i in [2..Length(times)] do
+     Print(j,times[i]-times[i-1]);
+     j := "+";
+  od;
+  Print("=",times[i]-times[1]);
   # return biggies;
 end;
 
