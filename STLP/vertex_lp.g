@@ -862,10 +862,14 @@ invtab := PlainInvTab([1]);
 SetElementNames(invtab,"T");
 
 rels := ParsePongoLetter(pongo,invtab,
+         ["STSTSTSTRTRTRTSTSTSTRTRTRTRTSTRTSTRT"]);
+
+rels0 := ParsePongoLetter(pongo,invtab,
          ["(ST)^7:10",
           "(RT)^7:10",
           "(STRT)^13:10"]);
 rewrites := [];
+
 
 MakeProblem := function(pongo, invtab, relators, rewrites);
 
