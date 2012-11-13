@@ -999,7 +999,7 @@ TrySeveral := function(lens,n)
     # m := Minimum(List(b, x->Length(x[2])));
     # biggies[l] := Filtered(b, x->Length(x[2])=m);
   od;
-  return biggies;
+  # return biggies;
 end;
 
 
