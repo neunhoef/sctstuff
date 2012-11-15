@@ -725,6 +725,7 @@ end;
 
 Uniqueish := function(old,f)
   local a,b,new;
+  if IsEmpty(old) then return []; fi;
   new := [ old[1] ];
   b := old[1];
   for a in old do
@@ -845,10 +846,10 @@ LinearSTLP := function(s,curvature)
     od;
   od;
   b := ListWithIdenticalEntries(r,0);
-  op := ListWithIdenticalEntries(r,"=");
+  op := ListWithIdenticalEntries(r,"==");
   Append(A, [Aeuler, Afaces]);
   Append(b, [1, 1]);
-  Append(op, ["=", "<="]);
+  Append(op, ["==", "<="]);
   return Simplex("Minimize",obj,A,op,b);
 end;
 
@@ -991,5 +992,7 @@ relators0 := ParsePongoLetter(pongo,invtab,
 rewrites := [];
 
 s := MakeProblem(pongo, invtab, relators, rewrites);
+
+free := MakeProblem(pongo, invtab, [], rewrites);
 
 

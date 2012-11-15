@@ -57,4 +57,5 @@ main = do
 
 -- fuckit = map (\x -> assert (x /= '\\') x)
 -- s = Simplex (Maximize [ 4, -3, 2 ]) (Dense [ [ 2, 1, 0 ] :<=: 10, [ 0, 1, 5 ] :<=: 20 ]) []
+-- s = Simplex (Minimize [ ]) (Dense [ [ ] :=: 0, [ ] :=: 1, [ ] :<=: 1 ]) []
 
