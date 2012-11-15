@@ -851,7 +851,118 @@ DoAll := function(s)
 end;
 
 
+# Sample input:
 
+Rep := function(w,pow)
+  local i,res;
+  res := [];
+  for i in [1..pow] do
+      Append(res,w);
+  od;
+  return res;
+end;
+
+ParsePongoLetter := function(pongo,invtab,st)
+    # st a string, must be even length and pongo,letter,pongo,letter
+    # letter names for pongo and letter are allowed
+    # (...)^int is allowed for repetition
+    local area,i,inamtab,nextpongo,pair,pnamtab,pow,ran,res,stack,stack2;
+    pnamtab := ElementNameTable(pongo);
+    inamtab := ElementNameTable(invtab);
+    if pnamtab = fail or inamtab = fail then
+        Error("need element name tables in pongo and invtab");
+        return fail;
+    fi;
+    if not(IsStringRep(st)) and IsList(st) and Length(st) >= 1 and
+       IsStringRep(st[1]) then
+        return List(st,x->ParsePongoLetter(pongo,invtab,x));
+    fi;
+    res := [];
+    i := 1;
+    stack := [];
+    stack2 := [];
+    nextpongo := true;
+    area := 10;
+    while i <= Length(st) do
+        if st[i] = '(' then
+            if not nextpongo then
+                Error("opening bracket only between letter and pongo possible");
+                return fail;
+            fi;
+            Add(stack,Length(res)+1);
+        elif st[i] = ')' then
+            if Length(stack) = 0 then
+                Error("too many closing brackets");
+                return fail;
+            fi;
+            Add(stack2,[Remove(stack)..Length(res)]);
+        elif st[i] = '^' then
+            if Length(stack2) = 0 then
+                Error("no bracket expression before ^");
+                return fail;
+            fi;
+            ran := Remove(stack2);
+            # Now read an int:
+            i := i + 1;
+            pow := 0;
+            while i <= Length(st) and st[i] >= '0' and st[i] <= '9' do
+                pow := pow * 10 + IntChar(st[i]) - IntChar('0');
+                i := i + 1;
+            od;
+            if pow = 0 then
+                Error("power 0 not allowed");
+                return fail;
+            fi;
+            while true do
+                pow := pow - 1;
+                if pow <= 0 then break; fi;
+                Append(res,res{ran});
+            od;
+            i := i - 1;
+        elif st[i] = ':' then
+            # Now read an int:
+            i := i + 1;
+            area := 0;
+            while i <= Length(st) and st[i] >= '0' and st[i] <= '9' do
+                area := area * 10 + IntChar(st[i]) - IntChar('0');
+                i := i + 1;
+            od;
+            i := i - 1;
+        elif nextpongo then
+            if not(IsBound(pnamtab[IntChar(st[i])])) then
+                Error("not a pongo element: ",st[i]);
+            fi;
+            pair := [pnamtab[IntChar(st[i])],0];
+            nextpongo := false;
+        else 
+            if not(IsBound(inamtab[IntChar(st[i])])) then
+                Error("not an invtab element: ",st[i]);
+            fi;
+            pair[2] := inamtab[IntChar(st[i])];
+            Add(res,pair);
+            nextpongo := true;
+        fi;
+        i := i + 1;
+    od;
+    res := LexLeastRotation(res);
+    return rec( primword := res[1], power := res[2], area := area );
+end;
+
+Pretty := function(pongo,invtab,word)
+  local i,inams,pnams,res;
+  pnams := ElementNames(pongo);
+  inams := ElementNames(invtab);
+  if pnams = fail or inams = fail then
+      Error("need element name tables in pongo and invtab");
+      return fail;
+  fi;
+  res := "";
+  for i in [1..Length(word)] do
+      Add(res,pnams[word[i][1]]);
+      Add(res,inams[word[i][2]]);
+  od;
+  return res;
+end;
 
 pongo := CayleyPongo([[1,2,3],[2,3,1],[3,1,2]],1);
 SetElementNames(pongo,"1SR");
@@ -866,7 +977,6 @@ relators0 := ParsePongoLetter(pongo,invtab,
 
 rewrites := [];
 
-
-MakeProblem := function(pongo, invtab, relators, rewrites);
+s := MakeProblem(pongo, invtab, relators, rewrites);
 
 
