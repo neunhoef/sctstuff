@@ -587,7 +587,7 @@ ComputeBoundaryEdges := function(s)
     r := s!.relators[i];
     l := RelatorLength(r);
     for j in [1..Length(r.primword)] do
-      for k in [1..Floor(l/2)] do
+      for k in [1..Int(l/2)] do
         he := rec( relator := i, start := j, length := k,
                    complement := 0, contrib := -1 + k/l );
         Add(s!.halfedges, he);
@@ -641,13 +641,15 @@ Last := function(l)  return l[Length(l)];  end;
 HalfEdgePongo := function(s,i)
   local he;
   he := s!.halfedges[i];
-  return s!.realtors[he.relator].primword[he.start][1];
+  return s!.relators[he.relator].primword[he.start][1];
 end;
 
 StartVertexO := function(s,o)
   return rec( outgoing := [o], incoming := [],
      p := HalfEdgePongo(s,o), 
-     curvature := 1 + s!.halfedges[o].contrib
+     curvature := 1 + s!.halfedges[o].contrib,
+     boundary := s!.halfedges[o].complement=0,
+     valency := 1
   );
 end;
 
@@ -660,7 +662,8 @@ AddToVertexIOLeft := function(s,v,i,o)
      incoming := Concatenation([i],v.incoming),
      outgoing := Concatenation([o],v.outgoing),
      p := PongoMult(s!.pongo, HalfEdgePongo(s,o), v.p),
-     curvature := v.curvature + s!.halfedges[o].contrib 
+     curvature := v.curvature + s!.halfedges[o].contrib,
+     valency := v.valency + 1
   ); 
 end;
 
@@ -707,7 +710,7 @@ BuildVertices0 := function(s,curvature,vertex)
     if j > Last(vertex.outgoing) then continue; fi;
     if ( j = Last(vertex.outgoing) and Length(vertex.outgoing) > 2 and
          IsAccepting(s!.pongo,vertex.p) ) then
-      Add(vertices, CompleteIntVertexLeft(vertex,i,j) );
+      Add(vertices, CompleteIntVertexLeft(vertex,i) );
     fi; 
     he := s!.halfedges[j]; 
     if vertex.curvature + he.contrib > curvature then
@@ -735,6 +738,7 @@ end;
 
 BuildVertices := function(s,curvature)
   local v,vertices;
+  Info(InfoSTLP,1,"Finding curved vertices...");
   vertices := [ ];
   for v in [1..Length(s!.halfedges)] do
     if 1 + s!.halfedges[v].contrib > curvature then
@@ -745,6 +749,7 @@ BuildVertices := function(s,curvature)
   od;
   Sort(vertices, function(a,b) return a.name < b.name; end );
   Uniqueish(vertices, x->x.name );
+  Info(InfoSTLP,1,"Number of curved vertices: ",Length(vertices),".");
   return vertices;
 end;
 
@@ -757,18 +762,19 @@ end;
 
 RawRatList := function(s)
   ChopBoth(s);
-  return List(SplitString(s),Rat);
+  return List(SplitString(s,","),Rat);
 end;
 
 RawDeTuple := function(s)
   ChopBoth(s);
   return SplitString(s,",");
-end;
+end; 
 
 Simplex := function(mode,obj,A,op,b)
   local i,o,p,r;
-  p := Concatenation(mode," (", PrintString(), ") ([ ");
+  p := Concatenation("(",mode," ",PrintString(obj),") (Dense [ ");
   for i in [1..Length(A)] do
+    if i>1 then Append(p, ", " ); fi;
     Append(p, PrintString(A[i]) );
     Append(p, " :" );
     Append(p, op[i] );
@@ -776,14 +782,21 @@ Simplex := function(mode,obj,A,op,b)
     Append(p, PrintString(b[i]) );
   od;
   Append(p, " ]) []");
+  o := Filename(DirectoryTemporary(),"foo.tmp");
+  PrintTo(o,p);
+  Info(InfoSTLP,1,"Running Simplex : ./simplex < ",o,"\n");
   r := "";
+  i := InputTextString(p);
   o := OutputTextString(r,true);
-  Process(DirectoryCurrent(),"simplex",InputTextNone(),o,p);
-  CloseStream(o);
+  Process(DirectoryCurrent(),"simplex",i,o,[]);
   # Use DirectoriesPackageLibrary(..) in future.
+  CloseStream(o);
+  Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
   r := SplitString(r," ");
-  o := RawDeTuple(r[2]);
-  return rec( status := r[1], value := Rat(o[1]), param := RawRatList(o[2]) );
+  RemoveCharacters(r[2], "[]\n" );
+  o := RawRatList(r[2]);
+  return rec( status := r[1], value := o[1], 
+     param := o{[2..Length(o)]} );
 end;
 
 LinearSTLP := function(s,curvature)
@@ -801,7 +814,7 @@ LinearSTLP := function(s,curvature)
   Afaces := ListWithIdenticalEntries(c,0);
   obj := ListWithIdenticalEntries(c,0);
   for i in [1..Length(vertices)] do
-    if vertices[i].valency then
+    if vertices[i].boundary then
       Aeuler[i] := -1 + 1/vertices[i].valency;
     fi; 
     for v in vertices[i].outgoing do
@@ -841,13 +854,13 @@ end;
 
 ### Testing Utilities ###
 
-DoAll := function(s)
+DoAll := function(s,curvature)
     ComputeInternalEdges(s);
     ComputeBoundaryEdges(s);
     # RemoveForbiddenEdges(s);
     IndexEdges(s);
-    BuildVertices(s);
-    LinearSTLP(s);
+    # BuildVertices(s,curvature);
+    LinearSTLP(s,curvature);
 end;
 
 

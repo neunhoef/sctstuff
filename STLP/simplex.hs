@@ -27,6 +27,8 @@ module Main ( main ) where
 
 import System.Environment ( getArgs )
 import Numeric.LinearProgramming
+import Control.Exception
+-- import Debug.Trace
 
 deriving instance Show Optimization
 deriving instance Show Constraints
@@ -40,9 +42,19 @@ data Simplex = Simplex Optimization Constraints Bounds deriving Read
 do_simplex = show . go . read . ("Simplex " ++)
     where  go (Simplex p c b) = simplex p c b
 
+cleanup ('\\':'\n':l) = cleanup l 
+cleanup (a:l) = a : (cleanup l)
+cleanup [] = []
+
+
 main = do
         args <- getArgs
         if  not (null args)  
         then  putStr (unlines $ map do_simplex args)
-        else  interact (unlines . map do_simplex . lines)
+        else  interact (unlines . map do_simplex . lines . cleanup)
+
+
+
+-- fuckit = map (\x -> assert (x /= '\\') x)
+-- s = Simplex (Maximize [ 4, -3, 2 ]) (Dense [ [ 2, 1, 0 ] :<=: 10, [ 0, 1, 5 ] :<=: 20 ]) []
 
