@@ -46,7 +46,6 @@ cleanup ('\\':'\n':l) = cleanup l
 cleanup (a:l) = a : (cleanup l)
 cleanup [] = []
 
-
 main = do
         args <- getArgs
         if  not (null args)  

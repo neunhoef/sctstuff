@@ -773,16 +773,15 @@ end;
 
 Simplex := function(mode,obj,A,op,b)
   local i,o,p,r;
-  p := Concatenation("(",mode," ",PrintString(obj),") (Dense [ ");
+  p := Concatenation("(",mode," ",PrintString(obj),")\n[]\n");
   for i in [1..Length(A)] do
-    if i>1 then Append(p, ", " ); fi;
-    Append(p, PrintString(A[i]) );
+    Append(p, PrintString(List(A[i],Float)) );
     Append(p, " :" );
     Append(p, op[i] );
     Append(p, ": " );
-    Append(p, PrintString(b[i]) );
+    Append(p, PrintString(Float(b[i])) );
+    Append(p, "\n" );
   od;
-  Append(p, " ]) []");
   o := Filename(DirectoryTemporary(),"foo.tmp");
   PrintTo(o,p);
   Info(InfoSTLP,1,"Running Simplex : ./simplex < ",o,"\n");
@@ -834,7 +833,7 @@ LinearSTLP := function(s,curvature)
     if vertices[i].boundary=true then
       j := vertices[i].outgoing[1];
       he := s!.halfedges[j];
-      obj[j] := obj[j] + he.length;
+      obj[i] := obj[i] + he.length;
     fi;
   od;
   for i in [1..Length(s!.relators)] do
