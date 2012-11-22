@@ -868,7 +868,7 @@ Sunflower := function(r,flowerlimit,timeout)
   # Find all positively curved sunflowers.
   local DoStep,Y,c,ce1e2,d,e,e1,e2,ee,he,he1,he2,hee,j,k,kk,len,n,pos,
         re1e2,rel,rellene,sometodo,start,starttime,t;
-  Info(InfoTom,1,"Running sunflower with timeout ",timeout,"...");
+  Info(InfoTom,2,"Running sunflower with timeout ",timeout,"...");
   starttime := Runtime();
   r!.sunflowers := [];
   # This investigates whether there is a goes up and stays up sunflower
@@ -993,9 +993,9 @@ Sunflower := function(r,flowerlimit,timeout)
       fi;
   od;
   if Length(r!.sunflowers) = 0 then
-      Info(InfoTom,1,"Completed sunflower successfully, none found.");
+      Info(InfoTom,2,"Completed sunflower successfully, none found.");
   else
-      Info(InfoTom,1,"Completed sunflower, found ",Length(r!.sunflowers),
+      Info(InfoTom,2,"Completed sunflower, found ",Length(r!.sunflowers),
            " sunflowers.");
   fi;
 
@@ -1003,10 +1003,10 @@ end;
 
 RemoveForbiddenSunflowers := function(s)
   # Does what it says.
-  Info(InfoTom,1,"Removing forbidden sunflowers...");
+  Info(InfoTom,2,"Removing forbidden sunflowers...");
 
   if IsBound(s!.sunflowers) then
-      Info(InfoTom,1,"Sunflowers left: ",Length(s!.sunflowers),".");
+      Info(InfoTom,2,"Sunflowers left: ",Length(s!.sunflowers),".");
   fi;
 end;
 
@@ -1030,7 +1030,7 @@ Poppy := function(s)
   # A case is a list [curv,e1,e2,e3,...,e_{v-1}] of halfedges
   local a,anew,c,ca,cases,d,e,e1,e2,ee,eee,f,found,he,he1,he1c,he2,he2c,
         hee,heee,i,j,newca,newcases,newstart,p,poppy,pos,rel,todelete,v;
-  Info(InfoTom,1,"Running poppy...");
+  Info(InfoTom,2,"Running poppy...");
 
   s!.poppies := [];
   v := 3;
@@ -1149,9 +1149,9 @@ Poppy := function(s)
       cases := newcases;
   od;
   if Length(s!.poppies) = 0 then
-      Info(InfoTom,1,"Completed poppy successfully, none found.");
+      Info(InfoTom,2,"Completed poppy successfully, none found.");
   else
-      Info(InfoTom,1,"Completed poppy, found ",Length(s!.poppies),
+      Info(InfoTom,2,"Completed poppy, found ",Length(s!.poppies),
            " poppies.");
   fi;
 
@@ -1159,10 +1159,10 @@ end;
 
 RemoveForbiddenPoppies := function(s)
   # Does what it says.
-  Info(InfoTom,1,"Removing forbidden poppies...");
+  Info(InfoTom,2,"Removing forbidden poppies...");
 
   if IsBound(s!.poppies) then
-      Info(InfoTom,1,"Poppies left: ",Length(s!.poppies),".");
+      Info(InfoTom,2,"Poppies left: ",Length(s!.poppies),".");
   fi;
 end;
 
@@ -1234,6 +1234,68 @@ FindCorrection := function(s,poppies,sunflowers)
   corrections := List([1..Length(forces)],i->(forces[i][1]+forces[i][2])*2);
   return rec(corners := corners, forces := forces, corrections := corrections);
 end;
+
+Ymaxsq := function(x)
+  if x <= 0 then return 0;
+  else return x^2; fi;
+end;
+
+dYmaxsq := function(x)
+  if x <= 0 then return 0;
+  else return 2*x; fi;
+end;
+
+FindGradient := function(s,poppies,sunflowers,dY)
+  # This computes the gradient of the badness function.
+  # Y is a function in one variable used in the badness function
+  # dY must be its derivative
+  local corner,corners,gradient,i,l,p,pos,v;
+  corners := [];
+  gradient := [];
+  for p in poppies do
+    if p.curv > 0 then    # happy poppies do not exert force!
+      l := ShallowCopy(p.hes);
+      v := Length(l);
+      Add(l,p.hes[1]);
+      for i in [1..v] do
+          corner := [l[i],s!.halfedges[l[i+1]].complement];
+          pos := PositionSorted(corners,corner);
+          if pos > Length(corners) or corners[pos] <> corner then
+              Add(corners,corner,pos);
+              Add(gradient,0,pos);
+          fi;
+          gradient[pos] := gradient[pos] + dY(p.curv);
+      od;
+    fi;
+  od;
+  for p in sunflowers do
+    if p.curv > 0 then   # happy sunflowers do not exert force!
+      l := ShallowCopy(p.hes);
+      v := Length(l);
+      Add(l,p.hes[1]);
+      for i in [1..v] do
+          corner := [l[i],l[i+1]];
+          pos := PositionSorted(corners,corner);
+          if pos > Length(corners) or corners[pos] <> corner then
+              Add(corners,corner,pos);
+              Add(gradient,0,pos);
+          fi;
+          gradient[pos] := gradient[pos] - dY(p.curv);
+      od;
+    fi;
+  od;
+  return rec(corners := corners, gradient := gradient);
+end;
+
+ApplyGradient := function(s,grad,factor)
+  local c,i;
+  for i in [1..Length(grad.corners)] do
+      c := LookupCornerValue(s,grad.corners[i][1],grad.corners[i][2]);
+      ChangeCornerException(s,grad.corners[i][1],grad.corners[i][2],
+                            c+grad.gradient[i]*factor);
+  od;
+end;
+  
 
 ApplyCorrections := function(s,corr,factor)
   local c,i;
@@ -1332,17 +1394,19 @@ ApproximateExceptions := function(s,prec)
   od;
 end;
 
-Badness := function(poppies,sunflowers)
+Badness := function(poppies,sunflowers,Y)
+  # Y is a function in one variable used in the badness function
+  # dY must be its derivative
   local i,p,sum;
   sum := 0;
   for p in poppies do
       if p.curv > 0 then
-          sum := sum + p.curv^2;
+          sum := sum + Y(p.curv);
       fi;
   od;
   for p in sunflowers do
       if p.curv > 0 then
-          sum := sum + p.curv^2;
+          sum := sum + Y(p.curv);
       fi;
   od;
   return sum;
@@ -1388,7 +1452,7 @@ ApproximateGoodOfficer := function(s,steps,timeout)
           RecomputeFlowerCurvature(s,poppies,sunflowers);
           newbadness := Badness(poppies,sunflowers);
           if newbadness < badness then
-              Info(InfoTom,1,"Factor ",factors[j]," improves badness to ",
+              Info(InfoTom,2,"Factor ",factors[j]," improves badness to ",
                    Float(newbadness),".");
               badness := newbadness;
               best := j;
@@ -1415,28 +1479,142 @@ ApproximateGoodOfficer := function(s,steps,timeout)
       fi;
 
       Append(sunflowers,s!.sunflowers);
-      Sort(sunflowers);
-      w := 2;
-      for j in [2..Length(sunflowers)] do
-          if sunflowers[j-1] <> sunflowers[j] then
-              sunflowers[w] := sunflowers[j];
-              w := w + 1;
-          fi;
-      od;
-      sunflowers := sunflowers{[1..w-1]};
+      if Length(sunflowers) > 0 then
+          Sort(sunflowers);
+          w := 2;
+          for j in [2..Length(sunflowers)] do
+              if sunflowers[j-1] <> sunflowers[j] then
+                  sunflowers[w] := sunflowers[j];
+                  w := w + 1;
+              fi;
+          od;
+          sunflowers := sunflowers{[1..w-1]};
+      fi;
 
       Append(poppies,s!.poppies);
-      Sort(poppies);
-      w := 2;
-      for j in [2..Length(poppies)] do
-          if poppies[j-1] <> poppies[j] then
-              poppies[w] := poppies[j];
-              w := w + 1;
-          fi;
-      od;
-      poppies := poppies{[1..w-1]};
+      if Length(poppies) > 0 then
+          Sort(poppies);
+          w := 2;
+          for j in [2..Length(poppies)] do
+              if poppies[j-1] <> poppies[j] then
+                  poppies[w] := poppies[j];
+                  w := w + 1;
+              fi;
+          od;
+          poppies := poppies{[1..w-1]};
+      fi;
   od;
   Error();
+  Info(InfoTom,1,"No success, giving up after ",steps," steps.");
+end;
+
+GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY,prec)
+  # Idea: Take the poppies and sunflowers, compute a gradient and then
+  # apply that one with different factors, take the best and repeat.
+  # Also try a rational approximation with small denominators as an 
+  # alternative.
+  # Y is a function in one variable used in the badness function
+  # dY must be its derivative
+  # prec is an integer for the precision of the rational approximation
+  # We assume that poppy and sunflower have just run with the current
+  # exceptions.
+  local backup,badness,best,factors,grad,i,j,newbadness,norm,poppies,
+        starttime,sunflowers,w;
+  starttime := Runtime();
+  poppies := Set(s!.poppies);
+  sunflowers := Set(s!.sunflowers);
+  if Length(poppies) + Length(sunflowers) = 0 then
+      Info(InfoTom,1,"Nothing to do, no poppies or sunflowers!");
+      return;
+  fi;
+  factors := [1/5,3/5,1,2,3];
+  for i in [1..steps] do
+      badness := Badness(poppies,sunflowers,Y);
+      #if i < 5 then 
+      #    factors := [1/5,3/5,1];
+      #elif badness * 100 < 1 then
+      #    factors := [1/5,3/5,1,2,3];
+      #else
+      #    factors := [1/5,2/5,3/5,4/5,1,6/5];
+      #fi;
+      Info(InfoTom,1,"Badness: ",Float(RationalApproximation(badness,10^20)),
+                     " before step ",i," of ",steps,"...");
+      Info(InfoTom,1,"Have ",Length(s!.poppies),"/",Length(poppies),
+           " poppies and ",Length(s!.sunflowers),"/",Length(sunflowers),
+           " sunflowers.");
+      if Runtime()-starttime > timeout then 
+          Info(InfoTom,1,"Timeout reached, giving up...");
+          return;
+      fi;
+      backup := s!.except;
+      grad := FindGradient(s,poppies,sunflowers,dY);
+      norm := -badness/Sum(grad.gradient,x->x^2);
+      best := 0;
+      for j in [1..Length(factors)] do
+          s!.except := StructuralCopy(backup);
+          ApplyGradient(s,grad,factors[j]*norm);
+          ApproximateExceptions(s,prec);
+          Sunflower(s,1000,timeout-(Runtime()-starttime));
+          RemoveForbiddenSunflowers(s);
+          Poppy(s);
+          RemoveForbiddenPoppies(s);
+          if Length(s!.poppies) = 0 and Length(s!.sunflowers) = 0 then
+              Info(InfoTom,1,"Success with factor ",factors[j],"! All done.");
+              return;
+          fi;
+          newbadness := Badness(s!.poppies,s!.sunflowers,Y);
+          if newbadness < badness then
+              Info(InfoTom,2,"Factor ",factors[j]," improves badness to ",
+                   Float(RationalApproximation(newbadness,10^20)),".");
+              badness := newbadness;
+              best := j;
+          else
+              Info(InfoTom,2,"Factor ",factors[j]," worsens badness to ",
+                   Float(RationalApproximation(newbadness,10^20)),".");
+          fi;
+      od;
+      if best = 0 then
+          Info(InfoTom,1,"No correction made it better, giving up.");
+          s!.except := backup;
+          RecomputeFlowerCurvature(s,poppies,sunflowers);
+          return;
+      fi;
+      Info(InfoTom,1,"Used factor ",factors[best]);
+      s!.except := backup;
+      ApplyGradient(s,grad,factors[best]*norm);
+      ApproximateExceptions(s,prec);
+      Sunflower(s,1000,timeout-(Runtime()-starttime));
+      RemoveForbiddenSunflowers(s);
+      Poppy(s);
+      RemoveForbiddenPoppies(s);
+      RecomputeFlowerCurvature(s,poppies,sunflowers);
+
+      Append(sunflowers,s!.sunflowers);
+      if Length(sunflowers) > 0 then
+          Sort(sunflowers);
+          w := 2;
+          for j in [2..Length(sunflowers)] do
+              if sunflowers[j-1] <> sunflowers[j] then
+                  sunflowers[w] := sunflowers[j];
+                  w := w + 1;
+              fi;
+          od;
+          sunflowers := sunflowers{[1..w-1]};
+      fi;
+
+      Append(poppies,s!.poppies);
+      if Length(poppies) > 0 then
+          Sort(poppies);
+          w := 2;
+          for j in [2..Length(poppies)] do
+              if poppies[j-1] <> poppies[j] then
+                  poppies[w] := poppies[j];
+                  w := w + 1;
+              fi;
+          od;
+          poppies := poppies{[1..w-1]};
+      fi;
+  od;
   Info(InfoTom,1,"No success, giving up after ",steps," steps.");
 end;
 
@@ -1455,6 +1633,7 @@ ParsePongoLetter := function(pongo,invtab,st)
     # st a string, must be even length and pongo,letter,pongo,letter
     # letter names for pongo and letter are allowed
     # (...)^int is allowed for repetition
+    # :A specifies the area of the relator
     local area,i,inamtab,nextpongo,pair,pnamtab,pow,ran,res,stack,stack2;
     pnamtab := ElementNameTable(pongo);
     inamtab := ElementNameTable(invtab);
