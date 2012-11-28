@@ -1837,3 +1837,10 @@ Do := function(n)
   GradientApproximateGoodOfficer(s,10000,1000000,Ymaxsq,dYmaxsq,1000000);
 end;
 
+clean := function(l)
+  local i;
+  if IsList(l) then
+     return List(l,clean);
+  elif IsInt(l) then return l; 
+  else return Float(l); fi;
+end;
