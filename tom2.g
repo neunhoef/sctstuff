@@ -1,4 +1,6 @@
 
+# For the released GAP:
+
 InstallMethod(ViewString, "for integer", [IsInt], function(n)
   local mb, l, start, trail;
   mb := UserPreference("MaxBitsIntView");
@@ -22,12 +24,13 @@ InstallMethod(ViewString, "for integer", [IsInt], function(n)
   fi;
 end);
 
+LoadPackage("orb");
 
 # This implements what is laid out on a sheet of paper in my notebook.
 # It verifies an officer called "Tom" which is based on corner values.
 
 DeclareInfoClass("InfoTom");
-SetInfoLevel(InfoTom,1);
+SetInfoLevel(InfoTom,2);
 SetAssertionLevel(1);
 
 # Some utilities:
@@ -810,89 +813,114 @@ IndexEdges := function(s)
   s!.heindex := index;
 end;
 
-AddCornerException := function(s,e1,e2,c)
-  local he2,rellen2;
-  AddSet(s!.except[e1],[c,e2]);
+AddCornerException := function(s,p,c)
+  # Just a stub to be replaced further down
+  # p=[e1,e2] can either already be an exception or not.
+  # if p is an integer, it is a corner number
 end;
 
-ChangeCornerException := function(s,e1,e2,c)
-  # This is slow, but could be replaced by something faster
-  local i,l;
-  l := s!.except[e1];
-  for i in [1..Length(l)] do
-      if l[i][2] = e2 then l[i][1] := c; Sort(l); return; fi;
-  od;
-  AddCornerException(s,e1,e2,c);
-end;
-
-LookupCornerValue := function(s,e1,e2)
-  # This is slow, but could be replaced by something faster
-  local he1,he2,i,l,p1,p2,rel1,rel2;
-  l := s!.except[e1];
-  for i in [1..Length(l)] do
-      if l[i][2] = e2 then return l[i][1]; fi;
-  od;
-  # Now the default values:
-  he1 := s!.halfedges[s!.halfedges[e1].complement];
-  rel1 := s!.relators[he1!.relator];
-  p1 := he1.start;
-  he2 := s!.halfedges[s!.halfedges[e2].complement];
-  rel2 := s!.relators[he2!.relator];
-  p2 := IndexPrimWord(rel2,he2.start+he2.length-1);
-  if IsOneCompletable(s,e1,e2) then
-      return 1/6;
-  else 
-      return 1/4;
-  fi;
-end;
-
-IsExceptionalCorner := function(s,e1,e2)
-  # This is slow, but could be replaced by something faster
-  local i,l;
-  l := s!.except[e1];
-  for i in [1..Length(l)] do
-      if l[i][2] = e2 then return true; fi;
-  od;
-  return false;
-end;
-
-InitCornerData := function(s)
+InitCornerData := function(s,circle)
   # Initialise the data structures for corner exception lists
   local e1,endpos,he1,i,ind,len1,r,rel;
   Info(InfoTom,1,"Initialising corner data structures...");
 
   # A corner is a certain pair of halfedges [e1,e2].
+  # Curvature is stored in units of 1/circle, if we mention 0 <= c <= 1
+  # in comments we mean c/circle.
   # Every corner value is 1/6 or 1/4, unless it is an exception.
   # It is 1/6 if there is a vertex of valency 3 containing this corner
   # and otherwise 1/4.
-  # Every exceptional corner value v of a corner [e1,e2] is stored
-  # under s!.except[e1][i] = [v,e2] and all s!.except[e1] are lists sorted
-  # in lexicographically increasing order.
-  s!.except := List([1..Length(s!.halfedges)],i->[]);
+  # We maintain a list of exceptional corners "!.cornleft" and
+  # "!.cornright" and a hash table "!.cornhash" to find the number of a
+  # corner [e1,e2]. The exceptional values are then stored in "!.cornval"
+  # which is a list of the same length as "!.cornleft".
+  # To find the exceptional corners with left hand side e1 we keep
+  # in "!.cornindex[e1]" a list of all corner numbers of the [e1,e2].
+  s!.cornleft := EmptyPlist(1000);
+  s!.cornright := EmptyPlist(1000);
+  s!.cornval := EmptyPlist(1000);
+  s!.cornindex := List([1..Length(s!.halfedges)],i->[]);
+  s!.cornhash := HTCreate(fail,rec(hashlen := NextPrimeInt(10000),
+                                   forflatplainlists := true));
+  s!.circle := circle;
 
   # This also needs to find all corners with average relative length greater
   # than the default corner value to put them on the exception list.
   for e1 in [1..Length(s!.halfedges)] do
       he1 := s!.halfedges[e1];
       rel := s!.relators[he1.relator];
-      len1 := he1.length/(RelatorLength(rel)*2);
+      len1 := he1.length*circle/(RelatorLength(rel)*2);
       i := 1;
       endpos := IndexPrimWord(rel,he1.start+he1.length);
       ind := s!.heindex[he1.relator][endpos];
       for i in [1..Length(ind)] do
-          r := len1 + s!.halfedges[ind[i]].length/(RelatorLength(rel)*2);
-          if r <= 1/6 then break; fi;
-          if r > 1/4 or (IsOneCompletable(s,e1,ind[i]) and r > 1/6) then
-              AddCornerException(s,e1,ind[i],r);
+          r := len1 + s!.halfedges[ind[i]].length*circle/(RelatorLength(rel)*2);
+          if 6 * r <= circle then break; fi;
+          if IsOneCompletable(s,e1,ind[i]) then
+              # Default value would be 1/6
+              AddCornerException(s,[e1,ind[i]],Int((r+circle/6)/2));
+          elif 4 * r > circle then
+              # Default value would be 1/4
+              AddCornerException(s,[e1,ind[i]],Int((r+circle/4)/2));
           fi;
       od;
   od;
 end;
 
+AddCornerException := function(s,p,c)
+  # p=[e1,e2] can either already be an exception or not.
+  # if p is an integer, it is a corner number
+  local pos;
+  if IsInt(p) then
+    s!.cornval[p] := c;
+  else
+    pos := HTValue(s!.cornhash,p);
+    if pos = fail then
+      Add(s!.cornleft,p[1]);
+      Add(s!.cornright,p[2]);
+      pos := Length(s!.cornleft);
+      Add(s!.cornindex[p[1]],pos);
+      HTAdd(s!.cornhash,ShallowCopy(p),pos);
+    fi;
+    s!.cornval[pos] := c;
+  fi;
+end;
+
+LookupCornerValue := function(s,p)
+  local he1,he2,p1,p2,pos,rel1,rel2;
+  if IsInt(p) then
+    return s!.cornval[p];
+  fi;
+  pos := HTValue(s!.cornhash,p);
+  if pos <> fail then
+    return s!.cornval[pos];
+  fi;
+  # Now the default values:
+  he1 := s!.halfedges[s!.halfedges[p[1]].complement];
+  rel1 := s!.relators[he1!.relator];
+  p1 := he1.start;
+  he2 := s!.halfedges[s!.halfedges[p[2]].complement];
+  rel2 := s!.relators[he2!.relator];
+  p2 := IndexPrimWord(rel2,he2.start+he2.length-1);
+  if IsOneCompletable(s,p[1],p[2]) then
+      return 1/6;
+  else 
+      return 1/4;
+  fi;
+end;
+
+IsExceptionalCorner := function(s,p)
+  local pos;
+  pos := HTValue(s!.cornhash,p);
+  return pos <> fail;
+end;
+
 Sunflower := function(r,flowerlimit,timeout)
   # Find all positively curved sunflowers.
-  local DoStep,Y,c,ce1e2,d,e,e1,e2,ee,he,he1,he2,hee,j,k,kk,len,n,pos,
-        re1e2,rel,rellene,sometodo,start,starttime,t;
+  local DoStep,Y,c,ce1e2,circle,co,cornindex,cornright,cornval,d,e,e1,e2,
+        ee,halfedges,he,he1,he2,hee,heindex,j,k,kk,len,n,pos,re1e2,rel,
+        relators,rellene,sometodo,start,starttime,t;
+
   Info(InfoTom,3,"Running sunflower with timeout ",timeout,"...");
   starttime := Runtime();
   r!.sunflowers := [];
@@ -902,23 +930,26 @@ Sunflower := function(r,flowerlimit,timeout)
   # where r(e1,e2) is the average relative length of the two halfedges
   # (i.e. (l(e1)+l(e2))/(2*len) where len is the full relator length)
   # and c(e1,e2) is the corner value.
-  # Every corner value c(e1,e2) not on the exception list is 1/6.
-  # We know: if r(e1,e2) > 1/6 then c(e1,e2) is on the exception list.
+  # Every corner value c(e1,e2) not on the exception list is either 1/6
+  # or 1/4.
+  # We know: if r(e1,e2) > 1/6 (or 1/4 in the other case), then 
+  # c(e1,e2) is on the exception list.
   # Thus: We only have to start with corners on the exception list.
   DoStep := function(ee,d)
     # This uses variables n, he, len, e1, r, Y from the outer function!
     local f,flow,nn,s;
     nn := n + he.length;
     if nn >= len then
-        if nn > len then continue; fi;
-        if ee <> e1 then continue; fi;
+        if nn > len then return; fi;
+        if ee <> e1 then return; fi;
         # Hurray! We found a sunflower!
-        flow := rec( curv := d, hes := []);
+        flow := rec( curv := d, hes := EmptyPlist(6));
         s := t;
         while s <> fail do
-            Add(flow.hes,s[1],1);
+            Add(flow.hes,s[1]);
             s := s[3];
         od;
+        flow.hes := Reversed(flow.hes);
         Add(r!.sunflowers,flow);
         Info(InfoTom,3,"Found sunflower, curvature ",d);
     else
@@ -936,21 +967,30 @@ Sunflower := function(r,flowerlimit,timeout)
     fi;
   end;
 
+  # to speed up access (and save some ! signs):
+  cornindex := r!.cornindex;
+  cornright := r!.cornright;
+  cornval := r!.cornval;
+  halfedges := r!.halfedges;
+  relators := r!.relators;
+  circle := r!.circle;
+  heindex := r!.heindex;
+
   # First run through all possible first halfedges:
-  for e1 in [1..Length(r!.halfedges)] do
+  for e1 in [1..Length(halfedges)] do
       # Y[n] contains segments of length n, each element is a triple
       # [e2,curvsum,previous]
       start := [e1,0,fail];
       Y := [];
       sometodo := false;
-      for j in [1..Length(r!.except[e1])] do
-          e2 := r!.except[e1][j][2];
-          ce1e2 := r!.except[e1][j][1];
-          he1 := r!.halfedges[e1];
-          rel := r!.relators[he1.relator];
-          he2 := r!.halfedges[e2];
+      for co in cornindex[e1] do
+          e2 := cornright[co];
+          ce1e2 := cornval[co];
+          he1 := halfedges[e1];
+          rel := relators[he1.relator];
+          he2 := halfedges[e2];
           len := RelatorLength(rel);
-          re1e2 := (he1.length+he2.length)/(2*len);
+          re1e2 := (he1.length+he2.length)*circle/(2*len);
           c := re1e2 - ce1e2;
           if c > 0 then
               if not(IsBound(Y[he1.length])) then Y[he1.length] := []; fi;
@@ -966,41 +1006,43 @@ Sunflower := function(r,flowerlimit,timeout)
                       # Now try to follow this with one more edge:
                       e := t[1];
                       c := t[2];
-                      he := r!.halfedges[e];
-                      rel := r!.relators[he.relator];
+                      he := halfedges[e];
+                      rel := relators[he.relator];
                       len := RelatorLength(rel);
-                      # We need another corner for which r(e,ee)-c(e,ee) >= c.
+                      # We need another corner [e,ee] for which 
+                      # c + r(e,ee)-c(e,ee) > 0
                       # There are two cases: Either it is on the exception
-                      # list or c(e,ee)=1/6 and thus r(e,ee) >= c+1/6
-                      rellene := he.length/(2*len);
-                      kk := Length(r!.except[e]);
-                      for k in [1..kk] do
-                          ee := r!.except[e][k][2];
-                          hee := r!.halfedges[ee];
-                          d := c + rellene + hee.length/(2*len)
-                                 - r!.except[e][k][1];
+                      # list or c(e,ee) >= 1/6 and thus 
+                      # 0 < c+r(e,ee)-c(e,ee) <= c+r(e,ee)-1/6 and thus
+                      # r(e,ee) > 1/6 - c
+                      rellene := he.length*circle/(2*len);
+                      c := c+rellene;
+                      for co in cornindex[e] do
+                          ee := cornright[co];
+                          hee := halfedges[ee];
+                          d := c + hee.length*circle/(2*len) - cornval[co];
                           if d > 0 then
                               DoStep(ee,d);
                           fi;
                       od;
                       # Now handle the generic case:
                       pos := IndexPrimWord(rel,he.start+he.length);
-                      kk := Length(r!.heindex[he.relator][pos]);
+                      kk := Length(heindex[he.relator][pos]);
                       for k in [1..kk] do   # this gives descending values
-                                            # of rellen2
-                          ee := r!.heindex[he.relator][pos][k];
-                          if not IsExceptionalCorner(r,e,ee) then
-                              hee := r!.halfedges[ee];
-                              d := c + rellene + hee.length/(2*len);
-                              if d-1/6 < 0 then
+                                            # of rellenee
+                          ee := heindex[he.relator][pos][k];
+                          if not IsExceptionalCorner(r,[e,ee]) then
+                              hee := halfedges[ee];
+                              d := c + hee.length*circle/(2*len);
+                              if d-circle/6 <= 0 then
                                   # This is OK because we descend with
-                                  # rellen2!
+                                  # rellenee!
                                   break; 
                               fi;
                               if IsOneCompletable(r,e,ee) then
-                                  d := d - 1/6;
+                                  d := d - circle/6;
                               else
-                                  d := d - 1/4;
+                                  d := d - circle/4;
                               fi;
                               if d > 0 then
                                   DoStep(ee,d);
@@ -1054,33 +1096,48 @@ Poppy := function(s)
   # 9) go to 2
   # Data: have a list of cases, have v and a
   # A case is a list [curv,e1,e2,e3,...,e_{v-1}] of halfedges
-  local a,anew,c,ca,cases,d,e,e1,e2,ee,eee,f,found,he,he1,he1c,he2,he2c,
-        hee,heee,i,j,newca,newcases,newstart,p,poppy,pos,rel,todelete,v;
+  local a,anew,c,ca,cases,circle,co,cornindex,cornright,cornval,d,e,e1,e2,
+        ee,eee,f,found,halfedges,he,he1,he1c,he2,he2c,hee,heee,heindex,i,
+        invtab,j,newca,newcases,newstart,p,pongo,poppy,pos,rel,relators,
+        todelete,v;
+
   Info(InfoTom,3,"Running poppy...");
+
+  # Some assignments to local variables to speed up access:
+  pongo := s!.pongo;
+  invtab := s!.invtab;
+  halfedges := s!.halfedges;
+  relators := s!.relators;
+  heindex := s!.heindex;
+  circle := s!.circle;
+  cornindex := s!.cornindex;
+  cornright := s!.cornright;
+  cornval := s!.cornval;
 
   s!.poppies := [];
   v := 3;
-  a := (v-2)/(2*v);
+  a := (v-2)*circle/(2*v);
+
   # Initialise cases, note that since a=1/6 they are all on the exceptions
   # lists:
   cases := [];
-  for e1 in [1..Length(s!.halfedges)] do
-      he1 := s!.halfedges[e1];
-      he1c := s!.halfedges[he1.complement];
-      for i in [1..Length(s!.except[e1])] do
-          c := s!.except[e1][i][1];
+  for e1 in [1..Length(halfedges)] do
+      he1 := halfedges[e1];
+      he1c := halfedges[he1.complement];
+      for co in cornindex[e1] do
+          c := cornval[co];
           if c > a then   # Note a=1/6 at this stage
-              e2 := s!.except[e1][i][2];
-              he2 := s!.halfedges[e2];
-              he2c := s!.halfedges[he2.complement];
-              rel := s!.relators[he2c.relator];
+              e2 := cornright[co];
+              he2 := halfedges[e2];
+              he2c := halfedges[he2.complement];
+              rel := relators[he2c.relator];
               pos := IndexPrimWord(rel,he2c.start+he2c.length);
               p := rel.primword[pos][1];
-              rel := s!.relators[he2.relator];
-              p := PongoMult(s!.pongo,p,rel.primword[he2.start][1]);
-              rel := s!.relators[he1c.relator];
-              p := PongoMult(s!.pongo,p,rel.primword[he1c.start][1]);
-              if not(IsZero(s!.pongo,p)) then
+              rel := relators[he2.relator];
+              p := PongoMult(pongo,p,rel.primword[he2.start][1]);
+              rel := relators[he1c.relator];
+              p := PongoMult(pongo,p,rel.primword[he1c.start][1]);
+              if not(IsZero(pongo,p)) then
                   Add(cases,rec(curv := c-a, hes := [e1,he2.complement],
                                 pongoelm := p));
               fi;
@@ -1095,21 +1152,21 @@ Poppy := function(s)
           ca := cases[i];
           if IsAccepting(s!.pongo,ca.pongoelm) then
               # Otherwise this cannot be a v-poppy!
-              f := s!.halfedges[ca.hes[1]].complement;
+              f := halfedges[ca.hes[1]].complement;
               e := ca.hes[Length(ca.hes)];
-              he := s!.halfedges[e];
-              newstart := IndexPrimWord(s!.relators[he.relator],
+              he := halfedges[e];
+              newstart := IndexPrimWord(relators[he.relator],
                                         he.start+he.length);
-              for ee in s!.heindex[he.relator][newstart] do
-                  c := ca.curv + LookupCornerValue(s,e,ee) - a;
-                  if c >= 0 then
-                      hee := s!.halfedges[ee];
+              for ee in heindex[he.relator][newstart] do
+                  c := ca.curv + LookupCornerValue(s,[e,ee]) - a;
+                  if c > 0 then
+                      hee := halfedges[ee];
                       eee := hee.complement;
-                      heee := s!.halfedges[eee];
-                      rel := s!.relators[heee.relator];
+                      heee := halfedges[eee];
+                      rel := relators[heee.relator];
                       pos := IndexPrimWord(rel,heee.start+heee.length);
-                      if f in s!.heindex[heee.relator][pos] then
-                          c := c + LookupCornerValue(s,eee,f) - a;
+                      if f in heindex[heee.relator][pos] then
+                          c := c + LookupCornerValue(s,[eee,f]) - a;
                           if c > 0 then
                               poppy := rec(curv := c, hes:=ShallowCopy(ca.hes),
                                            pongoelm := ca.pongoelm);
@@ -1125,7 +1182,7 @@ Poppy := function(s)
       if found then break; fi;
       # Now try one valency higher:
       v := v + 1;
-      anew := (v-2)/(2*v);
+      anew := (v-2)*circle/(2*v);
       todelete := [];
       for i in [1..Length(cases)] do
           ca := cases[i];
@@ -1135,8 +1192,8 @@ Poppy := function(s)
           else
               d := 0;
               for j in [1..Length(ca.hes)-1] do
-                  d := d + LookupCornerValue(s,ca.hes[j],ca.hes[j+1]) - anew;
-                  if d < 0 then
+                  d := d + LookupCornerValue(s,[ca.hes[j],ca.hes[j+1]]) - anew;
+                  if d <= 0 then
                       Add(todelete,i);
                       break;
                   fi;
@@ -1149,23 +1206,25 @@ Poppy := function(s)
       if Length(cases) = 0 then break; fi;
 
       # Now extend by 1:
-      newcases := [];
+      newcases := EmptyPlist(Length(cases));
       for i in [1..Length(cases)] do
           ca := cases[i];
           e := ca.hes[Length(ca.hes)];
-          he := s!.halfedges[e];
-          for ee in s!.heindex[he.relator][he.start] do
-              c := ca.curv + LookupCornerValue(s,e,ee) - a;
-              if c >= 0 then
-                  hee := s!.halfedges[ee];
+          he := halfedges[e];
+          for ee in heindex[he.relator][he.start] do
+              c := ca.curv + LookupCornerValue(s,[e,ee]) - a;
+              if c > 0 then
+                  hee := halfedges[ee];
                   eee := hee.complement;
-                  heee := s!.halfedges[eee];
-                  rel := s!.relators[heee.relator];
+                  heee := halfedges[eee];
+                  rel := relators[heee.relator];
                   pos := IndexPrimWord(rel,heee.start+heee.length);
-                  p := PongoMult(s!.pongo,rel.primword[pos][1],ca.pongoelm);
-                  if not(IsZero(s!.pongo,p)) then
-                      newca := rec(curv := c, hes := ShallowCopy(ca.hes),
+                  p := PongoMult(pongo,rel.primword[pos][1],ca.pongoelm);
+                  if not(IsZero(pongo,p)) then
+                      newca := rec(curv := c, 
+                                   hes := EmptyPlist(Length(ca.hes)+1),
                                    pongoelm := p);
+                      Append(newca.hes,ca.hes);
                       Add(newca.hes,eee);
                       Add(newcases,newca);
                   fi;
@@ -1202,7 +1261,7 @@ PickPoppy := function(s,poppy)
   Add(pairs,[poppy.hes[v],s!.halfedges[poppy.hes[1]].complement]);
   for p in pairs do
       cc := LookupCornerValue(s,p[1],p[2]);
-      ChangeCornerException(s,p[1],p[2],cc-c/v);
+      AddCornerException(s,p,Int(cc-c/v));
   od;
 end;
 
@@ -1215,7 +1274,7 @@ PickSunflower := function(s,sunflower)
   Add(pairs,[sunflower.hes[v],sunflower.hes[1]]);
   for p in pairs do
       cc := LookupCornerValue(s,p[1],p[2]);
-      ChangeCornerException(s,p[1],p[2],cc+c/v);
+      AddCornerException(s,p,Int(cc+c/v));
   od;
 end;
 
@@ -1322,8 +1381,7 @@ ApplyGradient := function(s,grad,factor)
   local c,i;
   for i in [1..Length(grad.corners)] do
       c := LookupCornerValue(s,grad.corners[i][1],grad.corners[i][2]);
-      ChangeCornerException(s,grad.corners[i][1],grad.corners[i][2],
-                            c+grad.gradient[i]*factor);
+      AddCornerException(s,grad.corners[i],Int(c+grad.gradient[i]*factor));
   od;
 end;
   
@@ -1332,8 +1390,7 @@ ApplyCorrections := function(s,corr,factor)
   local c,i;
   for i in [1..Length(corr.corners)] do
       c := LookupCornerValue(s,corr.corners[i][1],corr.corners[i][2]);
-      ChangeCornerException(s,corr.corners[i][1],corr.corners[i][2],
-                            c+corr.corrections[i]*factor);
+      AddCornerException(s,corr.corners[i],Int(c+corr.corrections[i]*factor));
   od;
 end;
 
@@ -1350,7 +1407,7 @@ DoAll := function(s,flowerlimit,timeout)
     ComputeEdges(s);
     RemoveForbiddenEdges(s);
     IndexEdges(s);
-    InitCornerData(s);
+    InitCornerData(s,360360);
     Sunflower(s,flowerlimit,timeout);
     RemoveForbiddenSunflowers(s);
     Poppy(s);
@@ -1837,10 +1894,3 @@ Do := function(n)
   GradientApproximateGoodOfficer(s,10000,1000000,Ymaxsq,dYmaxsq,1000000);
 end;
 
-clean := function(l)
-  local i;
-  if IsList(l) then
-     return List(l,clean);
-  elif IsInt(l) then return l; 
-  else return Float(l); fi;
-end;
