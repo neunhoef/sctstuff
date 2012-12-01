@@ -580,9 +580,10 @@ ComputeBoundaryEdges := function(s)
   # Takes a STLP-Problem and computes all boundary (half-)edges 
   # avoiding those that consume over half a relator.
   # Adds these into the "!.halfedges" component with .complement=0
-  local i,j,k,l,r,he;
+  local i,j,k,l,o,r,he;
   Info(InfoSTLP,1,"Computing boundary edges...");
 
+  o := Length(s!.halfedges);
   for i in [1..Length(s!.relators)] do
     r := s!.relators[i];
     l := RelatorLength(r);
@@ -594,7 +595,7 @@ ComputeBoundaryEdges := function(s)
       od;
     od;
   od;
-  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges),".");
+  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-o,".");
 end;
 
 ### Index Edges ###
@@ -775,11 +776,11 @@ Simplex := function(mode,obj,A,op,b)
   local i,o,p,r;
   p := Concatenation("(",mode," ",PrintString(obj),")\n[]\n");
   for i in [1..Length(A)] do
-    Append(p, PrintString(List(A[i],Float)) );
+    Append(p, PrintString(A[i]) );
     Append(p, " :" );
     Append(p, op[i] );
     Append(p, ": " );
-    Append(p, PrintString(Float(b[i])) );
+    Append(p, PrintString(b[i]) );
     Append(p, "\n" );
   od;
   o := Filename(DirectoryTemporary(),"foo.tmp");
