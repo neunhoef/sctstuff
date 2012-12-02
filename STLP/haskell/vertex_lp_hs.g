@@ -772,64 +772,32 @@ RawDeTuple := function(s)
   return SplitString(s,",");
 end; 
 
-SummationString := function(l,v)
-  local j,s;
-  s := "";
-  for j in [1..Length(l)] do
-    if l[j] <> 0 then
-      Append(s,Concatenation(PrintString(l[j]), "*",
-               v,"[",PrintString(j),"]+"));
-    fi;
-  od;
-  if s="" then return "0"; fi;
-  Remove(s,Length(s));
-  return s;
-end;
-
 Simplex := function(mode,obj,A,op,b)
-  local i,j,m,o,r;
-
-  m := Filename(DirectoryTemporary(),"foo.tmp");
-  PrintTo(m,Concatenation(
-     "var v{i in 1..",PrintString(Length(obj)),"} integer >= 0 ;\n"
-  ));
-  AppendTo(m,mode," obj : ",SummationString(obj,"v")," ;\n");
+  local i,o,p,r;
+  p := Concatenation("(",mode," ",PrintString(obj),")\n[]\n");
   for i in [1..Length(A)] do
-    AppendTo(m,Concatenation(
-        "s.t. c",PrintString(i)," : ",
-        SummationString(A[i],"v"),
-        op[i],PrintString(b[i])," ;\n" ));
+    Append(p, PrintString(A[i]) );
+    Append(p, " :" );
+    Append(p, op[i] );
+    Append(p, ": " );
+    Append(p, PrintString(b[i]) );
+    Append(p, "\n" );
   od;
-  AppendTo(m,
-      "solve ;\n",
-      "printf '[';",
-      "printf{i in 1..5} '%.3f,', v[i];",
-      "printf ']\\n';"
-  );
-
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m ",m,"\n");
+  o := Filename(DirectoryTemporary(),"foo.tmp");
+  PrintTo(o,p);
+  Info(InfoSTLP,1,"Running Simplex : ./simplex < ",o,"\n");
   r := "";
+  i := InputTextString(p);
   o := OutputTextString(r,true);
-  Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
-          InputTextNone(),o,["-m",m]);
+  Process(DirectoryCurrent(),"simplex",i,o,[]);
   # Use DirectoriesPackageLibrary(..) in future.
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
-
-  o := rec( feasible := false );
-  r := SplitString(r,"\n");
-  for i in [1..Length(r)] do
-    if r[i] = "OPTIMAL SOLUTION FOUND" then
-      o.feasible := true;
-      # v.value := ;
-    fi;
-  od;
-  if o.feasible=true then 
-    j := r[Length(r)-1];
-    RemoveCharacters(j,"[]\n");
-    o.param := List(SplitString(j,","),Rat);
-  fi;
-  return o;
+  r := SplitString(r," ");
+  RemoveCharacters(r[2], "[]\n" );
+  o := RawRatList(r[2]);
+  return rec( status := r[1], value := o[1], 
+     param := o{[2..Length(o)]} );
 end;
 
 LinearSTLP := function(s,curvature)
@@ -882,7 +850,7 @@ LinearSTLP := function(s,curvature)
   Append(A, [Aeuler, Afaces]);
   Append(b, [1, 1]);
   Append(op, ["==", "<="]);
-  return Simplex("minimize",obj,A,op,b);
+  return Simplex("Minimize",obj,A,op,b);
 end;
 
 ### Testing Utilities ###
