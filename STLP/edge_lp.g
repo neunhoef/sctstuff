@@ -883,9 +883,12 @@ LinearSTLP := function(s)
   b := ListWithIdenticalEntries(r,0);
   op := ListWithIdenticalEntries(r,"=");
 
-  Append(A, [ListWithIdenticalEntries(c,1)]);
-  Append(b, [1]);
-  Append(op, [">="]);
+  Append(A, [ListWithIdenticalEntries(c,1),obj]);
+  Append(b, [1,6]);
+  Append(op, [">=","="]);
+
+  # Break our lovely objective function to look for minimum number of edges.
+  obj := ListWithIdenticalEntries(c,1);  
 
   return Simplex("minimize",obj,A,op,b);
 end;
