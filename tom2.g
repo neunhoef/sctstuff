@@ -48,7 +48,7 @@ LoadPackage("orb");
 # It verifies an officer called "Tom" which is based on corner values.
 
 DeclareInfoClass("InfoTom");
-SetInfoLevel(InfoTom,2);
+SetInfoLevel(InfoTom,1);
 SetAssertionLevel(1);
 
 # Some utilities:
@@ -1634,7 +1634,7 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY)
       #Error();
       if i < 5 then 
           factors := [1/5];
-      elif badness < 10000 then
+      elif badness < 1000000 then
           factors := [1/30,1/5,3/5,1,3/2,2];
       else
           factors := [1/30,1/5,3/5];
