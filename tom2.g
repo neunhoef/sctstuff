@@ -24,6 +24,24 @@ InstallMethod(ViewString, "for integer", [IsInt], function(n)
   fi;
 end);
 
+DebugRunning := false;
+
+DeclareGlobalFunction("Debug");
+
+InstallGlobalFunction( Debug,
+  function(arg)
+    local c,kb;
+    if DebugRunning then return; fi;
+    for c in arg do ViewObj(c); od;
+    Print("\nDebug:\c");
+    kb := InputTextUser();
+    c := CharInt(ReadByte(kb));
+    Print(c,"\n");
+    if c = 'q' then Error(); fi;
+    if c = 'r' then DebugRunning := true; fi;
+  end);
+
+
 LoadPackage("orb");
 
 # This implements what is laid out on a sheet of paper in my notebook.
@@ -819,10 +837,21 @@ AddCornerException := function(s,p,c)
   # if p is an integer, it is a corner number
 end;
 
-InitCornerData := function(s,circle)
+#$$$ This function initialises the exceptions data structures for the
+# corner values. Corner values are integers between 0 and circle/2 
+# and corner value $(c$) actually means $(c/circle$). This function
+# makes sure that all corners for which the average of the two relative
+# lengths of the two edges is greater than the default corner value.
+# This is needed for the sunflower algorithm. If the argument 
+# mode is equal to the string <C>$"sunflowershappy$"</C> then the actual 
+# corner value for these corners is chosen such that there are no
+# sunflowers, this is good to find some poppies. If the argument mode
+# is equal to the string <C>$"default$"</C> then all values are set to
+# default values, this is good to find some sunflowers.
+InitCornerData := function(s,circle,mode)
   # Initialise the data structures for corner exception lists
-  local e1,endpos,he1,i,ind,len1,r,rel;
-  Info(InfoTom,1,"Initialising corner data structures...");
+  local e1,endpos,he1,i,ind,len1,modebool,r,rel;
+  Info(InfoTom,1,"Initialising corner data structures mode=",mode,"...");
 
   # A corner is a certain pair of halfedges [e1,e2].
   # Curvature is stored in units of 1/circle, if we mention 0 <= c <= 1
@@ -843,6 +872,13 @@ InitCornerData := function(s,circle)
   s!.cornhash := HTCreate(fail,rec(hashlen := NextPrimeInt(10000),
                                    forflatplainlists := true));
   s!.circle := circle;
+  if mode = "default" then
+      modebool := true;
+  elif mode = "sunflowershappy" then
+      modebool := false;
+  else
+      Error("mode must be \"default\" or \"sunflowershappy\"");
+  fi;
 
   # This also needs to find all corners with average relative length greater
   # than the default corner value to put them on the exception list.
@@ -858,10 +894,18 @@ InitCornerData := function(s,circle)
           if 6 * r <= circle then break; fi;
           if IsOneCompletable(s,e1,ind[i]) then
               # Default value would be 1/6
-              AddCornerException(s,[e1,ind[i]],Int((r+circle/6)/2));
+              if modebool then
+                  AddCornerException(s,[e1,ind[i]],QuoInt(circle,6));
+              else
+                  AddCornerException(s,[e1,ind[i]],Int(r));
+              fi;
           elif 4 * r > circle then
               # Default value would be 1/4
-              AddCornerException(s,[e1,ind[i]],Int((r+circle/4)/2));
+              if modebool then
+                  AddCornerException(s,[e1,ind[i]],QuoInt(circle,4));
+              else
+                  AddCornerException(s,[e1,ind[i]],Int(r));
+              fi;
           fi;
       od;
   od;
@@ -903,9 +947,9 @@ LookupCornerValue := function(s,p)
   rel2 := s!.relators[he2!.relator];
   p2 := IndexPrimWord(rel2,he2.start+he2.length-1);
   if IsOneCompletable(s,p[1],p[2]) then
-      return 1/6;
+      return s!.circle/6;
   else 
-      return 1/4;
+      return s!.circle/4;
   fi;
 end;
 
@@ -915,11 +959,34 @@ IsExceptionalCorner := function(s,p)
   return pos <> fail;
 end;
 
-Sunflower := function(r,flowerlimit,timeout)
+ExportExceptions := function(s)
+  return rec( cornleft := ShallowCopy(s!.cornleft),
+              cornright := ShallowCopy(s!.cornright),
+              cornval := ShallowCopy(s!.cornval),
+              cornindex := ShallowCopy(s!.cornindex),
+              cornhash := StructuralCopy(s!.cornhash) );
+end;
+
+ImportExceptions := function(s,r)
+  s!.cornleft := ShallowCopy(r.cornleft);
+  s!.cornright := ShallowCopy(r.cornright);
+  s!.cornval := ShallowCopy(r.cornval);
+  s!.cornindex := ShallowCopy(r.cornindex);
+  s!.cornhash := StructuralCopy(r.cornhash);
+  Unbind(s!.sunflowers);
+  Unbind(s!.poppies);
+end;
+
+Sunflower := function(r)
   # Find all positively curved sunflowers.
   local DoStep,Y,c,ce1e2,circle,co,cornindex,cornright,cornval,d,e,e1,e2,
         ee,halfedges,he,he1,he2,hee,heindex,j,k,kk,len,n,pos,re1e2,rel,
-        relators,rellene,sometodo,start,starttime,t;
+        relators,rellene,sometodo,start,starttime,t,timeout,flowerlimit;
+
+  timeout := ValueOption("SunflowerTimeout");
+  if timeout = fail then timeout := infinity; fi;
+  flowerlimit := ValueOption("SunflowerLimit");
+  if flowerlimit = fail then flowerlimit := infinity; fi;
 
   Info(InfoTom,3,"Running sunflower with timeout ",timeout,"...");
   starttime := Runtime();
@@ -1099,9 +1166,15 @@ Poppy := function(s)
   local a,anew,c,ca,cases,circle,co,cornindex,cornright,cornval,d,e,e1,e2,
         ee,eee,f,found,halfedges,he,he1,he1c,he2,he2c,hee,heee,heindex,i,
         invtab,j,newca,newcases,newstart,p,pongo,poppy,pos,rel,relators,
-        todelete,v;
+        todelete,v,timeout,flowerlimit,starttime;
 
-  Info(InfoTom,3,"Running poppy...");
+  timeout := ValueOption("PoppyTimeout");
+  if timeout = fail then timeout := infinity; fi;
+  flowerlimit := ValueOption("PoppyLimit");
+  if flowerlimit = fail then flowerlimit := infinity; fi;
+
+  Info(InfoTom,3,"Running poppy with timeout ",timeout,"...");
+  starttime := Runtime();
 
   # Some assignments to local variables to speed up access:
   pongo := s!.pongo;
@@ -1144,7 +1217,19 @@ Poppy := function(s)
           fi;
       od;
   od;
+  Debug("have cases");
   while true do
+      if Runtime() - starttime > timeout then
+          Info(InfoTom,1,"Poppy: timeout, giving up, have ",
+               Length(s!.poppies)," poppies.");
+          return;
+      fi;
+      if Length(s!.poppies) > flowerlimit then
+          Info(InfoTom,1,"Poppy: hit flower limit, giving up, have ",
+               Length(s!.poppies)," poppies.");
+          return;
+      fi;
+
       # Check whether or not our cases are v-poppies:
       Info(InfoTom,3,"v=",v,", have ",Length(cases)," cases.");
       found := false;
@@ -1179,6 +1264,7 @@ Poppy := function(s)
               od;
           fi;
       od;
+      Debug("have extended");
       if found then break; fi;
       # Now try one valency higher:
       v := v + 1;
@@ -1231,7 +1317,9 @@ Poppy := function(s)
               fi;
           od;
       od;
+      Debug("newcases");
       cases := newcases;
+      if Length(cases) = 0 then break; fi;
   od;
   if Length(s!.poppies) = 0 then
       Info(InfoTom,2,"Completed poppy successfully, none found.");
@@ -1260,7 +1348,7 @@ PickPoppy := function(s,poppy)
                              s!.halfedges[poppy.hes[i+1]].complement]);
   Add(pairs,[poppy.hes[v],s!.halfedges[poppy.hes[1]].complement]);
   for p in pairs do
-      cc := LookupCornerValue(s,p[1],p[2]);
+      cc := LookupCornerValue(s,p);
       AddCornerException(s,p,Int(cc-c/v));
   od;
 end;
@@ -1273,7 +1361,7 @@ PickSunflower := function(s,sunflower)
   pairs := List([1..v-1],i->[sunflower.hes[i],sunflower.hes[i+1]]);
   Add(pairs,[sunflower.hes[v],sunflower.hes[1]]);
   for p in pairs do
-      cc := LookupCornerValue(s,p[1],p[2]);
+      cc := LookupCornerValue(s,p);
       AddCornerException(s,p,Int(cc+c/v));
   od;
 end;
@@ -1380,7 +1468,7 @@ end;
 ApplyGradient := function(s,grad,factor)
   local c,i;
   for i in [1..Length(grad.corners)] do
-      c := LookupCornerValue(s,grad.corners[i][1],grad.corners[i][2]);
+      c := LookupCornerValue(s,grad.corners[i]);
       AddCornerException(s,grad.corners[i],Int(c+grad.gradient[i]*factor));
   od;
 end;
@@ -1389,7 +1477,7 @@ end;
 ApplyCorrections := function(s,corr,factor)
   local c,i;
   for i in [1..Length(corr.corners)] do
-      c := LookupCornerValue(s,corr.corners[i][1],corr.corners[i][2]);
+      c := LookupCornerValue(s,corr.corners[i]);
       AddCornerException(s,corr.corners[i],Int(c+corr.corrections[i]*factor));
   od;
 end;
@@ -1403,16 +1491,32 @@ FindNewRewrites := function(s)
   Info(InfoTom,1,"Found ",Length(s!.rewrites)," rewrites.");
 end;
 
-DoAll := function(s,flowerlimit,timeout)
-    ComputeEdges(s);
-    RemoveForbiddenEdges(s);
-    IndexEdges(s);
-    InitCornerData(s,360360);
-    Sunflower(s,flowerlimit,timeout);
-    RemoveForbiddenSunflowers(s);
-    Poppy(s);
-    RemoveForbiddenPoppies(s);
-    FindNewRewrites(s);
+RecomputeFlowerCurvature := function(s,poppies,sunflowers)
+  # Changes lists poppies and sunflowers
+  local c,f,h,hes,i,j;
+  h := s!.halfedges;
+  for i in [1..Length(poppies)] do
+      f := poppies[i];
+      hes := ShallowCopy(f!.hes);
+      c := s!.circle-s!.circle*Length(hes)/2;
+      Add(hes,hes[1]);
+      for j in [1..Length(hes)-1] do
+          c := c + LookupCornerValue(s,[hes[j],h[hes[j+1]].complement]);
+      od;
+      # for testing: if f.curv <> c then Error(1); fi;
+      f.curv := c;
+  od;
+  for i in [1..Length(sunflowers)] do
+      f := sunflowers[i];
+      hes := ShallowCopy(f!.hes);
+      Add(hes,hes[1]);
+      c := s!.circle;
+      for j in [1..Length(hes)-1] do
+          c := c - LookupCornerValue(s,[hes[j],hes[j+1]]);
+      od;
+      # for testing: if f.curv <> c then Error(2); fi;
+      f.curv := c;
+  od;
 end;
 
 RationalApproximation := function(x,prec)
@@ -1440,34 +1544,6 @@ RationalApproximation := function(x,prec)
       if stop then return a; fi;
   od;
   return lasta;
-end;
-
-RecomputeFlowerCurvature := function(s,poppies,sunflowers)
-  # Changes lists poppies and sunflowers
-  local c,f,h,hes,i,j;
-  h := s!.halfedges;
-  for i in [1..Length(poppies)] do
-      f := poppies[i];
-      hes := ShallowCopy(f!.hes);
-      c := 1-Length(hes)/2;
-      Add(hes,hes[1]);
-      for j in [1..Length(hes)-1] do
-          c := c + LookupCornerValue(s,hes[j],h[hes[j+1]].complement);
-      od;
-      # for testing: if f.curv <> c then Error(1); fi;
-      f.curv := c;
-  od;
-  for i in [1..Length(sunflowers)] do
-      f := sunflowers[i];
-      hes := ShallowCopy(f!.hes);
-      Add(hes,hes[1]);
-      c := 1;
-      for j in [1..Length(hes)-1] do
-          c := c - LookupCornerValue(s,hes[j],hes[j+1]);
-      od;
-      # for testing: if f.curv <> c then Error(2); fi;
-      f.curv := c;
-  od;
 end;
 
 ApproximateExceptions := function(s,prec)
@@ -1557,7 +1633,7 @@ ApproximateGoodOfficer := function(s,steps,timeout)
           s!.except := backup;
           ApplyCorrections(s,corr,factors[best]);
       fi;
-      Sunflower(s,5000,timeout-(Runtime()-starttime));
+      Sunflower(s);
       RemoveForbiddenSunflowers(s);
       Poppy(s);
       RemoveForbiddenPoppies(s);
@@ -1595,6 +1671,79 @@ ApproximateGoodOfficer := function(s,steps,timeout)
   od;
   Error();
   Info(InfoTom,1,"No success, giving up after ",steps," steps.");
+end;
+
+#$$$ This function adds the currently bad sunflowers and poppies to the
+# collection of all sunflowers and poppies. In addition, all corners
+# occurring are put into the exception database, so they get a number.
+# This allows to put corner numbers in the flower descriptions.
+CollectFlowers := function(s,poppies,sunflowers)
+  local co,corns,f,h,hes,i,j,p,w;
+  h := s!.halfedges;
+  for f in poppies do
+      hes := f!.hes;
+      corns := EmptyPlist(Length(hes));
+      for i in [1..Length(hes)] do
+          j := i + 1; if j > Length(hes) then j := 1; fi;
+          p := [hes[i],h[hes[j]].complement];
+          co := HTValue(s!.cornhash,p);
+          if co = fail then
+              AddCornerException(s,p,LookupCornerValue(s,p));
+              co := HTValue(s!.cornhash,p);
+          fi;
+          Add(corns,co);
+      od;
+      f.corns := corns;
+  od;
+  for f in sunflowers do
+      hes := f!.hes;
+      corns := EmptyPlist(Length(hes));
+      for i in [1..Length(hes)] do
+          j := i + 1; if j > Length(hes) then j := 1; fi;
+          p := [hes[i],hes[j]];
+          co := HTValue(s!.cornhash,p);
+          if co = fail then
+              AddCornerException(s,p,LookupCornerValue(s,p));
+              co := HTValue(s!.cornhash,p);
+          fi;
+          Add(corns,co);
+      od;
+      f.corns := corns;
+  od;
+
+  if not IsBound(s!.allpoppies) then s!.allpoppies := EmptyPlist(1000); fi;
+  Append(s!.allpoppies,poppies);
+  if Length(s!.allpoppies) > 0 then
+      Sort(s!.allpoppies);
+      w := 2;
+      for j in [2..Length(s!.allpoppies)] do
+          if s!.allpoppies[j-1] <> s!.allpoppies[j] then
+              s!.allpoppies[w] := s!.allpoppies[j];
+              w := w + 1;
+          fi;
+      od;
+      for j in [w..Length(s!.allpoppies)] do
+          Unbind(s!.allpoppies[j]);
+      od;
+  fi;
+
+  if not IsBound(s!.allsunflowers) then s!.allsunflowers:=EmptyPlist(1000);fi;
+  Append(s!.allsunflowers,sunflowers);
+  if Length(s!.allsunflowers) > 0 then
+      Sort(s!.allsunflowers);
+      w := 2;
+      for j in [2..Length(s!.allsunflowers)] do
+          if s!.allsunflowers[j-1] <> s!.allsunflowers[j] then
+              s!.allsunflowers[w] := s!.allsunflowers[j];
+              w := w + 1;
+          fi;
+      od;
+      for j in [w..Length(s!.allsunflowers)] do
+          Unbind(s!.allsunflowers[j]);
+      od;
+  fi;
+  Info(InfoTom,2,"Flower collection has now ",Length(s!.allpoppies),
+       " poppies and ",Length(s!.allsunflowers)," sunflowers.");
 end;
 
 GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY,prec)
@@ -1646,7 +1795,7 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY,prec)
           s!.except := StructuralCopy(backup);
           ApplyGradient(s,grad,factors[j]*norm);
           ApproximateExceptions(s,prec);
-          Sunflower(s,5000,timeout-(Runtime()-starttime));
+          Sunflower(s);
           RemoveForbiddenSunflowers(s);
           Poppy(s);
           RemoveForbiddenPoppies(s);
@@ -1677,7 +1826,7 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY,prec)
       s!.except := backup;
       ApplyGradient(s,grad,factors[best]*norm);
       ApproximateExceptions(s,prec);
-      Sunflower(s,5000,timeout-(Runtime()-starttime));
+      Sunflower(s);
       RemoveForbiddenSunflowers(s);
       Poppy(s);
       RemoveForbiddenPoppies(s);
@@ -1715,6 +1864,24 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY,prec)
   od;
   Info(InfoTom,1,"No success, giving up after ",steps," steps.");
   Error();
+end;
+
+StartupTom := function(s)
+    local store,store2;
+    ComputeEdges(s);
+    RemoveForbiddenEdges(s);
+    IndexEdges(s);
+    InitCornerData(s,360360,"sunflowershappy");
+    Poppy(s);
+    RemoveForbiddenPoppies(s);
+    CollectFlowers(s,s!.poppies,[]);
+    InitCornerData(s,360360,"default");
+    RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+    Poppy(s);
+    RemoveForbiddenPoppies(s);
+    Sunflower(s);
+    RemoveForbiddenSunflowers(s);
+    CollectFlowers(s,s!.poppies,s!.sunflowers);
 end;
 
 # Sample input:
@@ -1890,7 +2057,7 @@ end;
 Do := function(n)
   local s;
   s := OneRelatorQuotientOfModularGroupForTom(n);
-  DoAll(s,1000,60000);
+  StartupTom(s);
   GradientApproximateGoodOfficer(s,10000,1000000,Ymaxsq,dYmaxsq,1000000);
 end;
 
