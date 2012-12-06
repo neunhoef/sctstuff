@@ -861,7 +861,11 @@ LinearSTLP := function(s)
       for j in [1..Length(r.primword)] do
         for k in idx[i][j] do
           # Assert(0, A[index[i]+j][k]=0, "Edge has two starting locations.");
-          A[index[i]+j][k] := v;
+          if k=s!.halfedges[k].complement then
+            A[index[i]+j][k] := 2*v;
+          else
+            A[index[i]+j][k] := v;
+          fi;
         od;
       od;
     od;
