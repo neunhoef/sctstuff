@@ -1708,7 +1708,7 @@ end;
 # We assume that poppy and sunflower have just run with the current
 # exceptions and that those have already been collected.
 GradStep := function(s,Y,dY)
-  local a,b,badnessa,badnessb,badnessc,c,grad,norm,dist;
+  local a,b,badnessa,badnessb,badnessc,c,grad,norm,dist,dist2;
   if Length(s!.poppies) + Length(s!.sunflowers) = 0 then
       Info(InfoTom,1,"Nothing to do, no poppies or sunflowers!");
       return;
@@ -1730,10 +1730,13 @@ GradStep := function(s,Y,dY)
 
   while true do
       dist := AbsInt(badnessa-badnessb) +AbsInt(badnessc-badnessb);
+      dist2 := Maximum(List([1..Length(a.cornval)],
+                            i->AbsInt(a.cornval[i]-b.cornval[i])));
       Info(InfoTom,1,"a=",badnessa," b=",badnessb," c=",badnessc," dist=",
-           dist);
-      if dist < 1000 or 20*dist < badnessb then break; fi;
-      if badnessb <= badnessa and badnessc <= badnessb then
+           dist," dist2=",dist2);
+      if dist < 1000 or 20*dist < badnessb or dist2 < 100 or
+         badnessb = 0 then break; fi;
+      if badnessb < badnessa and badnessc < badnessb then
           # drop a, step over c
           a := b; badnessa := badnessb;
           b := c; badnessb := badnessc;
@@ -1742,7 +1745,7 @@ GradStep := function(s,Y,dY)
           ImportExceptions(s,c);
           RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
           badnessc := Badness(s!.allpoppies,s!.allsunflowers,Y);
-      elif badnessc >= badnessb and badnessb >= badnessa then
+      elif badnessc > badnessb and badnessb > badnessa then
           # drop c, step over a
           c := b; badnessc := badnessb;
           b := a; badnessb := badnessa;
