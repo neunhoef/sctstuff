@@ -917,7 +917,7 @@ LinearSTLP := function(s)
   AppendTo(o,"\nend ;\n");
   CloseStream(o);
 
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d",d,"\n");
+  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d ",d,"\n");
   r := "";
   o := OutputTextString(r,true);
   Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
