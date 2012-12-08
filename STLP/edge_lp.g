@@ -583,7 +583,7 @@ DoulbeSelfComplementEdges := function(s)
   for i in [1..Length(s!.halfedges)] do
     he := s!.halfedges[i];
     if he.complement=i then
-      Add(s!.halfedges, ShallowCopy(he);
+      Add(s!.halfedges, ShallowCopy(he));
       he.complement := Length(s!.halfedges);
     fi;
   od;
@@ -597,7 +597,7 @@ ComputeBoundaryEdges := function(s)
   local i,j,k,l,r,he;
   Info(InfoSTLP,1,"Computing boundary edges...");
 
-  s.internal_halfedges_n := Length(s!.halfedges);
+  s!.internal_halfedges_n := Length(s!.halfedges);
   for i in [1..Length(s!.relators)] do
     r := s!.relators[i];
     l := RelatorLength(r);
@@ -609,7 +609,7 @@ ComputeBoundaryEdges := function(s)
       od;
     od;
   od;
-  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-s.internal_halfedges_n,".");
+  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-s!.internal_halfedges_n,".");
 end;
 
 ### Index Edges ###
@@ -851,66 +851,77 @@ end;
 
 
 PrintTuple := function(a,b)
-  return PrintString("(",a,b,")");
+  return Concatenation("x",PrintString(a),"y",PrintString(b));
 end;
 
 LinearSTLP := function(s)
-  local i,j,m,o,DataV,DataL,Edges;
+  local d,i,j,k,o,r,DataV,DataS,Edges,BoundaryLength;
 
-  m := Filename(DirectoryTemporary(),"foo.tmp");
-  o := OutputTextFile(m,false);
+  d := Filename(DirectoryTemporary(),"foo.tmp");
+  o := OutputTextFile(d,false);
   SetPrintFormattingStatus(o,false);
   PrintTo(o,"# \n");
-  DataV() := function(s,v)
-    AppendTo(o,"param ",s," := ",PrintString(v)," ;");
+  DataV := function(s,v)
+    AppendTo(o,s," := ",PrintString(v)," ;\n");
   end;
-  DataL() := function(s,l)
-    AppendTo(o,"param ",s," := ",JoinStringsWithSeparator(l," ")," ;");
+  DataS := function(s,l)
+    AppendTo(o,s," := ",JoinStringsWithSeparator(l," ")," ;\n");
   end;
-  DataV("param int_n", s.internal_halfedges_n );
+  DataV("param int_n", s!.internal_halfedges_n );
   DataV("param ext_n", Length(s!.halfedges) );
-  DataL("set notches",Concatenation(
-    List(s!.relators, r->List([1..RelatorLength(r)],j->PrintTuple(r,j)) )
+  DataS("set notches",Concatenation(
+    List([1..Length(s!.relators)], 
+      r->List([1..RelatorLength(s!.relators[r])],
+        j->PrintTuple(r,j)) )
   ));
 
   Edges := function(n,idx,f)
     local i,r;
-    for r in s!.relators do
-      for i in [1..RelatorLength(r)]
-        DataL(Concatenation(n,PrintTuple(r,i)),Filtered(idx[r][i],f));
+    for r in [1..Length(s!.relators)] do
+      for i in [1..RelatorLength(s!.relators[r])] do
+        DataS(Concatenation(n,"[",PrintTuple(r,i),"]"),Filtered(idx[r][i],f));
       od;
     od;
-  od;
-  Edges("set int_head_notches",s!.heindex_start,j->j<=s.internal_halfedges_n);
-  Edges("set int_tail_notches",s!.heindex_end,j->j<=s.internal_halfedges_n);
-  Edges("set ext_head_notches",s!.heindex_start,j->j>s.internal_halfedges_n);
-  Edges("set ext_tail_notches",s!.heindex_end,j->j>s.internal_halfedges_n);
+  end;
+  Edges("set int_head_notches",s!.heindex_start,j->j<=s!.internal_halfedges_n);
+  Edges("set int_tail_notches",s!.heindex_end,j->j<=s!.internal_halfedges_n);
+  Edges("set ext_head_notches",s!.heindex_start,j->j>s!.internal_halfedges_n);
+  Edges("set ext_tail_notches",s!.heindex_end,j->j>s!.internal_halfedges_n);
 
-  DataV("param pairs",s.internal_halfedges_n/2);
-  AppendTo(o, "param pairs : 1 2 := ");
-
-  AppendTo(o,"param pairs_n := ",PrintString()," ;\n");
+  DataV("param pairs_n",s!.internal_halfedges_n/2);
+  k := 1;
   AppendTo(o,"param pairs : 1 2 := ");
   for i in [1..Length(s!.halfedges)] do
     j := s!.halfedges[i].complement;
     if j>i then
-  AppendTo(o,"            ",PrintString(i)," ",i," ",j));
+  AppendTo(o,"\n            ",PrintString(k)," ",PrintString(i)," ",PrintString(j));
+      k := k + 1;
     fi;
   od;
+  AppendTo(o," ;\n");
 
   BoundaryLength := function(he)
     if he.complement=0 then 
       return he.length; # / RelatorLength(s!.relators[he.relator]);
     else return 0; fi;
   end;
-  DataL("param lengths",List(s!.halfedges, he->PrintString(he.length) ));
-  CloseStream(o)
 
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge.mp -d",d,"\n");
+  AppendTo(o,"param length := ");
+  for i in [1..Length(s!.halfedges)] do
+    AppendTo(o, Concatenation(
+        "[",PrintString(i),"] ",
+        PrintString(s!.halfedges[i].length)," "
+    ) );
+  od;
+  AppendTo(o,";\n");
+  AppendTo(o,"\nend ;\n");
+  CloseStream(o);
+
+  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d",d,"\n");
   r := "";
   o := OutputTextString(r,true);
   Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
-          InputTextNone(),o,["-m","edge_lp.mp","-d",m]);
+          InputTextNone(),o,["-m","edge_lp.mp","-d",d]);
   # Use DirectoriesPackageLibrary(..) in future.
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
