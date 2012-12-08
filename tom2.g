@@ -42,6 +42,7 @@ InstallGlobalFunction( Debug,
   end);
 
 
+LoadPackage("io");
 LoadPackage("orb");
 
 # This implements what is laid out on a sheet of paper in my notebook.
@@ -1119,7 +1120,7 @@ Sunflower := function(r)
                   od;
                   if Runtime()-starttime > timeout or 
                      Length(r!.sunflowers) > flowerlimit then
-                      Info(InfoTom,1,"Giving up, have ",
+                      Info(InfoTom,1,"Sunflower: Giving up, have ",
                            Length(r!.sunflowers)," sunflowers.");
                       return;
                   fi;
@@ -1258,6 +1259,12 @@ Poppy := function(s)
                               Add(poppy.hes,eee);
                               Add(s!.poppies,poppy);
                               found := true;
+                              if Length(s!.poppies) > flowerlimit then
+                                  Info(InfoTom,1,"Poppy: hit flower limit, ",
+                                       "giving up, have ",
+                                       Length(s!.poppies)," poppies.");
+                                  return;
+                              fi;
                           fi;
                       fi;
                   fi;
@@ -1579,7 +1586,7 @@ CollectFlowers := function(s,poppies,sunflowers)
           Unbind(s!.allsunflowers[j]);
       od;
   fi;
-  Info(InfoTom,2,"Flower collection has now ",Length(s!.allpoppies),
+  Info(InfoTom,1,"Flower collection now has ",Length(s!.allpoppies),
        " poppies and ",Length(s!.allsunflowers)," sunflowers.");
 end;
 
@@ -1649,7 +1656,7 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY)
           return;
       fi;
       backup := ExportExceptions(s);
-      grad := FindGradient(s,s!.allpoppies,s!.sunflowers,dY);
+      grad := FindGradient(s,s!.allpoppies,s!.allsunflowers,dY);
       norm := -badness/Sum(grad,x->x^2);
       best := 0;
       badness := 10^100;
@@ -1695,6 +1702,213 @@ GradientApproximateGoodOfficer := function(s,steps,timeout,Y,dY)
   od;
   Info(InfoTom,1,"No success, giving up after ",steps," steps.");
 end;
+
+#$$$ This function takes the current flower collection and uses one gradient
+# to improve things.
+# We assume that poppy and sunflower have just run with the current
+# exceptions and that those have already been collected.
+GradStep := function(s,Y,dY)
+  local a,b,badnessa,badnessb,badnessc,c,grad,norm,dist,dist2;
+  if Length(s!.poppies) + Length(s!.sunflowers) = 0 then
+      Info(InfoTom,1,"Nothing to do, no poppies or sunflowers!");
+      return;
+  fi;
+  grad := FindGradient(s,s!.allpoppies,s!.allsunflowers,dY);
+  badnessa := Badness(s!.allpoppies,s!.allsunflowers,Y);
+  a := ExportExceptions(s);
+  norm := -badnessa/Sum(grad,x->x^2);
+
+  ApplyGradient(s,grad,norm);
+  RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+  badnessb := Badness(s!.allpoppies,s!.allsunflowers,Y);
+  b := ExportExceptions(s);
+
+  ApplyGradient(s,grad,norm);
+  RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+  badnessc := Badness(s!.allpoppies,s!.allsunflowers,Y);
+  c := ExportExceptions(s);
+
+  while true do
+      dist := AbsInt(badnessa-badnessb) +AbsInt(badnessc-badnessb);
+      dist2 := Maximum(List([1..Length(a.cornval)],
+                            i->AbsInt(a.cornval[i]-b.cornval[i])));
+      Info(InfoTom,1,"a=",badnessa," b=",badnessb," c=",badnessc," dist=",
+           dist," dist2=",dist2);
+      if dist < 1000 or 20*dist < badnessb or dist2 < 100 or
+         badnessb = 0 then break; fi;
+      if badnessb < badnessa and badnessc < badnessb then
+          # drop a, step over c
+          a := b; badnessa := badnessb;
+          b := c; badnessb := badnessc;
+          c := StructuralCopy(c);
+          c.cornval := 2*b.cornval - a.cornval;
+          ImportExceptions(s,c);
+          RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+          badnessc := Badness(s!.allpoppies,s!.allsunflowers,Y);
+      elif badnessc > badnessb and badnessb > badnessa then
+          # drop c, step over a
+          c := b; badnessc := badnessb;
+          b := a; badnessb := badnessa;
+          a := StructuralCopy(a);
+          a.cornval := 2*b.cornval - c.cornval;
+          ImportExceptions(s,a);
+          RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+          badnessa := Badness(s!.allpoppies,s!.allsunflowers,Y);
+      # now: badnessc >= badnessb and badnessb <= badnessa
+      elif badnessc >= badnessa then
+          # drop c, go between a and b
+          c := b; badnessc := badnessb;
+          b := StructuralCopy(b);
+          b.cornval := List([1..Length(b.cornval)],
+                            i->QuoInt(a.cornval[i]+c.cornval[i],2));
+          ImportExceptions(s,b);
+          RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+          badnessb := Badness(s!.allpoppies,s!.allsunflowers,Y);
+      else   # badnessc <= badnessa
+          # drop a, go between b and c
+          a := b; badnessa := badnessb;
+          b := StructuralCopy(b);
+          b.cornval := List([1..Length(b.cornval)],
+                            i->QuoInt(a.cornval[i]+c.cornval[i],2));
+          ImportExceptions(s,b);
+          RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+          badnessb := Badness(s!.allpoppies,s!.allsunflowers,Y);
+      fi;
+  od;
+  ImportExceptions(s,b);
+  RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+  Poppy(s);
+  Sunflower(s);
+  if Length(s!.poppies) + Length(s!.sunflowers) = 0 then
+      Info(InfoTom,1,"Success! No more poppies and sunflowers!");
+      return true;
+  fi;
+  CollectFlowers(s,s!.poppies,s!.sunflowers);
+  return false;
+end;
+
+IterativeGradient := function(s,steps,Y,dY)
+  local i;
+  for i in [1..steps] do
+      Info(InfoTom,1,"IterativeGradient: step=",i);
+      if GradStep(s,Y,dY) then return true; fi;
+  od;
+  return false;
+end;
+
+#$$$ This function takes the collection of poppies and sunflowers and
+# tries to run an LP solver to find new corner values to make all of 
+# them happy. It returns a boolen, true if successful and false otherwise.
+# In the former case the corner exceptions are adjusted according to the
+# solution. This function relies on the externally installed glpsol
+# program.
+DoLP := function(s,withopt)
+  local c,count,dir,f,i,j,li,lines,lp,p,popoccur,prob,res,sunoccur;
+  dir := DirectoryTemporary();
+  prob := Filename(dir,"problem.mod");
+  p := IO_File(prob,"w");
+  IO_Write(p,"# This is a poppy/sunflower problem for tom2.g\n");
+  IO_Write(p,"var x{i in 1..",Length(s!.cornval),"} >=0, <=",s!.circle/2,";\n");
+  if withopt then
+      popoccur := BlistList([1..Length(s!.cornval)],[]);
+      sunoccur := BlistList([1..Length(s!.cornval)],[]);
+      for f in s!.allpoppies do
+          for c in f.corns do
+              popoccur[c] := true;
+          od;
+      od;
+      for f in s!.allsunflowers do
+          for c in f.corns do
+              sunoccur[c] := true;
+          od;
+      od;
+  fi;
+  IO_Write(p,"minimize cost : 0");
+  if withopt then
+      for c in [1..Length(s!.cornval)] do
+          if popoccur[c] and not(sunoccur[c]) then
+              IO_Write(p,"-x[",c,"]");
+          elif sunoccur[c] and not(popoccur[c]) then
+              IO_Write(p,"+x[",c,"]");
+          fi;
+      od;
+  fi;
+  IO_Write(p,";\n");
+  count := 1;
+  for f in s!.allpoppies do
+      IO_Write(p,"s.t. poppy",count,":");
+      IO_Write(p,s!.circle-Length(f.corns)*s!.circle/2);
+      for c in f.corns do
+          IO_Write(p,"+x[",c,"]");
+      od;
+      IO_Write(p,"<=0;\n");
+      count := count + 1;
+  od;
+  count := 1;
+  for f in s!.allsunflowers do
+      IO_Write(p,"s.t. sunflower",count,":");
+      IO_Write(p,s!.circle);
+      for c in f.corns do
+          IO_Write(p,"-x[",c,"]");
+      od;
+      IO_Write(p,"<=0;\n");
+      count := count + 1;
+  od;
+  IO_Write(p,"solve;\n");
+  IO_Write(p,"printf 'Solution:\\n';\n");
+  IO_Write(p,"printf {i in 1..",Length(s!.cornval),"}:'%.0f\\n',x[i];\n");
+  IO_Write(p,"printf 'Done.\\n';\n");
+  IO_Write(p,"en","d;\n");
+  IO_Close(p);
+  lp := IO_Popen("glpsol",["--model",prob],"r");
+  res := IO_ReadUntilEOF(lp);
+  IO_Close(lp);
+  lines := SplitString(res,"\n","");
+  # Parse output:
+  for i in [1..Length(lines)] do
+      li := lines[i];
+      if li = "PROBLEM HAS NO PRIMAL FEASIBLE SOLUTION" then
+          IO_unlink(prob);
+          return false;
+      elif li = "OPTIMAL SOLUTION FOUND" then
+          Info(InfoTom,1,"Found solution for LP problem!");
+      elif li = "Solution:" then
+          for j in [i+1..i+Length(s!.cornval)] do
+              AddCornerException(s,j-i,Int(lines[j]));
+          od;
+          RecomputeFlowerCurvature(s,s!.allpoppies,s!.allsunflowers);
+          IO_unlink(prob);
+          return true;
+      fi;
+  od;
+  Error("could not have happened!");
+end;
+
+#$$$ This function repeatedly calls DoLP until there are no more flowers.
+# We assume that there is already a collection of flowers.
+IterateLP := function(s,steps,withopt)
+  local i,suc;
+  for i in [1..steps] do
+      Info(InfoTom,1,"IterateLP: step ",i);
+      suc := DoLP(s,withopt);
+      if not suc then 
+          Info(InfoTom,1,"IterateLP: no solution! Giving up.");
+          return fail; 
+      fi;
+      Poppy(s);
+      Sunflower(s);
+      if Length(s!.poppies) = 0 and Length(s!.sunflowers) = 0 then
+          Info(InfoTom,1,"IterateLP: SUCCESS!");
+          return true;
+      fi;
+      Info(InfoTom,1,"IterateLP: Found ",Length(s!.poppies)," new poppies and ",
+           Length(s!.sunflowers)," new sunflowers.");
+      CollectFlowers(s,s!.poppies,s!.sunflowers);
+  od;
+  Info(InfoTom,1,"IterateLP: Giving up.");
+  return false;
+end;
+
 
 StartupTom := function(s)
     local store,store2;
