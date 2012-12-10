@@ -922,21 +922,21 @@ LinearSTLP := function(s)
   DataV("param vertices_n", Length(s!.vertices) );
   for i in [1..Length(s!.vertices)] do
     k := s!.vertices[i];
-    DataS( Concatenation("set vertex_heads{",PrintString(i),"}"), 
-      List(Collected(v.incoming), PrintTuple) );
-    DataS( Concatenation("set vertex_tails{",PrintString(i),"}"), 
-      List(Collected(v.outgoing), PrintTuple) );
+    DataS( Concatenation("set vertex_heads[",PrintString(i),"]"), 
+      List(Collected(k.incoming), PrintTuple) );
+    DataS( Concatenation("set vertex_tails[",PrintString(i),"]"), 
+      List(Collected(k.outgoing), PrintTuple) );
   od;
 
   AppendTo(o,"\nend ;\n");
   CloseStream(o);
 
 
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d ",d,"\n");
+  Info(InfoSTLP,1,"Running Simplex : glpsol -m hybrid_lp.mp -d ",d,"\n");
   r := "";
   o := OutputTextString(r,true);
   Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
-          InputTextNone(),o,["-m","edge_lp.mp","-d",d]);
+          InputTextNone(),o,["-m","hybrid_lp.mp","-d",d]);
   # Use DirectoriesPackageLibrary(..) in future.
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
@@ -947,6 +947,7 @@ end;
 DoAll := function(s,curvature)
     ComputeInternalEdges(s);
     DoulbeSelfComplementEdges(s);
+    IndexEdges(s);
     BuildVertices(s,curvature);
     ComputeBoundaryEdges(s);
     # RemoveForbiddenEdges(s);

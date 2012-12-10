@@ -13,8 +13,8 @@ param pairs{i in 1..pairs_n,1..2} integer ;
 param length{1..ext_n} integer ;
 
 param vertices_n integer ;
-set vertex_heads{1..vertices_n} dimen 2 integer ;
-set vertex_tails{1..vertices_n} dimen 2 integer ;
+set vertex_heads{1..vertices_n} dimen 2 ;
+set vertex_tails{1..vertices_n} dimen 2 ;
 
 
 var ext{i in int_n+1..ext_n} integer >= 0 ;
@@ -75,17 +75,17 @@ printf{i in int_n+1..ext_n : ext[i]<>0} '[%d,%.3f],', i, ext[i] ;
 printf ']\n';
 
 printf 'leave := [' ;
-printf{i in 1..int_n : int_leave[i]<>0} '[%d,%.3f],', i, int_leave[i] ;
+printf{i in 1..int_n : leave[i]<>0} '[%d,%.3f],', i, leave[i] ;
 printf ']\n';
 printf 'enter := [' ;
-printf{i in 1..int_n : int_enter[i]<>0} '[%d,%.3f],', i, int_enter[i] ;
+printf{i in 1..int_n : enter[i]<>0} '[%d,%.3f],', i, enter[i] ;
 printf ']\n';
 
 printf 'near_leave := [' ;
-printf{i in 1..int_n : int_leave[i]<>0} '[%d,%.3f],', i, int_leave[i] ;
+printf{i in 1..int_n : near_leave[i]<>0} '[%d,%.3f],', i, near_leave[i] ;
 printf ']\n';
 printf 'near_enter := [' ;
-printf{i in 1..int_n : int_enter[i]<>0} '[%d,%.3f],', i, int_enter[i] ;
+printf{i in 1..int_n : near_enter[i]<>0} '[%d,%.3f],', i, near_enter[i] ;
 printf ']\n';
 
 printf 'vertex := [' ;
