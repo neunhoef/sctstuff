@@ -796,9 +796,10 @@ SummationString := function(l,v)
 end;
 
 Simplex := function(mode,obj,A,op,b)
-  local i,j,m,o,r;
+  local i,j,m,o,r,t;
 
-  m := Filename(DirectoryTemporary(),"foo.tmp");
+  t := DirectoryTemporary();
+  m := Filename(t,"model.mp");
   o := OutputTextFile(m,false);
   SetPrintFormattingStatus(o,false);
   PrintTo(o,Concatenation(
@@ -811,11 +812,13 @@ Simplex := function(mode,obj,A,op,b)
         SummationString(A[i],"v"),
         op[i],PrintString(b[i])," ;\n" ));
   od;
+  t := "results.g";
   AppendTo(o,
       "solve ;\n",
-      "printf '[';",
-      "printf{i in 1..",PrintString(Length(obj)),"} '%.3f,', v[i];",
-      "printf ']\\n';"
+      "param f symbolic := '",t,"' ;\n",
+      "printf 'results := [' > f;\n",
+      "printf{i in 1..",PrintString(Length(obj)),"} '%.3f,', v[i] >>f;\n",
+      "printf '];\\n' >>f;\n"
   );
   CloseStream(o);
 
@@ -828,19 +831,19 @@ Simplex := function(mode,obj,A,op,b)
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
 
-  o := rec( feasible := false );
-  r := SplitString(r,"\n");
-  for i in [1..Length(r)] do
-    if r[i] = "OPTIMAL SOLUTION FOUND" then
-      o.feasible := true;
-      # v.value := ;
-    fi;
-  od;
-  if o.feasible=true then 
-    j := r[Length(r)-1];
-    RemoveCharacters(j,"[]\n");
-    o.param := List(SplitString(j,","),Rat);
-  fi;
+#  o := rec( feasible := false );
+#  r := SplitString(r,"\n");
+#  for i in [1..Length(r)] do
+#    if r[i] = "OPTIMAL SOLUTION FOUND" then
+#      o.feasible := true;
+#      # v.value := ;
+#    fi;
+#  od;
+#  if o.feasible=true then 
+#    j := r[Length(r)-1];
+#    RemoveCharacters(j,"[]\n");
+#    o.param := List(SplitString(j,","),Rat);
+#  fi;
   return o;
 end;
 
