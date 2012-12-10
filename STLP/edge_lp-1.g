@@ -576,28 +576,14 @@ ComputeInternalEdges := function(s)
   Info(InfoSTLP,1,"Number of internal halfedges: ",Length(s!.halfedges),".");
 end;
 
-DoulbeSelfComplementEdges := function(s)
-  local i,o,he;
-
-  o := Length(s!.halfedges);
-  for i in [1..Length(s!.halfedges)] do
-    he := s!.halfedges[i];
-    if he.complement=i then
-      Add(s!.halfedges, ShallowCopy(he));
-      he.complement := Length(s!.halfedges);
-    fi;
-  od;
-  Info(InfoSTLP,1,"Added ",Length(s!.halfedges)-o," complements for self-complement halfedges.");
-end;
-
 ComputeBoundaryEdges := function(s)
   # Takes a STLP-Problem and computes all boundary (half-)edges 
   # avoiding those that consume over half a relator.
   # Adds these into the "!.halfedges" component with .complement=0
-  local i,j,k,l,r,he;
+  local i,j,k,l,o,r,he;
   Info(InfoSTLP,1,"Computing boundary edges...");
 
-  s!.internal_halfedges_n := Length(s!.halfedges);
+  o := Length(s!.halfedges);
   for i in [1..Length(s!.relators)] do
     r := s!.relators[i];
     l := RelatorLength(r);
@@ -609,7 +595,7 @@ ComputeBoundaryEdges := function(s)
       od;
     od;
   od;
-  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-s!.internal_halfedges_n,".");
+  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-o,".");
 end;
 
 ### Index Edges ###
@@ -849,89 +835,72 @@ Simplex := function(mode,obj,A,op,b)
   return o;
 end;
 
-
-PrintTuple := function(a,b)
-  return Concatenation("x",PrintString(a),"y",PrintString(b));
-end;
-
 LinearSTLP := function(s)
-  local d,i,j,k,o,r,DataV,DataS,Edges,BoundaryLength;
+  local i,j,r,c,index,obj,A,b,op,BoundaryLength,ProcIndex;
 
-  d := Filename(DirectoryTemporary(),"foo.tmp");
-  o := OutputTextFile(d,false);
-  SetPrintFormattingStatus(o,false);
-  PrintTo(o,"# \n");
-  DataV := function(s,v)
-    AppendTo(o,s," := ",PrintString(v)," ;\n");
-  end;
-  DataS := function(s,l)
-    AppendTo(o,s," := ",JoinStringsWithSeparator(l," ")," ;\n");
-  end;
-  DataV("param int_n", s!.internal_halfedges_n );
-  DataV("param ext_n", Length(s!.halfedges) );
-  DataS("set notches",Concatenation(
-    List([1..Length(s!.relators)], 
-      r->List([1..RelatorLength(s!.relators[r])],
-        j->PrintTuple(r,j)) )
-  ));
-
-  Edges := function(n,idx,f)
-    local i,r;
-    for r in [1..Length(s!.relators)] do
-      for i in [1..RelatorLength(s!.relators[r])] do
-        DataS(Concatenation(n,"[",PrintTuple(r,i),"]"),Filtered(idx[r][i],f));
-      od;
-    od;
-  end;
-  Edges("set int_head_notches", s!.heindex_start, j->j<=s!.internal_halfedges_n);
-  Edges("set int_tail_notches", s!.heindex_end, j->j<=s!.internal_halfedges_n);
-  Edges("set ext_head_notches", s!.heindex_start, j->j>s!.internal_halfedges_n);
-  Edges("set ext_tail_notches", s!.heindex_end, j->j>s!.internal_halfedges_n);
-
-  DataV("param pairs_n",s!.internal_halfedges_n/2);
-  k := 1;
-  AppendTo(o,"param pairs : 1 2 := ");
-  for i in [1..Length(s!.halfedges)] do
-    j := s!.halfedges[i].complement;
-    if j>i then
-  AppendTo(o,"\n            ",PrintString(k)," ",PrintString(i)," ",PrintString(j));
-      k := k + 1;
-    fi;
-  od;
-  AppendTo(o," ;\n"); 
-
+  c := Length(s!.halfedges);
   BoundaryLength := function(he)
     if he.complement=0 then 
       return he.length; # / RelatorLength(s!.relators[he.relator]);
     else return 0; fi;
   end;
+  obj := List(s!.halfedges,BoundaryLength);
 
-  AppendTo(o,"param length := ");
-  for i in [1..Length(s!.halfedges)] do
-    AppendTo(o, Concatenation(
-        "[",PrintString(i),"] ",
-        PrintString(s!.halfedges[i].length)," "
-    ) );
+  r := 0;
+  index := []; 
+  for i in [1..Length(s!.relators)] do
+    index[i] := r; 
+    r := r + Length(s!.relators[i].primword);
   od;
-  AppendTo(o,";\n");
-  AppendTo(o,"\nend ;\n");
-  CloseStream(o);
 
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d ",d,"\n");
-  r := "";
-  o := OutputTextString(r,true);
-  Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
-          InputTextNone(),o,["-m","edge_lp.mp","-d",d]);
-  # Use DirectoriesPackageLibrary(..) in future.
-  CloseStream(o);
-  Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
+  A := NullMat(r,c);   # equations x variables
+  ProcIndex := function(idx,v)
+    local i,j,k,r;
+    for i in [1..Length(s!.relators)] do
+      r := s!.relators[i];
+      for j in [1..Length(r.primword)] do
+        for k in idx[i][j] do
+          # Assert(0, A[index[i]+j][k]=0, "Edge has two starting locations.");
+          if k=s!.halfedges[k].complement then
+            A[index[i]+j][k] := 2*v;
+          else
+            A[index[i]+j][k] := v;
+          fi;
+        od;
+      od;
+    od;
+  end;
+  ProcIndex(s!.heindex_start,1);
+  ProcIndex(s!.heindex_end,-1);
+
+  for i in [1..Length(s!.halfedges)] do
+    j := s!.halfedges[i].complement;
+    if j > i then
+      b := ListWithIdenticalEntries(c,0);
+      b[i] := 1;
+      b[j] := -1;
+      Add(A,b);
+      r := r + 1;
+    fi;
+  od;
+
+  b := ListWithIdenticalEntries(r,0);
+  op := ListWithIdenticalEntries(r,"=");
+
+  Append(A, [ListWithIdenticalEntries(c,1),obj]);
+  Append(b, [1,6]);
+  Append(op, [">=","="]);
+
+  # Break our lovely objective function to look for minimum number of edges.
+  obj := ListWithIdenticalEntries(c,1);  
+
+  return Simplex("minimize",obj,A,op,b);
 end;
 
 ### Testing Utilities ###
 
 DoAll := function(s)
     ComputeInternalEdges(s);
-    DoulbeSelfComplementEdges(s);
     ComputeBoundaryEdges(s);
     # RemoveForbiddenEdges(s);
     IndexEdges(s);

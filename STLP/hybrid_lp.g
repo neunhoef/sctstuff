@@ -765,8 +765,8 @@ BuildVertices := function(s,curvature)
   od;
   Sort(vertices, function(a,b) return a.name < b.name; end );
   Uniqueish(vertices, x->x.name );
-  Info(InfoSTLP,1,"Number of curved vertices: ",Length(vertices),".");
-  return vertices;
+  Info(InfoSTLP,1,"Found ",Length(vertices)," vertices with curvature >= ",curvature,".");
+  s!.vertices := vertices;
 end;
 
 ### STLP Linear Program ###
@@ -850,8 +850,12 @@ Simplex := function(mode,obj,A,op,b)
 end;
 
 
-PrintTuple := function(a,b)
+PrintName := function(a,b)
   return Concatenation("x",PrintString(a),"y",PrintString(b));
+end;
+
+PrintTuple := function(l)
+  return Concatenation("(",JoinStringsWithSeparator(List(l,PrintString),","),")");
 end;
 
 LinearSTLP := function(s)
@@ -872,14 +876,14 @@ LinearSTLP := function(s)
   DataS("set notches",Concatenation(
     List([1..Length(s!.relators)], 
       r->List([1..RelatorLength(s!.relators[r])],
-        j->PrintTuple(r,j)) )
+        j->PrintName(r,j)) )
   ));
 
   Edges := function(n,idx,f)
     local i,r;
     for r in [1..Length(s!.relators)] do
       for i in [1..RelatorLength(s!.relators[r])] do
-        DataS(Concatenation(n,"[",PrintTuple(r,i),"]"),Filtered(idx[r][i],f));
+        DataS(Concatenation(n,"[",PrintName(r,i),"]"),Filtered(idx[r][i],f));
       od;
     od;
   end;
@@ -914,14 +918,25 @@ LinearSTLP := function(s)
     ) );
   od;
   AppendTo(o,";\n");
+
+  DataV("param vertices_n", Length(s!.vertices) );
+  for i in [1..Length(s!.vertices)] do
+    k := s!.vertices[i];
+    DataS( Concatenation("set vertex_heads[",PrintString(i),"]"), 
+      List(Collected(k.incoming), PrintTuple) );
+    DataS( Concatenation("set vertex_tails[",PrintString(i),"]"), 
+      List(Collected(k.outgoing), PrintTuple) );
+  od;
+
   AppendTo(o,"\nend ;\n");
   CloseStream(o);
 
-  Info(InfoSTLP,1,"Running Simplex : glpsol -m edge_lp.mp -d ",d,"\n");
+
+  Info(InfoSTLP,1,"Running Simplex : glpsol -m hybrid_lp.mp -d ",d,"\n");
   r := "";
   o := OutputTextString(r,true);
   Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
-          InputTextNone(),o,["-m","edge_lp.mp","-d",d]);
+          InputTextNone(),o,["-m","hybrid_lp.mp","-d",d]);
   # Use DirectoriesPackageLibrary(..) in future.
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
@@ -929,9 +944,11 @@ end;
 
 ### Testing Utilities ###
 
-DoAll := function(s)
+DoAll := function(s,curvature)
     ComputeInternalEdges(s);
     DoulbeSelfComplementEdges(s);
+    IndexEdges(s);
+    BuildVertices(s,curvature);
     ComputeBoundaryEdges(s);
     # RemoveForbiddenEdges(s);
     IndexEdges(s);
