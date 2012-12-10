@@ -56,12 +56,15 @@ s.t. ext_leave_notch{i in notches} :
     sum{j in int_head_notches[i]} enter[j] 
   = sum{j in ext_tail_notches[i]} ext[j] ;
 
+
+param vertex_leaving{i in 1..int_n,j in 1..vertices_n} := 
+    sum{(k,n) in vertex_tails[j]} if k=i then n else 0 ;
+param vertex_entering{i in 1..int_n,j in 1..vertices_n} := 
+    sum{(k,n) in vertex_heads[j]} if k=i then n else 0 ;
 s.t. edge{i in 1..int_n} : 
-    sum{j in 1..vertices_n} ( sum{(k,n) in vertex_tails[j]}
-        if k=i then n*vertex[j] else 0 )
+    sum{j in 1..vertices_n} ( vertex_leaving[i,j]*vertex[j] )
   + leave[i] + near_leave[i] 
-  = sum{j in 1..vertices_n} ( sum{(k,n) in vertex_heads[j]}
-        if k=i then n*vertex[j] else 0 )
+  = sum{j in 1..vertices_n} ( vertex_entering[i,j]*vertex[j] )
   + enter[i] + near_enter[i] ;
 
 # s.t. letters{i in 1..letters_n} : 
