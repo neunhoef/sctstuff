@@ -33,8 +33,11 @@ minimize obj : sum{i in 1..int_n} (int[i] + int_leave[i] + int_enter[i] + int_bo
 s.t. boundary_length_six : sum{i in int_n+1..ext_n} length[i]*ext[i] = 6 ;
 
 s.t. complement{i in 1..pairs_n} :
-    int[pairs[i,1]] + int_leave[pairs[i,1]] + int_enter[pairs[i,1]] + int_both[pairs[i,1]]
-  - int[pairs[i,2]] - int_leave[pairs[i,2]] - int_enter[pairs[i,2]] - int_both[pairs[i,2]] = 0 ; 
+    int[pairs[i,1]] + int_leave[pairs[i,1]] + int_enter[pairs[i,1]] 
+  = int[pairs[i,2]] + int_leave[pairs[i,2]] + int_enter[pairs[i,2]] ; 
+
+s.t. complement_both{i in 1..pairs_n} :
+    int_both[pairs[i,1]] = int_both[pairs[i,2]] ; 
 
 s.t. int_notch{i in notches} : 
     sum{j in int_head_notches[i]} (int[j] + int_leave[j])

@@ -33,22 +33,25 @@ minimize obj : sum{i in 1..int_n} (int[i] + int_leave[i] + int_enter[i] + int_bo
 s.t. boundary_length_six : sum{i in int_n+1..ext_n} length[i]*ext[i] = 6 ;
 
 s.t. complement{i in 1..pairs_n} :
-    int[pairs[i,1]] + int_leave[pairs[i,1]] + int_enter[pairs[i,1]] + int_both[pairs[i,1]]
-  - int[pairs[i,2]] - int_leave[pairs[i,2]] - int_enter[pairs[i,2]] - int_both[pairs[i,2]] = 0 ; 
+    int[pairs[i,1]] + int_leave[pairs[i,1]] + int_enter[pairs[i,1]] 
+  = int[pairs[i,2]] + int_leave[pairs[i,2]] + int_enter[pairs[i,2]] ; 
+
+s.t. complement_both{i in 1..pairs_n} :
+    int_both[pairs[i,1]] = int_both[pairs[i,2]] ; 
 
 s.t. int_notch{i in notches} : 
     sum{j in int_head_notches[i]} (int[j] + int_leave[j])
   - sum{j in int_tail_notches[i]} (int[j] + int_enter[j]) = 0 ;
 
 s.t. ext_enter_notch{i in notches} : 
-    sum{j in ext_head_notches[i]} ext[j]
-  - sum{j in int_tail_notches[i]} int_leave[j] 
-  - sum{j in int_tail_notches[i]} int_both[j] = 0 ;
+    sum{j in int_tail_notches[i]} int_leave[j] 
+  + sum{j in int_tail_notches[i]} int_both[j]
+  = sum{j in ext_head_notches[i]} ext[j] ;
 
 s.t. ext_leave_notch{i in notches} : 
     sum{j in int_head_notches[i]} int_enter[j] 
   + sum{j in int_head_notches[i]} int_both[j] 
-  - sum{j in ext_tail_notches[i]} ext[j] = 0 ;
+  = sum{j in ext_tail_notches[i]} ext[j] ;
 
 # s.t. letters{i in 1..letters_n} : 
 #     sum{j in letter_edges[i]} (int[j] + int_leave[j] + int_enter[j] + int_both[j] + ext[j])
