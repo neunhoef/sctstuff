@@ -809,6 +809,7 @@ Simplex := function(mode,obj,A,op,b)
   for i in [1..Length(A)] do
     AppendTo(o,Concatenation(
         "s.t. c",PrintString(i)," : ",
+
         SummationString(A[i],"v"),
         op[i],PrintString(b[i])," ;\n" ));
   od;
@@ -817,7 +818,7 @@ Simplex := function(mode,obj,A,op,b)
       "solve ;\n",
       "param f symbolic := '",t,"' ;\n",
       "printf 'results := [' > f;\n",
-      "printf{i in 1..",PrintString(Length(obj)),"} '%.3f,', v[i] >>f;\n",
+      "printf{i in 1..",PrintString(Length(obj)),": v[i]<>0} '[%d,%.3f],', i,v[i] >>f;\n",
       "printf '];\\n' >>f;\n"
   );
   CloseStream(o);
