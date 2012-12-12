@@ -30,9 +30,12 @@ var vertex{1..vertices_n} integer ;
 # set letter_edges{1..letters_n} ;
 
 
-minimize obj : sum{i in 1..int_n} (near_leave[i] + near_enter[i]) ;
+minimize obj : 0 ; 
+# sum{i in 1..int_n} (near_leave[i] + near_enter[i]) ;
 
 s.t. boundary_length_six : sum{i in int_n+1..ext_n} length[i]*ext[i] = 6 ;
+
+s.t. nontrivial : sum{i in 1..vertices_n} vertex[i] >= 1;
 
 s.t. complement{i in 1..pairs_n} :
     leave[pairs[i,1]] + enter[pairs[i,1]] 
