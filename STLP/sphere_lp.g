@@ -576,14 +576,28 @@ ComputeInternalEdges := function(s)
   Info(InfoSTLP,1,"Number of internal halfedges: ",Length(s!.halfedges),".");
 end;
 
+DoulbeSelfComplementEdges := function(s)
+  local i,o,he;
+
+  o := Length(s!.halfedges);
+  for i in [1..Length(s!.halfedges)] do
+    he := s!.halfedges[i];
+    if he.complement=i then
+      Add(s!.halfedges, ShallowCopy(he));
+      he.complement := Length(s!.halfedges);
+    fi;
+  od;
+  Info(InfoSTLP,1,"Added ",Length(s!.halfedges)-o," complements for self-complement halfedges.");
+end;
+
 ComputeBoundaryEdges := function(s)
   # Takes a STLP-Problem and computes all boundary (half-)edges 
   # avoiding those that consume over half a relator.
   # Adds these into the "!.halfedges" component with .complement=0
-  local i,j,k,l,o,r,he;
+  local i,j,k,l,r,he;
   Info(InfoSTLP,1,"Computing boundary edges...");
 
-  o := Length(s!.halfedges);
+  s!.internal_halfedges_n := Length(s!.halfedges);
   for i in [1..Length(s!.relators)] do
     r := s!.relators[i];
     l := RelatorLength(r);
@@ -595,7 +609,7 @@ ComputeBoundaryEdges := function(s)
       od;
     od;
   od;
-  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-o,".");
+  Info(InfoSTLP,1,"Number of boundary halfedges: ",Length(s!.halfedges)-s!.internal_halfedges_n,".");
 end;
 
 ### Index Edges ###
@@ -760,7 +774,7 @@ BuildVertices := function(s,curvature)
   od;
   Sort(vertices, function(a,b) return a.name < b.name; end );
   Uniqueish(vertices, x->x.name );
-  Info(InfoSTLP,1,"Number of curved vertices: ",Length(vertices),".");
+  Info(InfoSTLP,1,"Found ",Length(vertices)," vertices with curvature >= ",curvature,".");
   s!.vertices := vertices;
 end;
 
@@ -796,10 +810,9 @@ SummationString := function(l,v)
 end;
 
 Simplex := function(mode,obj,A,op,b)
-  local i,j,m,o,r,t;
+  local i,j,m,o,r;
 
-  t := DirectoryTemporary();
-  m := Filename(t,"model.mp");
+  m := Filename(DirectoryTemporary(),"foo.tmp");
   o := OutputTextFile(m,false);
   SetPrintFormattingStatus(o,false);
   PrintTo(o,Concatenation(
@@ -809,17 +822,14 @@ Simplex := function(mode,obj,A,op,b)
   for i in [1..Length(A)] do
     AppendTo(o,Concatenation(
         "s.t. c",PrintString(i)," : ",
-
         SummationString(A[i],"v"),
         op[i],PrintString(b[i])," ;\n" ));
   od;
-  t := "results.g";
   AppendTo(o,
       "solve ;\n",
-      "param f symbolic := '",t,"' ;\n",
-      "printf 'results := [' > f;\n",
-      "printf{i in 1..",PrintString(Length(obj)),": v[i]<>0} '[%d,%.3f],', i,v[i] >>f;\n",
-      "printf '];\\n' >>f;\n"
+      "printf '[';",
+      "printf{i in 1..",PrintString(Length(obj)),"} '%.3f,', v[i];",
+      "printf ']\\n';"
   );
   CloseStream(o);
 
@@ -832,85 +842,155 @@ Simplex := function(mode,obj,A,op,b)
   CloseStream(o);
   Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
 
-#  o := rec( feasible := false );
-#  r := SplitString(r,"\n");
-#  for i in [1..Length(r)] do
-#    if r[i] = "OPTIMAL SOLUTION FOUND" then
-#      o.feasible := true;
-#      # v.value := ;
-#    fi;
-#  od;
-#  if o.feasible=true then 
-#    j := r[Length(r)-1];
-#    RemoveCharacters(j,"[]\n");
-#    o.param := List(SplitString(j,","),Rat);
-#  fi;
+  o := rec( feasible := false );
+  r := SplitString(r,"\n");
+  for i in [1..Length(r)] do
+    if r[i] = "OPTIMAL SOLUTION FOUND" then
+      o.feasible := true;
+      # v.value := ;
+    fi;
+  od;
+  if o.feasible=true then 
+    j := r[Length(r)-1];
+    RemoveCharacters(j,"[]\n");
+    o.param := List(SplitString(j,","),Rat);
+  fi;
   return o;
 end;
 
+
+PrintName := function(a,b)
+  return Concatenation("x",PrintString(a),"y",PrintString(b));
+end;
+
+PrintTuple := function(l)
+  return Concatenation("(",JoinStringsWithSeparator(List(l,PrintString),","),")");
+end;
+
 LinearSTLP := function(s)
-  local r,c,he,obj,A,Afaces,Aeuler,op,b,index,i,j,k,vertices,v;
-  vertices := s!.vertices;
-  c := Length(vertices) + Length(s!.relators); 
-  r := Length(s!.halfedges) + 1; 
-  index := []; 
-  for i in [1..Length(s!.relators)] do
-    index[i] := r; 
-    r := r + Length(s!.relators[i].primword);
-  od; 
-  A := NullMat(r,c);   # equations x variables
-  Aeuler := ListWithIdenticalEntries(c,0);
-  Afaces := ListWithIdenticalEntries(c,0);
-  obj := ListWithIdenticalEntries(c,0);
-  for i in [1..Length(vertices)] do
-    if vertices[i].boundary then
-      Aeuler[i] := -1 + 1/vertices[i].valency;
-    fi; 
-    for v in vertices[i].outgoing do
-      A[v][i] := A[v][i] - 1; 
-      he := s!.halfedges[v]; 
-      for j in [1..he.length] do
-        k := index[he.relator] + 
-               IndexPrimWord(s!.relators[he.relator], he.start+j);
-        A[k][i] := A[k][i] + 1; 
-      od; 
-    od; 
-    for v in vertices[i].incoming do
-      A[v][i] := A[v][i] + 1;
-      # We'll skip counting outgoing half edges in the relator counts
-    od;
-    if vertices[i].boundary=true then
-      j := vertices[i].outgoing[1];
-      he := s!.halfedges[j];
-      obj[i] := obj[i] + he.length;
+  local d,i,j,k,l,o,r,DataV,DataS,Edges,BoundaryLength;
+
+  d := Filename(DirectoryTemporary(),"foo.tmp");
+  o := OutputTextFile(d,false);
+  SetPrintFormattingStatus(o,false);
+  PrintTo(o,"# \n");
+  DataV := function(s,v)
+    AppendTo(o,s," := ",PrintString(v)," ;\n");
+  end;
+  DataS := function(s,l)
+    AppendTo(o,s," := ",JoinStringsWithSeparator(l," ")," ;\n");
+  end;
+  DataV("param int_n", s!.internal_halfedges_n );
+  DataV("param ext_n", Length(s!.halfedges) );
+
+#  DataS("set notches",Concatenation(
+#    List([1..Length(s!.relators)], 
+#      r->List([1..RelatorLength(s!.relators[r])],
+#        j->PrintName(r,j)) )
+#  ));
+#  Edges := function(n,idx,f)
+#    local i,r;
+#    for r in [1..Length(s!.relators)] do
+#      for i in [1..RelatorLength(s!.relators[r])] do
+#        DataS(Concatenation(n,"[",PrintName(r,i),"]"),Filtered(idx[r][i],f));
+#      od;
+#    od;
+#  end;
+#  Edges("set int_head_notches", s!.heindex_start, j->j<=s!.internal_halfedges_n);
+#  Edges("set int_tail_notches", s!.heindex_end, j->j<=s!.internal_halfedges_n);
+#  Edges("set ext_head_notches", s!.heindex_start, j->j>s!.internal_halfedges_n);
+#  Edges("set ext_tail_notches", s!.heindex_end, j->j>s!.internal_halfedges_n);
+
+  DataV("param pairs_n",s!.internal_halfedges_n/2);
+  k := 1;
+  AppendTo(o,"param pairs : 1 2 := ");
+  for i in [1..Length(s!.halfedges)] do
+    j := s!.halfedges[i].complement;
+    if j>i then
+  AppendTo(o,"\n            ",PrintString(k)," ",PrintString(i)," ",PrintString(j));
+      k := k + 1;
     fi;
   od;
+  AppendTo(o," ;\n"); 
+
+  BoundaryLength := function(he)
+    if he.complement=0 then 
+      return he.length; # / RelatorLength(s!.relators[he.relator]);
+    else return 0; fi;
+  end;
+
+  AppendTo(o,"param length := ");
+  for i in [1..Length(s!.halfedges)] do
+    AppendTo(o, Concatenation(
+        "[",PrintString(i),"] ",
+        PrintString(s!.halfedges[i].length)," "
+    ) );
+  od;
+  AppendTo(o,";\n");
+
+  DataV("param vertices_n", Length(s!.vertices) );
+  for i in [1..Length(s!.vertices)] do
+    k := s!.vertices[i];
+    DataS( Concatenation("set vertex_heads[",PrintString(i),"]"), 
+      List(Collected(k.incoming), PrintTuple) );
+    DataS( Concatenation("set vertex_tails[",PrintString(i),"]"), 
+      List(Collected(k.outgoing), PrintTuple) );
+  od;
+
+  DataV("param faces_n", Length(s!.relators) ) ;
+  r := Maximum(List(s!.relators,r->RelatorLength(r)));
+  DataV("param face_length_n", r ) ;
+  l := List([1..Length(s!.relators)], a->List([1..r], b->[])); 
+  for i in [1..Length(s!.vertices)] do 
+    r := s!.vertices[i]; 
+    for j in List(r.outgoing, e->s!.halfedges[e]) do
+      for k in [j.start..j.start+j.length] do
+        Add(l[j.relator][IndexPrimWord(s!.relators[j.relator],k)],i);
+      od; 
+    od; 
+  od; 
   for i in [1..Length(s!.relators)] do
-    Afaces[Length(vertices)+i] := 1;
-    Aeuler[Length(vertices)+i] := 1;
-    k := s!.relators[i];
-    for j in [1..Length(k.primword)] do
-      A[index[i]+j][Length(vertices)+i] := -k.power;
+    r := s!.relators[i];
+    DataV(Concatenation("param face_power[",PrintString(i),"]"), r.power );
+    for j in [1..RelatorLength(r)] do
+      DataS( 
+Concatenation("set vertex_by_letter[",PrintString(i),",",PrintString(j),"]"), 
+List(Collected(l[i][j]), PrintTuple)
+      );
     od;
   od;
-  b := ListWithIdenticalEntries(r,0);
-  op := ListWithIdenticalEntries(r,"==");
-  Append(A, [Aeuler, Afaces]);
-  Append(b, [1, 1]);
-  Append(op, ["==", "<="]);
-  return Simplex("minimize",obj,A,op,b);
+
+  DataV("param f", Concatenation(s!.name,"_res.g"); ) ;
+  AppendTo(o,"\nend ;\n");
+  CloseStream(o);
+
+  k := "sphere_lp-float.mp";
+  Info(InfoSTLP,1,"Running Simplex : glpsol -m ",k," -d ",d,"\n");
+  r := "";
+  o := OutputTextString(r,true);
+  Process(DirectoryCurrent(),"/opt/local/bin/glpsol",
+          InputTextNone(),o,["-m",k,"-d",d]);
+  # Use DirectoriesPackageLibrary(..) in future.
+  CloseStream(o);
+  Info(InfoSTLP,1,"Simplex returned : ",r,"\n");
 end;
 
 ### Testing Utilities ###
 
 DoAll := function(s,curvature)
     ComputeInternalEdges(s);
+    DoulbeSelfComplementEdges(s);
+    IndexEdges(s);
+    BuildVertices(s,curvature);
     ComputeBoundaryEdges(s);
     # RemoveForbiddenEdges(s);
     IndexEdges(s);
-    BuildVertices(s,curvature);
     LinearSTLP(s);
 end;
+
+# y := []; for i in [1..Length(x)] do if x[i] <> 0. then Add(y,[i,x[i]]); fi; od; y;
+# List(y,z->[z[2],s!.halfedges[z[1]]]);
+
 
 
 # Sample input:
@@ -1043,4 +1123,19 @@ s := MakeProblem(pongo, invtab, relators, rewrites);
 
 free := MakeProblem(pongo, invtab, [], rewrites);
 
+
+ReadBenchmarks := function()
+  local c;
+  c := DirectoryCurrent();
+  ChangeDirectoryCurrent("../bench/");
+  Read("SCTbench.g");  
+  ChangeDirectoryCurrent(Filename(c,"."));
+end;
+
+DoBench := function(b,curvature)
+  local s;
+  s := MakeProblem(pongo, invtab, b.rels, rewrites);
+  s!.name := PrintString(b.id);
+  DoAll(s,curvature);
+end;
 

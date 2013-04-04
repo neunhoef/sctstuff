@@ -30,9 +30,12 @@ var vertex{1..vertices_n} integer ;
 # set letter_edges{1..letters_n} ;
 
 
-minimize obj : sum{i in 1..int_n} (near_leave[i] + near_enter[i]) ;
+minimize obj : 0 ; 
+# sum{i in 1..int_n} (near_leave[i] + near_enter[i]) ;
 
 s.t. boundary_length_six : sum{i in int_n+1..ext_n} length[i]*ext[i] = 6 ;
+
+s.t. nontrivial : sum{i in 1..vertices_n} vertex[i] >= 1;
 
 s.t. complement{i in 1..pairs_n} :
     leave[pairs[i,1]] + enter[pairs[i,1]] 
@@ -73,27 +76,29 @@ s.t. edge{i in 1..int_n} :
 
 solve ;
 
-printf 'ext := [' ;
-printf{i in int_n+1..ext_n : ext[i]<>0} '[%d,%.3f],', i, ext[i] ;
-printf ']\n';
+param f symbolic := "results.g";
 
-printf 'leave := [' ;
-printf{i in 1..int_n : leave[i]<>0} '[%d,%.3f],', i, leave[i] ;
-printf ']\n';
-printf 'enter := [' ;
-printf{i in 1..int_n : enter[i]<>0} '[%d,%.3f],', i, enter[i] ;
-printf ']\n';
+printf 'ext := [' >f ;
+printf{i in int_n+1..ext_n : ext[i]<>0} '[%d,%.3f],', i, ext[i] >>f ;
+printf ']\n' >>f ;
 
-printf 'near_leave := [' ;
-printf{i in 1..int_n : near_leave[i]<>0} '[%d,%.3f],', i, near_leave[i] ;
-printf ']\n';
-printf 'near_enter := [' ;
-printf{i in 1..int_n : near_enter[i]<>0} '[%d,%.3f],', i, near_enter[i] ;
-printf ']\n';
+printf 'leave := [' >>f ;
+printf{i in 1..int_n : leave[i]<>0} '[%d,%.3f],', i, leave[i] >>f ;
+printf ']\n' >>f ;
+printf 'enter := [' >>f ;
+printf{i in 1..int_n : enter[i]<>0} '[%d,%.3f],', i, enter[i] >>f ;
+printf ']\n' >>f ;
 
-printf 'vertex := [' ;
-printf{i in 1..vertices_n : vertex[i]<>0} '[%d,%.3f],', i, vertex[i] ;
-printf ']\n';
+printf 'near_leave := [' >>f ;
+printf{i in 1..int_n : near_leave[i]<>0} '[%d,%.3f],', i, near_leave[i] >>f ;
+printf ']\n' >>f ;
+printf 'near_enter := [' >>f ;
+printf{i in 1..int_n : near_enter[i]<>0} '[%d,%.3f],', i, near_enter[i] >>f ;
+printf ']\n' >>f ;
+
+printf 'vertex := [' >>f ;
+printf{i in 1..vertices_n : vertex[i]<>0} '[%d,%.3f],', i, vertex[i] >>f ;
+printf ']\n' >>f ;
 
 end ;
 

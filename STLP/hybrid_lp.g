@@ -604,7 +604,7 @@ ComputeBoundaryEdges := function(s)
     for j in [1..Length(r.primword)] do
       for k in [1..Int(l/2)] do
         he := rec( relator := i, start := j, length := k,
-                   complement := 0, contrib := -1 + k/l );
+                   complement := 0, contrib := (-1 + k/l)/2 );
         Add(s!.halfedges, he);
       od;
     od;
@@ -682,13 +682,13 @@ AddToVertexIOLeft := function(s,v,i,o)
   ); 
 end;
 
-CompleteExtVertexILeft := function(v,i)
+CompleteExtVertexILeft := function(s,v,i)
   # A final boundary edge going counter clockwise must be incoming.
   return rec( incoming := Concatenation([i],v.incoming), 
               outgoing := v.outgoing,
               name := v.outgoing, 
               p := v.p, 
-              curvature := v.curvature,
+              curvature := v.curvature + s!.halfedges[i].contrib,
               boundary := true, 
               valency := v.valency + 1
       ); 
@@ -708,6 +708,13 @@ CompleteIntVertexLeft := function(v,i)
       ); 
 end;
 
+BoundaryCancelationCheck := function(s,p,i,o)
+  local l;
+  if not IsAccepting(s!.pongo,p) then return true; fi;
+  l := List([i,o], x->s!.relators[s!.halfedges[x].relator].primword);
+  return not( Complement(s!.invtab, l[1][1][2]) = Last(l[2])[2] );
+end;
+
 BuildVertices0 := function(s,curvature,vertex)
   local i,j,he,he_head,he_tail,p1,r,vertices;
   he_head := s!.halfedges[ Last(vertex.outgoing) ];
@@ -716,8 +723,10 @@ BuildVertices0 := function(s,curvature,vertex)
   for i in s!.heindex_end[he_tail.relator][he_tail.start] do
     he := s!.halfedges[i]; 
     if he.complement=0 then
-      if he_head.complement=0 and Length(vertex.outgoing) > 1 then
-        Add(vertices, CompleteExtVertexILeft(vertex,i) );
+      if ( he_head.complement=0 and Length(vertex.outgoing) > 1 and
+           vertex.curvature + he.contrib > curvature and
+           BoundaryCancelationCheck(s,vertex.p,i,Last(vertex.outgoing)) ) then
+        Add(vertices, CompleteExtVertexILeft(s,vertex,i) );
       fi; 
       continue;
     fi; 
