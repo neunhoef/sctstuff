@@ -1,0 +1,33 @@
+parole: 
+  P fg group, generators A closed under inv
+  B bridge words: subset of E
+  E subset of elements of P, with a word for each
+  els of A and E have a weight >0 ints
+  machine A x E -> E, E x A -> E partially defined
+  cayley table for a pongo structure on E
+
+axioms:
+  ?
+
+  R relators
+  
+0) n1 b n2 b^-1
+   run machine to largest extent, trying just one way
+   replace edge ends by word that represents them
+   take this as new possible relator
+
+1) make list of all edges:
+   n1 b n2 b^-1    (two notch types and a bridge word)
+   use machine to "sew up" all edges on both sides, try all ways, but
+       remove duplicates
+   --> necklace rep
+
+2) 2-dim analysis with necklace rep and vertex pongo
+
+3) word problem solver:
+
+
+
+Claim: 
+
+  works invtab, modular group, consolidation, Derek's group
